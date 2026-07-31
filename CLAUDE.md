@@ -371,88 +371,59 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
 v3이면 tailwind.config.ts의 theme.extend.colors, v4이면 globals.css의 @theme 블록. 작업 전 Tailwind 버전 먼저 확인할 것.
 
 
-15. 현재 프로젝트 상태 (2026.06 기준, 약 50%)
+15. 현재 프로젝트 상태 (2026.07 기준, 약 65%)  ← 마지막 커밋 049e8e3
 완료된 작업
 작업
 파일
 상태
-Next.js 프로젝트 세팅
-전체 구조
+Next.js 세팅 + 디자인 토큰(@theme, 그룹 배지 6색)
+globals.css
 ✅
-Supabase DB 스키마 12개 테이블 + 시드 데이터
-Supabase
+카카오 OAuth 로그인 + 콜백 + 로그아웃 + users self-heal
+src/app/api/auth/*, src/app/auth/callback
 ✅
-카카오 OAuth 로그인 전체 흐름
-src/app/api/auth/kakao/route.ts
+온보딩(닉네임·아이정보) + 프로필 저장 API
+src/app/onboarding, src/app/api/auth/profile
 ✅
-OAuth 콜백 처리
-src/app/auth/callback/route.ts
-✅
-로그아웃 라우트
-src/app/api/auth/logout/route.ts
-✅ (미검증)
-알라딘 검색 API 프록시
+알라딘 검색 API(CID 기준 + mallType 필터)
 src/app/api/aladin/search/route.ts
 ✅
-추천하기 페이지 UI (검색 자동완성 드롭다운)
+기록하기 폼(검색 자동완성 드롭다운, 우리 아이 반응 3단계)
 src/app/recommend/create/page.tsx
 ✅ 저장 검증 완료
-추천 저장 API (books/posts/post_groups/post_tags 정규화 저장)
+기록 저장 API(books/posts/post_groups/post_tags 정규화)
 src/app/api/recommend/route.ts
 ✅ 저장 검증 완료
-온보딩(닉네임·아이정보) + 프로필 저장 API
-src/app/onboarding/page.tsx, src/app/api/auth/profile/route.ts
+홈 피드(SSR, 월령 6그룹 섹션, 태그 필터, 인기순 카드, 반응≥2만 노출)
+src/app/page.tsx, src/lib/feed.ts, src/components/feed/*
 ✅
-RLS 정책 SQL
-supabase/rls_policies.sql
-✅ (Supabase에 적용 완료)
-로그인/임시 환영 화면
-src/app/page.tsx
+게시물 상세(SSR, 3영역, generateMetadata)
+src/app/posts/[id]/page.tsx
 ✅
-Supabase 클라이언트
-src/lib/supabase.ts
+좋아요 토글 + 댓글 작성/삭제
+src/app/api/posts/[id]/*, src/components/post/PostReactions.tsx
 ✅
+마이페이지(프로필 편집, 독서 통계, 책육아 기록 목록)
+src/app/mypage, src/components/mypage/ProfileEditor.tsx
+✅
+공통 레이아웃(하단 탭바, 상단 헤더)
+src/components/BottomTabBar.tsx, FeedHeader.tsx
+✅
+아이 나이 자동 계산·갱신(일 단위 반영)
+src/lib/age.ts, src/components/AgeLabel.tsx
+✅
+RLS 정책 + child_reaction 마이그레이션 SQL
+supabase/rls_policies.sql, supabase/add_child_reaction.sql
+✅ (Supabase 적용 완료)
 
-현재 파일 구조
-src/
-
-├── app/
-
-│   ├── api/
-
-│   │   ├── aladin/search/route.ts     ← 알라딘 검색 API ✅
-
-│   │   ├── auth/
-
-│   │   │   ├── kakao/route.ts         ← 카카오 로그인 ✅
-
-│   │   │   └── logout/route.ts        ← 로그아웃 ✅
-
-│   │   └── recommend/route.ts         ← 추천 저장 API ✅
-
-│   ├── auth/callback/route.ts         ← OAuth 콜백 ✅
-
-│   ├── recommend/create/page.tsx      ← 추천하기 폼 UI ✅
-
-│   ├── globals.css
-
-│   ├── layout.tsx
-
-│   └── page.tsx                       ← 로그인/임시 환영화면 ✅
-
-└── lib/
-
-    └── supabase.ts
 미완료 (앞으로 만들 것)
-홈 피드 화면 (/)
-게시물 상세 페이지 (/posts/[id])
-마이페이지 (/mypage)
-공통 레이아웃 (하단 탭 바, 상단 헤더)
-좋아요·북마크·댓글
-검색 화면 고도화 및 필터
-운영자 태그 관리 / 비활성화 처리
-운영자 권한/관리 기능
-배포 및 실제 도메인 설정
+예정 기능 A/B/C (18.3): 검색 전체화면 / 저장하기 강조 + 마이페이지 2분할 / 반응 ⓘ 안내  ← 다음 작업
+책 단위 페이지 /book/[isbn] + 홈 피드 책 단위 묶기 (같은 책 통합 노출, SEO 핵심)
+검색 화면(/search 현재 스텁) 고도화 및 필터
+그룹 전체보기(/group/[value] 현재 스텁), 사진 실제 업로드(Storage, 현재 blob 미저장)
+북마크(저장)·SNS 공유(카카오/링크)
+운영자 태그 관리 / 권한·관리 기능
+배포(Vercel) 및 도메인 설정
 
 
 16. 전체 개발 공정 로드맵
@@ -470,16 +441,19 @@ src/
 ✅ 완료 (정규화 스키마 저장 검증, CID 검색 + 자동완성 드롭다운)
 4단계
 홈 피드 화면
-🔄 진행 예정 (다음 작업)
+✅ 완료 (SSR, 월령 6그룹, 태그 필터, 인기순, 반응≥2만 노출)
 5단계
 게시물 상세 페이지
-⏳
+✅ 완료 (3영역, generateMetadata, 좋아요·댓글)
 6단계
 마이페이지
-⏳
+✅ 완료 (프로필 편집, 통계, 책육아 기록)
+6.5단계
+예정 기능 A/B/C (검색 전체화면 / 저장 강조+마이페이지 2분할 / 반응 ⓘ) → 이후 /book/[isbn]
+🔄 진행 예정 (다음 작업)
 7단계
-공통 기능 (좋아요, 북마크, 댓글, 검색, SNS 공유)
-⏳
+공통 기능: 좋아요✅ 댓글✅ / 북마크(저장)·검색·SNS 공유 ⏳
+🔄 일부 완료
 8단계
 운영자 기능 (태그 관리, 타인 게시물 삭제)
 ⏳
@@ -505,12 +479,12 @@ src/
 타이포그래피
 미확정
 방향만 결정 (세리프+산세리프 페어링)
-아이와 읽은 책 모아보기
-추후 논의
-마이페이지 통계 카운팅까지만 확정
-같은 책 다수 추천 카드 UI
-추후 확인
-실제 구현 시 최종 확정
+같은 책 통합 노출 (/book/[isbn])
+설계 확정·미구현
+현재 홈 피드는 "기록 1건=카드 1개"라 같은 책이 중복 노출됨. 예정: 책 1권=카드 1개로 묶고(집계: 추천 N명·합산 좋아요·대표 반응), 클릭 시 /book/[isbn]에서 상단 책 정보 + 여러 기록 카드 누적. 글밥량은 대표값(최빈/평균).
+└ 미결정: /book/[isbn] 댓글 위치
+book 페이지 착수 시 확정
+(가) 기록별 댓글(현행, comments.post_id 그대로) / (나) 책 단위 스레드 / (다) 둘 다. 현재 추천=(가) 유지. ※ 댓글=기록 없이도 짧은 공감·반응 남기는 장치(좋아요와 함께 상세 ③반응 영역).
 신고 기능
 보류
 MVP 이후 추가
@@ -601,6 +575,9 @@ CLAUDE.md v1.2
 1~3단계 완료. 실제 정규화 DB 스키마·저장 파이프라인(13.3) 문서화, RLS 정책(supabase/rls_policies.sql) 추가. 알라딘 검색 CID 기준+자동완성 드롭다운으로 변경(13.1). users kakao_id 버그 및 저장 테이블(recommendations→posts) 버그 수정.
 CLAUDE.md v1.3
 2026.07
-4~6단계 완료(홈 피드·상세·마이페이지·좋아요·댓글). 제품 모델 확정(18장): 개인=기록/커뮤니티=추천, '우리 아이 반응' 3단계(child_reaction)로 재독 흡수, 명칭 rename. 예정 기능 A(검색 전체화면)·B(저장 강조+마이페이지 2분할)·C(반응 ⓘ 안내) 문서화. 나이 계산 일(day) 반영 수정.
+4~6단계 완료(홈 피드·상세·마이페이지·좋아요·댓글). 제품 모델 확정(18장): 개인=기록/커뮤니티=추천, '우리 아이 반응' 3단계(child_reaction)로 재독 흡수, 명칭 rename. 예정 기능 A(검색 전체화면)·B(저장 강조+마이페이지 2분할)·C(반응 ⓘ 안내) 문서화. 나이 계산 일(day) 반영 수정. 첫 커밋 049e8e3.
+CLAUDE.md v1.3.1
+2026.07
+진행 상황 최신화: 15(현재 상태 표·파일구조·미완료)·16(로드맵 4~6 완료, 6.5 예정) 갱신. 17에 '같은 책 통합 노출(/book/[isbn])' + 미결 '댓글 위치(가/나/다)' 추가.
 
 
