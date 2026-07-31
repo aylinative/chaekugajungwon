@@ -10,15 +10,19 @@ export function getZodiacName(year: number): string {
   return ZODIAC_NAMES[year % 12]
 }
 
-export function getAgeDisplay(birthDate: string): string {
+// 현재 만 개월 수 (일 단위 반영: 이번 달 생일이 안 지났으면 한 달 덜 찬 것)
+export function getMonths(birthDate: string): number {
   const birth = new Date(birthDate)
   const now = new Date()
   let months =
     (now.getFullYear() - birth.getFullYear()) * 12 +
     (now.getMonth() - birth.getMonth())
-  // 이번 달 생일(일)이 아직 안 지났으면 한 달 덜 찬 것
   if (now.getDate() < birth.getDate()) months--
-  if (months < 0) months = 0
+  return Math.max(0, months)
+}
+
+export function getAgeDisplay(birthDate: string): string {
+  const months = getMonths(birthDate)
   if (months < 36) return `${months}개월`
   if (months < 48) return '만 3살'
   if (months < 60) return '만 4살'

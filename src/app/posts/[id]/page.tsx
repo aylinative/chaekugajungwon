@@ -3,9 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI } from '@/lib/groups'
-import { getZodiacEmoji } from '@/lib/age'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
-import AgeLabel from '@/components/AgeLabel'
 import BookmarkButton from '@/components/BookmarkButton'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostReactions, { type CommentItem } from '@/components/post/PostReactions'
@@ -38,7 +36,6 @@ interface RawDetail {
     | { custom_tag: string | null; is_operator_tag: boolean; operator_tags: { name: string } | null }[]
     | null
   post_images: { image_url: string; sort_order: number }[] | null
-  post_children: { children: { birth_date: string; label: string | null } | null }[] | null
 }
 
 const DETAIL_SELECT = `id, text_density, child_reaction, content, created_at, user_id,
@@ -46,8 +43,7 @@ const DETAIL_SELECT = `id, text_density, child_reaction, content, created_at, us
   author:users!posts_user_id_fkey ( nickname ),
   post_groups ( group_name ),
   post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) ),
-  post_images ( image_url, sort_order ),
-  post_children ( children ( birth_date, label ) )`
+  post_images ( image_url, sort_order )`
 
 export async function generateMetadata({
   params,
@@ -173,9 +169,6 @@ export default async function PostDetailPage({
   const images = (post.post_images ?? [])
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order)
-  const children = (post.post_children ?? [])
-    .map((pc) => pc.children)
-    .filter((c): c is { birth_date: string; label: string | null } => Boolean(c))
 
   const pubInfo = [book?.publisher, book?.published_date].filter(Boolean).join(' · ')
 
@@ -216,19 +209,8 @@ export default async function PostDetailPage({
                 절판/품절
               </span>
             )}
-            {children.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {children.map((c, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] text-text/70"
-                  >
-                    {getZodiacEmoji(new Date(c.birth_date).getFullYear())}{' '}
-                    <AgeLabel birthDate={c.birth_date} />
-                  </span>
-                ))}
-              </div>
-            )}
+            {/* ⚠️ 아이 나이는 표시하지 않는다 — 기록 시점 기준이라 실제 읽은 시기와
+                다를 수 있어 잘못된 정보가 된다. 시기 배지(②)가 그 역할을 한다. (10.1) */}
             {book?.aladin_url && (
               <a
                 href={book.aladin_url}

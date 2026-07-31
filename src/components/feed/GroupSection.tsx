@@ -15,15 +15,10 @@ const LABEL_BY_VALUE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.value, g.label])
 )
 
-// 그룹별 연령 설명 (한글)
-const AGE_LABEL: Record<string, string> = {
-  seed: '0~12개월',
-  sprout: '12~18개월',
-  springflower: '19~30개월',
-  apple: '31개월~4살',
-  tree: '5살 이상',
-  adult: '어른도 함께',
-}
+// 시기별 연령 설명 — lib/groups.ts의 ageLabel 단일 소스 사용 (기록 폼 칩과 동일 표기)
+const AGE_LABEL: Record<string, string> = Object.fromEntries(
+  RECOMMEND_GROUPS.map((g) => [g.value, g.ageLabel])
+)
 
 export default function GroupSection({
   section,

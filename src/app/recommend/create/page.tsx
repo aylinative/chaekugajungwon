@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { RECOMMEND_GROUPS } from '@/lib/groups'
+import { RECOMMEND_GROUPS, getGroupValueByMonths } from '@/lib/groups'
 import { CHILD_REACTIONS } from '@/lib/reactions'
+import { getMonths, getAgeDisplay, getZodiacEmoji } from '@/lib/age'
 
 interface BookItem {
   title: string
@@ -60,7 +61,12 @@ export default function RecommendCreatePage() {
   const [error, setError] = useState('')
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
   const [selectedReaction, setSelectedReaction] = useState<number>(2)
+  const [showReactionInfo, setShowReactionInfo] = useState(false)
   const [selectedAmount, setSelectedAmount] = useState(3)
+  // 시기 자동 체크용: 프로필 아이 정보 + '지금/예전' 세그먼트 (읽은 시점은 저장하지 않음 — 입력 보조 전용)
+  const [children, setChildren] = useState<{ birth_date: string }[]>([])
+  const [selectedChildIdx, setSelectedChildIdx] = useState(0)
+  const [readingTime, setReadingTime] = useState<'now' | 'past'>('now')
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const [memo, setMemo] = useState('')
   const [photoUrls, setPhotoUrls] = useState<string[]>([])
@@ -112,6 +118,39 @@ export default function RecommendCreatePage() {
     setShowDropdown(false)
     setBooks([])
   }
+
+  // 프로필 아이 정보 로드 (시기 자동 체크용)
+  useEffect(() => {
+    async function loadChildren() {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('children')
+        .select('birth_date')
+        .eq('user_id', user.id)
+        .order('birth_date', { ascending: true })
+      setChildren((data as { birth_date: string }[] | null) ?? [])
+    }
+    loadChildren()
+  }, [])
+
+  // 시기 자동 체크 (9.2):
+  // - '지금 읽고 있어요' → 선택된 아이의 현재 월령에 해당하는 칩 1개만 자동 체크
+  // - '예전에 읽었어요' → 앵커 제거를 위해 전부 해제 (현재 월령은 틀린 앵커)
+  // 이후 칩은 세그먼트와 무관하게 자유롭게 다중 선택·해제 가능.
+  useEffect(() => {
+    if (children.length === 0) return
+    if (readingTime === 'past') {
+      setSelectedGroups([])
+      return
+    }
+    const child = children[selectedChildIdx] ?? children[0]
+    const autoValue = getGroupValueByMonths(getMonths(child.birth_date))
+    setSelectedGroups([autoValue])
+  }, [children, selectedChildIdx, readingTime])
 
   const toggleGroup = (groupValue: string) => {
     setSelectedGroups((current) =>
@@ -314,29 +353,109 @@ export default function RecommendCreatePage() {
         <section className="mt-4 space-y-4 rounded-2xl bg-surface p-4 shadow-sm">
           <div>
             <p className="mb-2 text-sm font-medium">이 시기 아이가 읽으면 좋아요</p>
-            <div className="flex flex-wrap gap-2">
-              {RECOMMEND_GROUPS.map((group) => (
+
+            {/* 아이 칩들 ㅣ '예전에 읽었어요' — 한 줄로 두 갈래 구분.
+                아이 칩 = 그 아이의 현재 월령 기준 자동 체크(기본) / 예전에 = 자동 체크 해제 */}
+            {children.length > 0 && (
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                {children.map((child, idx) => {
+                  const year = new Date(child.birth_date).getFullYear()
+                  const active = readingTime === 'now' && selectedChildIdx === idx
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setSelectedChildIdx(idx)
+                        setReadingTime('now')
+                      }}
+                      className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${
+                        active
+                          ? 'bg-main font-medium text-white'
+                          : 'bg-surface-muted text-text/60'
+                      }`}
+                    >
+                      <span>{getZodiacEmoji(year)}</span>
+                      {getAgeDisplay(child.birth_date)}
+                    </button>
+                  )
+                })}
+                <span className="h-4 w-px bg-text/15" aria-hidden />
                 <button
-                  key={group.value}
                   type="button"
-                  onClick={() => toggleGroup(group.value)}
-                  className={`rounded-full px-3 py-1.5 text-sm ${
-                    selectedGroups.includes(group.value)
-                      ? group.selectedClass
-                      : 'bg-surface-muted text-text'
+                  onClick={() =>
+                    setReadingTime((t) => (t === 'past' ? 'now' : 'past'))
+                  }
+                  aria-pressed={readingTime === 'past'}
+                  className={`rounded-full px-2.5 py-1 text-xs ${
+                    readingTime === 'past'
+                      ? 'bg-main font-medium text-white'
+                      : 'bg-surface-muted text-text/60'
                   }`}
                 >
-                  <span>{group.label}</span>
-                  {group.ageRange ? (
-                    <span className="ml-1 text-xs opacity-80">{group.ageRange}</span>
-                  ) : null}
+                  예전에 읽었어요
                 </button>
-              ))}
+              </div>
+            )}
+
+            {/* 시기 아이콘 칩 — 원형 이모지 + 연령 범위, 한 줄 6개 */}
+            <div className="flex justify-between">
+              {RECOMMEND_GROUPS.map((group) => {
+                const selected = selectedGroups.includes(group.value)
+                return (
+                  <button
+                    key={group.value}
+                    type="button"
+                    onClick={() => toggleGroup(group.value)}
+                    aria-pressed={selected}
+                    className="flex flex-col items-center gap-1"
+                  >
+                    <span
+                      className={`flex h-11 w-11 items-center justify-center rounded-full text-xl transition-shadow ${
+                        selected
+                          ? `${group.selectedClass} ring-2 ring-main/60 ring-offset-1`
+                          : 'bg-surface-muted'
+                      }`}
+                    >
+                      {group.emoji}
+                    </span>
+                    {/* 시기명 대신 연령 범위 표기 — 사용자는 시기 이름의 기준을 모른다 */}
+                    <span
+                      className={`text-[10px] leading-tight ${
+                        selected ? 'font-semibold text-text' : 'text-text/50'
+                      }`}
+                    >
+                      {group.ageLabel}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
+
+            {/* '예전에 읽었어요'일 때만 노출되는 힌트 */}
+            {children.length > 0 && readingTime === 'past' && (
+              <p className="mt-1.5 text-xs text-text/50">그때 시기를 골라주세요</p>
+            )}
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-medium">우리 아이 반응</p>
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-medium">
+              우리 아이 반응
+              <button
+                type="button"
+                onClick={() => setShowReactionInfo((v) => !v)}
+                aria-label="우리 아이 반응 안내"
+                aria-expanded={showReactionInfo}
+                className="flex h-4 w-4 items-center justify-center rounded-full border border-text/30 text-[10px] text-text/50"
+              >
+                i
+              </button>
+            </p>
+            {showReactionInfo && (
+              <p className="mb-2 rounded-xl bg-surface-muted px-3 py-2 text-xs text-text/60">
+                솔직한 반응이 다른 양육자들에게 도움이 돼요
+              </p>
+            )}
             <div className="flex gap-2">
               {CHILD_REACTIONS.map((reaction) => (
                 <button
@@ -354,9 +473,6 @@ export default function RecommendCreatePage() {
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 text-xs text-text/40">
-              &lsquo;자꾸 꺼내봐요&rsquo;·&lsquo;재밌어했어요&rsquo;로 남긴 책이 추천에 올라가요.
-            </p>
           </div>
 
           <div>
