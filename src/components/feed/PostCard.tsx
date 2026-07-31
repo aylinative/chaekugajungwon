@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
+import { BOOKMARK_COUNT_MIN_DISPLAY } from '@/lib/constants'
+import BookmarkButton from '@/components/BookmarkButton'
 import type { FeedCard } from '@/lib/feed'
 
 const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
@@ -17,7 +19,13 @@ function DensityStars({ value }: { value: number }) {
   )
 }
 
-export default function PostCard({ card }: { card: FeedCard }) {
+export default function PostCard({
+  card,
+  isLoggedIn,
+}: {
+  card: FeedCard
+  isLoggedIn: boolean
+}) {
   return (
     <Link
       href={`/posts/${card.id}`}
@@ -76,17 +84,33 @@ export default function PostCard({ card }: { card: FeedCard }) {
         </p>
       )}
 
-      {/* 글밥량 + 좋아요 */}
+      {/* 글밥량 + 좋아요 + 저장 */}
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1">
           <span className="text-[10px] text-text/40">글밥량</span>
           <DensityStars value={card.density} />
         </span>
-        <span className="flex items-center gap-0.5 text-xs text-text/50">
-          <span className="text-point">♥</span>
-          {card.likeCount}
+        <span className="flex items-center gap-1 text-xs text-text/50">
+          <span className="flex items-center gap-0.5">
+            <span className="text-point">♥</span>
+            {card.likeCount}
+          </span>
+          {card.bookId && (
+            <BookmarkButton
+              bookId={card.bookId}
+              initialBookmarked={card.bookmarkedByMe}
+              initialCount={card.bookmarkCount}
+              isLoggedIn={isLoggedIn}
+              variant="card"
+            />
+          )}
         </span>
       </div>
+
+      {/* 저장 수 — 임계치 미만이면 영역 자체를 렌더링하지 않음(0도 표시 금지) */}
+      {card.bookmarkCount >= BOOKMARK_COUNT_MIN_DISPLAY && (
+        <p className="text-[11px] text-text/40">{card.bookmarkCount}명이 담았어요</p>
+      )}
     </Link>
   )
 }

@@ -230,6 +230,18 @@ export async function POST(request: Request) {
     // TODO: post_images(사진), post_children(아이 태그)는
     //       실제 Storage 업로드 / 아이 선택 UI 구현 시 함께 추가.
 
+    // '아이와 함께 읽고 싶은 책'(저장)에 있던 책을 기록했으면 자동으로 저장 해제.
+    // (저장 모집단 = '아직 안 읽은 사람' — 기록했으면 목록에서 빠지는 게 맞다)
+    // 실패해도 기록 자체는 성공이므로 에러 처리 없이 로그만 남긴다.
+    const { error: unbookmarkError } = await supabase
+      .from('bookmarks')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('book_id', bookId)
+    if (unbookmarkError) {
+      console.error('Auto-unbookmark error:', unbookmarkError)
+    }
+
     return NextResponse.json({ success: true, postId })
   } catch (error) {
     console.error('Recommendation submit error:', error)

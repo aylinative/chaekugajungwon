@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI } from '@/lib/groups'
 import BottomTabBar from '@/components/BottomTabBar'
+import BookmarkList from '@/components/mypage/BookmarkList'
 import ProfileEditor from '@/components/mypage/ProfileEditor'
 
 export const metadata: Metadata = { title: '마이페이지 | 책육아정원' }
@@ -21,6 +22,17 @@ interface MyPostRow {
   likes: { count: number }[] | null
 }
 
+interface MyBookmarkRow {
+  created_at: string
+  book: {
+    id: string
+    title: string | null
+    author: string | null
+    cover_image_url: string | null
+    bookmark_count: number
+  } | null
+}
+
 export default async function MyPage() {
   const supabase = await createServerSupabase()
 
@@ -30,7 +42,7 @@ export default async function MyPage() {
 
   if (!user) redirect('/')
 
-  const [meRes, childRes, postRes] = await Promise.all([
+  const [meRes, childRes, postRes, bookmarkRes] = await Promise.all([
     supabase.from('users').select('nickname').eq('id', user.id).maybeSingle(),
     supabase
       .from('children')
@@ -44,6 +56,14 @@ export default async function MyPage() {
          book:books ( title, cover_image_url ),
          post_groups ( group_name ),
          likes ( count )`
+      )
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('bookmarks')
+      .select(
+        `created_at,
+         book:books ( id, title, author, cover_image_url, bookmark_count )`
       )
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
@@ -65,6 +85,9 @@ export default async function MyPage() {
     birth_date: c.birth_date,
   }))
   const posts = (postRows as unknown as MyPostRow[] | null) ?? []
+  const bookmarks = (
+    (bookmarkRes.data as unknown as MyBookmarkRow[] | null) ?? []
+  ).filter((b) => b.book)
 
   // 독서 통계
   const totalRecords = posts.length // 함께 읽은 기록(추천 게시물) 수
@@ -95,9 +118,11 @@ export default async function MyPage() {
           </div>
         </section>
 
-        {/* 책육아 기록 */}
+        {/* 책육아 기록 ① — 아이와 함께 읽은 책 */}
         <section>
-          <h2 className="mb-2 px-1 text-sm font-semibold text-text">책육아 기록</h2>
+          <h2 className="mb-2 px-1 text-sm font-semibold text-text">
+            아이와 함께 읽은 책
+          </h2>
           {posts.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-2xl bg-surface px-6 py-12 text-center shadow-sm">
               <span className="text-3xl">🌱</span>
@@ -170,6 +195,32 @@ export default async function MyPage() {
               })}
             </ul>
           )}
+        </section>
+
+        {/* 책육아 기록 ② — 아이와 함께 읽고 싶은 책 (저장 목록) */}
+        <section>
+          <h2 className="mb-2 flex items-center gap-1.5 px-1 text-sm font-semibold text-text">
+            아이와 함께 읽고 싶은 책
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="text-main"
+              aria-label="저장"
+            >
+              <path d="M19 21l-7-4.5L5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+            </svg>
+          </h2>
+          <BookmarkList
+            items={bookmarks.map((b) => ({
+              bookId: b.book!.id,
+              title: b.book!.title ?? '(제목 없음)',
+              author: b.book!.author,
+              cover: b.book!.cover_image_url,
+              bookmarkCount: b.book!.bookmark_count ?? 0,
+            }))}
+          />
         </section>
       </main>
 

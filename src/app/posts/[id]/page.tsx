@@ -6,6 +6,7 @@ import { RECOMMEND_GROUPS, LABEL_TO_EMOJI } from '@/lib/groups'
 import { getZodiacEmoji } from '@/lib/age'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import AgeLabel from '@/components/AgeLabel'
+import BookmarkButton from '@/components/BookmarkButton'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostReactions, { type CommentItem } from '@/components/post/PostReactions'
 
@@ -21,6 +22,7 @@ interface RawDetail {
   created_at: string
   user_id: string
   book: {
+    id: string
     title: string | null
     author: string | null
     publisher: string | null
@@ -28,6 +30,7 @@ interface RawDetail {
     cover_image_url: string | null
     aladin_url: string | null
     is_out_of_print: boolean | null
+    bookmark_count: number
   } | null
   author: { nickname: string | null } | null
   post_groups: { group_name: string }[] | null
@@ -39,7 +42,7 @@ interface RawDetail {
 }
 
 const DETAIL_SELECT = `id, text_density, child_reaction, content, created_at, user_id,
-  book:books ( title, author, publisher, published_date, cover_image_url, aladin_url, is_out_of_print ),
+  book:books ( id, title, author, publisher, published_date, cover_image_url, aladin_url, is_out_of_print, bookmark_count ),
   author:users!posts_user_id_fkey ( nickname ),
   post_groups ( group_name ),
   post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) ),
@@ -111,6 +114,7 @@ export default async function PostDetailPage({
 
   let liked = false
   let myNickname = ''
+  let bookmarkedByMe = false
   if (user) {
     const { data: likeRow } = await supabase
       .from('likes')
@@ -125,6 +129,16 @@ export default async function PostDetailPage({
       .eq('id', user.id)
       .maybeSingle()
     myNickname = (me as { nickname: string } | null)?.nickname ?? ''
+
+    if (post.book?.id) {
+      const { data: bookmarkRow } = await supabase
+        .from('bookmarks')
+        .select('book_id')
+        .eq('book_id', post.book.id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      bookmarkedByMe = Boolean(bookmarkRow)
+    }
   }
 
   const { data: commentRows } = await supabase
@@ -302,6 +316,20 @@ export default async function PostDetailPage({
 
         {/* ③ 반응 영역 */}
         <section className="mt-4 rounded-2xl bg-surface p-4 shadow-sm">
+          {book?.id && (
+            <div className="mb-4 border-b border-black/5 pb-4">
+              <BookmarkButton
+                bookId={book.id}
+                initialBookmarked={bookmarkedByMe}
+                initialCount={book.bookmark_count ?? 0}
+                isLoggedIn={Boolean(user)}
+                variant="detail"
+              />
+              <p className="mt-1.5 text-[11px] text-text/40">
+                나중에 아이와 읽고 싶은 책을 저장해 두세요.
+              </p>
+            </div>
+          )}
           <PostReactions
             postId={post.id}
             initialLiked={liked}

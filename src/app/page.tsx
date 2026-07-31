@@ -39,7 +39,7 @@ export default async function Home({
   }
 
   // 로그인 후: 홈 피드
-  const { operatorTags, sections } = await getFeedData(supabase, tag)
+  const { operatorTags, sections } = await getFeedData(supabase, tag, user.id)
   const hasAnyPost = sections.some((s) => s.cards.length > 0)
 
   return (
@@ -65,7 +65,7 @@ export default async function Home({
           </div>
         ) : (
           sections.map((section) => (
-            <GroupSection key={section.value} section={section} />
+            <GroupSection key={section.value} section={section} isLoggedIn />
           ))
         )}
       </main>

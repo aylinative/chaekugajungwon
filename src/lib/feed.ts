@@ -7,6 +7,7 @@ const MAX_CARDS_PER_GROUP = 12
 
 export interface FeedCard {
   id: string
+  bookId: string | null
   title: string
   cover: string | null
   isbn: string | null
@@ -15,6 +16,8 @@ export interface FeedCard {
   groups: string[] // 한글 라벨
   topics: string[] // 운영자 태그명 + 커스텀 태그
   likeCount: number
+  bookmarkCount: number // books.bookmark_count (트리거 동기화 값)
+  bookmarkedByMe: boolean
 }
 
 export interface GroupSectionData {
@@ -40,7 +43,13 @@ interface RawPost {
   text_density: number
   child_reaction: number
   created_at: string
-  book: { title: string | null; cover_image_url: string | null; aladin_item_id: string | null } | null
+  book: {
+    id: string
+    title: string | null
+    cover_image_url: string | null
+    aladin_item_id: string | null
+    bookmark_count: number
+  } | null
   post_groups: { group_name: string }[] | null
   post_tags:
     | {
@@ -52,13 +61,15 @@ interface RawPost {
   likes: { count: number }[] | null
 }
 
-function mapPost(p: RawPost): FeedCard {
+function mapPost(p: RawPost, bookmarkedBookIds: Set<string>): FeedCard {
   const topics = (p.post_tags ?? [])
     .map((t) => (t.is_operator_tag ? t.operator_tags?.name : t.custom_tag))
     .filter((t): t is string => Boolean(t))
 
+  const bookId = p.book?.id ?? null
   return {
     id: p.id,
+    bookId,
     title: p.book?.title ?? '(제목 없음)',
     cover: p.book?.cover_image_url ?? null,
     isbn: p.book?.aladin_item_id ?? null,
@@ -67,6 +78,8 @@ function mapPost(p: RawPost): FeedCard {
     groups: (p.post_groups ?? []).map((g) => g.group_name),
     topics,
     likeCount: p.likes?.[0]?.count ?? 0,
+    bookmarkCount: p.book?.bookmark_count ?? 0,
+    bookmarkedByMe: bookId ? bookmarkedBookIds.has(bookId) : false,
   }
 }
 
@@ -74,30 +87,38 @@ function mapPost(p: RawPost): FeedCard {
 // tagFilter가 있으면 해당 주제 태그가 붙은 게시물만.
 export async function getFeedData(
   supabase: SupabaseClient,
-  tagFilter?: string
+  tagFilter?: string,
+  userId?: string
 ): Promise<FeedData> {
-  const [{ data: tagRows }, { data: postRows }] = await Promise.all([
-    supabase
-      .from('operator_tags')
-      .select('id, name')
-      .eq('is_active', true)
-      .order('created_at', { ascending: true }),
-    supabase
-      .from('posts')
-      .select(
-        `id, text_density, child_reaction, created_at,
-         book:books ( title, cover_image_url, aladin_item_id ),
-         post_groups ( group_name ),
-         post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) ),
-         likes ( count )`
-      )
-      .order('created_at', { ascending: false }),
-  ])
+  const [{ data: tagRows }, { data: postRows }, { data: bookmarkRows }] =
+    await Promise.all([
+      supabase
+        .from('operator_tags')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('posts')
+        .select(
+          `id, text_density, child_reaction, created_at,
+           book:books ( id, title, cover_image_url, aladin_item_id, bookmark_count ),
+           post_groups ( group_name ),
+           post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) ),
+           likes ( count )`
+        )
+        .order('created_at', { ascending: false }),
+      userId
+        ? supabase.from('bookmarks').select('book_id').eq('user_id', userId)
+        : Promise.resolve({ data: null }),
+    ])
 
   const operatorTags: OperatorTag[] = (tagRows as OperatorTag[] | null) ?? []
+  const bookmarkedBookIds = new Set(
+    ((bookmarkRows as { book_id: string }[] | null) ?? []).map((b) => b.book_id)
+  )
 
   const allCards = ((postRows as unknown as RawPost[] | null) ?? [])
-    .map(mapPost)
+    .map((p) => mapPost(p, bookmarkedBookIds))
     // 홈 피드 = 커뮤니티 추천. '자꾸 꺼내봐요'·'재밌어했어요'만 노출('그냥 봤어요'는 개인 기록으로만 남음)
     .filter((c) => isRecommended(c.reaction))
 

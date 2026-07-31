@@ -25,7 +25,13 @@ const AGE_LABEL: Record<string, string> = {
   adult: '어른도 함께',
 }
 
-export default function GroupSection({ section }: { section: GroupSectionData }) {
+export default function GroupSection({
+  section,
+  isLoggedIn,
+}: {
+  section: GroupSectionData
+  isLoggedIn: boolean
+}) {
   return (
     <section className="py-4">
       {/* 섹션 헤더 */}
@@ -54,7 +60,7 @@ export default function GroupSection({ section }: { section: GroupSectionData })
       ) : (
         <div className="flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {section.cards.map((card) => (
-            <PostCard key={card.id} card={card} />
+            <PostCard key={card.id} card={card} isLoggedIn={isLoggedIn} />
           ))}
         </div>
       )}
