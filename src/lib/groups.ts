@@ -1,7 +1,7 @@
 export const RECOMMEND_GROUPS = [
   {
     value: 'seed',
-    ageLabel: '0~12개월',
+    ageLabel: '0~12M',
     label: '씨앗',
     emoji: '🫘',
     ageRange: '0~12M',
@@ -9,7 +9,7 @@ export const RECOMMEND_GROUPS = [
   },
   {
     value: 'sprout',
-    ageLabel: '12~18개월',
+    ageLabel: '12~18M',
     label: '새싹',
     emoji: '🌱',
     ageRange: '12~18M',
@@ -17,23 +17,23 @@ export const RECOMMEND_GROUPS = [
   },
   {
     value: 'springflower',
-    ageLabel: '19~30개월',
-    label: '봄꽃',
+    ageLabel: '19~30M',
+    label: '꽃잎',
     emoji: '🌸',
     ageRange: '19~30M',
     selectedClass: 'bg-group-springflower text-white',
   },
   {
     value: 'apple',
-    ageLabel: '31개월~4살',
-    label: '사과',
+    ageLabel: '31M~4Y',
+    label: '열매',
     emoji: '🍎',
     ageRange: '31M~4Y',
     selectedClass: 'bg-group-apple text-white',
   },
   {
     value: 'tree',
-    ageLabel: '5살 이상',
+    ageLabel: '5Y~',
     label: '나무',
     emoji: '🌳',
     ageRange: '5Y~',
@@ -56,8 +56,18 @@ export const LABEL_TO_EMOJI: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.emoji])
 )
 
+// 한글 라벨을 연령 오름차순(씨앗→어른)으로 — 분포 x축·대표 시기 계산에 사용
+export const GROUP_LABELS_ORDERED: string[] = RECOMMEND_GROUPS.map((g) => g.label)
+
+// 시기 라벨 배열을 연령 오름차순으로 정렬 (대표 시기 = 첫 번째)
+export function sortGroupLabelsByAge(labels: string[]): string[] {
+  return [...labels].sort(
+    (a, b) => GROUP_LABELS_ORDERED.indexOf(a) - GROUP_LABELS_ORDERED.indexOf(b)
+  )
+}
+
 // 아이의 현재 월령 → 해당하는 시기 value (7장 연령 기준)
-// 씨앗 0~12M 미만 / 새싹 12~18M / 봄꽃 19~30M / 사과 31M~4살(59M) / 나무 5살(60M) 이상
+// 씨앗 0~12M 미만 / 새싹 12~18M / 꽃잎 19~30M / 열매 31M~4살(59M) / 나무 5살(60M) 이상
 // '어른'은 연령 매핑 대상이 아님(자동 체크에 쓰지 않음)
 export function getGroupValueByMonths(months: number): RecommendGroupValue {
   if (months < 12) return 'seed'

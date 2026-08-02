@@ -419,9 +419,9 @@ export default function RecommendCreatePage() {
                     >
                       {group.emoji}
                     </span>
-                    {/* 시기명 대신 연령 범위 표기 — 사용자는 시기 이름의 기준을 모른다 */}
+                    {/* 시기명 대신 연령 범위 표기(개월=M, 살=Y) — 사용자는 시기 이름의 기준을 모른다 */}
                     <span
-                      className={`text-[10px] leading-tight ${
+                      className={`text-[11px] leading-tight ${
                         selected ? 'font-semibold text-text' : 'text-text/50'
                       }`}
                     >

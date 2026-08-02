@@ -184,7 +184,7 @@ export default async function MyPage() {
                         <div className="mt-auto flex items-center justify-between pt-1 text-xs text-text/40">
                           <span>{date}</span>
                           <span className="flex items-center gap-0.5">
-                            <span className="text-point">♥</span>
+                            <span>👍</span>
                             {likeCount}
                           </span>
                         </div>

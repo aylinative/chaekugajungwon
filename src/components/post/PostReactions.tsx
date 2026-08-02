@@ -10,10 +10,9 @@ export interface CommentItem {
   nickname: string
 }
 
+// 댓글 영역 (추천·저장 버튼은 상세 페이지에서 한 줄로 별도 배치)
 interface Props {
   postId: string
-  initialLiked: boolean
-  initialCount: number
   initialComments: CommentItem[]
   currentUserId: string | null
   currentUserNickname: string
@@ -27,45 +26,15 @@ function formatDate(iso: string) {
 
 export default function PostReactions({
   postId,
-  initialLiked,
-  initialCount,
   initialComments,
   currentUserId,
   currentUserNickname,
   isLoggedIn,
 }: Props) {
-  const [liked, setLiked] = useState(initialLiked)
-  const [count, setCount] = useState(initialCount)
-  const [likePending, setLikePending] = useState(false)
   const [comments, setComments] = useState<CommentItem[]>(initialComments)
   const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-
-  const toggleLike = async () => {
-    if (!isLoggedIn) {
-      setError('로그인이 필요합니다.')
-      return
-    }
-    if (likePending) return
-    setLikePending(true)
-    // 낙관적 업데이트
-    setLiked((v) => !v)
-    setCount((c) => c + (liked ? -1 : 1))
-    try {
-      const res = await fetch(`/api/posts/${postId}/like`, { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setLiked(data.liked)
-      setCount(data.count)
-    } catch {
-      // 실패 시 롤백
-      setLiked((v) => !v)
-      setCount((c) => c + (liked ? 1 : -1))
-    } finally {
-      setLikePending(false)
-    }
-  }
 
   const submitComment = async () => {
     if (!content.trim()) return
@@ -107,19 +76,6 @@ export default function PostReactions({
 
   return (
     <div className="space-y-5">
-      {/* 좋아요 */}
-      <button
-        type="button"
-        onClick={toggleLike}
-        className="flex items-center gap-2"
-        aria-pressed={liked}
-      >
-        <span className={`text-2xl ${liked ? 'text-point' : 'text-text/25'}`}>
-          {liked ? '♥' : '♡'}
-        </span>
-        <span className="text-sm text-text/70">{count}</span>
-      </button>
-
       {/* 댓글 */}
       <div>
         <p className="mb-3 text-sm font-medium text-text">

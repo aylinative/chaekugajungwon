@@ -3,6 +3,7 @@ import { RECOMMEND_GROUPS, LABEL_TO_EMOJI } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import { BOOKMARK_COUNT_MIN_DISPLAY } from '@/lib/constants'
 import BookmarkButton from '@/components/BookmarkButton'
+import RecommendButton from '@/components/RecommendButton'
 import type { FeedCard } from '@/lib/feed'
 
 const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
@@ -84,17 +85,21 @@ export default function PostCard({
         </p>
       )}
 
-      {/* 글밥량 + 좋아요 + 저장 */}
+      {/* 글밥량 + 나도 추천해요 + 저장 */}
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1">
           <span className="text-[10px] text-text/40">글밥량</span>
           <DensityStars value={card.density} />
         </span>
         <span className="flex items-center gap-1 text-xs text-text/50">
-          <span className="flex items-center gap-0.5">
-            <span className="text-point">♥</span>
-            {card.likeCount}
-          </span>
+          <RecommendButton
+            postId={card.id}
+            initialLiked={card.likedByMe}
+            initialCount={card.likeCount}
+            initialGroups={card.myGroups}
+            isLoggedIn={isLoggedIn}
+            variant="card"
+          />
           {card.bookId && (
             <BookmarkButton
               bookId={card.bookId}

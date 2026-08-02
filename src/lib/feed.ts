@@ -16,6 +16,8 @@ export interface FeedCard {
   groups: string[] // 한글 라벨
   topics: string[] // 운영자 태그명 + 커스텀 태그
   likeCount: number
+  likedByMe: boolean
+  myGroups: string[] // 내가 이 기록에 고른 추천 시기 (시트 재오픈 시 표시)
   bookmarkCount: number // books.bookmark_count (트리거 동기화 값)
   bookmarkedByMe: boolean
 }
@@ -61,7 +63,11 @@ interface RawPost {
   likes: { count: number }[] | null
 }
 
-function mapPost(p: RawPost, bookmarkedBookIds: Set<string>): FeedCard {
+function mapPost(
+  p: RawPost,
+  bookmarkedBookIds: Set<string>,
+  myLikes: Map<string, string[]>
+): FeedCard {
   const topics = (p.post_tags ?? [])
     .map((t) => (t.is_operator_tag ? t.operator_tags?.name : t.custom_tag))
     .filter((t): t is string => Boolean(t))
@@ -78,6 +84,8 @@ function mapPost(p: RawPost, bookmarkedBookIds: Set<string>): FeedCard {
     groups: (p.post_groups ?? []).map((g) => g.group_name),
     topics,
     likeCount: p.likes?.[0]?.count ?? 0,
+    likedByMe: myLikes.has(p.id),
+    myGroups: myLikes.get(p.id) ?? [],
     bookmarkCount: p.book?.bookmark_count ?? 0,
     bookmarkedByMe: bookId ? bookmarkedBookIds.has(bookId) : false,
   }
@@ -90,7 +98,7 @@ export async function getFeedData(
   tagFilter?: string,
   userId?: string
 ): Promise<FeedData> {
-  const [{ data: tagRows }, { data: postRows }, { data: bookmarkRows }] =
+  const [{ data: tagRows }, { data: postRows }, { data: bookmarkRows }, { data: myLikeRows }] =
     await Promise.all([
       supabase
         .from('operator_tags')
@@ -110,15 +118,23 @@ export async function getFeedData(
       userId
         ? supabase.from('bookmarks').select('book_id').eq('user_id', userId)
         : Promise.resolve({ data: null }),
+      userId
+        ? supabase.from('likes').select('post_id, group_names').eq('user_id', userId)
+        : Promise.resolve({ data: null }),
     ])
 
   const operatorTags: OperatorTag[] = (tagRows as OperatorTag[] | null) ?? []
   const bookmarkedBookIds = new Set(
     ((bookmarkRows as { book_id: string }[] | null) ?? []).map((b) => b.book_id)
   )
+  const myLikes = new Map(
+    (
+      (myLikeRows as { post_id: string; group_names: string[] | null }[] | null) ?? []
+    ).map((l) => [l.post_id, l.group_names ?? []])
+  )
 
   const allCards = ((postRows as unknown as RawPost[] | null) ?? [])
-    .map((p) => mapPost(p, bookmarkedBookIds))
+    .map((p) => mapPost(p, bookmarkedBookIds, myLikes))
     // 홈 피드 = 커뮤니티 추천. '자꾸 꺼내봐요'·'재밌어했어요'만 노출('그냥 봤어요'는 개인 기록으로만 남음)
     .filter((c) => isRecommended(c.reaction))
 

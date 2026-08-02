@@ -5,6 +5,7 @@ import { createServerSupabase } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import BookmarkButton from '@/components/BookmarkButton'
+import RecommendButton from '@/components/RecommendButton'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostReactions, { type CommentItem } from '@/components/post/PostReactions'
 
@@ -109,16 +110,18 @@ export default async function PostDetailPage({
     .eq('post_id', id)
 
   let liked = false
+  let myGroups: string[] = []
   let myNickname = ''
   let bookmarkedByMe = false
   if (user) {
     const { data: likeRow } = await supabase
       .from('likes')
-      .select('post_id')
+      .select('post_id, group_names')
       .eq('post_id', id)
       .eq('user_id', user.id)
       .maybeSingle()
     liked = Boolean(likeRow)
+    myGroups = (likeRow as { group_names: string[] | null } | null)?.group_names ?? []
     const { data: me } = await supabase
       .from('users')
       .select('nickname')
@@ -298,8 +301,17 @@ export default async function PostDetailPage({
 
         {/* ③ 반응 영역 */}
         <section className="mt-4 rounded-2xl bg-surface p-4 shadow-sm">
-          {book?.id && (
-            <div className="mb-4 border-b border-black/5 pb-4">
+          {/* 나도 추천해요 + 저장 — 한 줄 정렬 */}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-black/5 pb-4">
+            <RecommendButton
+              postId={post.id}
+              initialLiked={liked}
+              initialCount={likeCount ?? 0}
+              initialGroups={myGroups}
+              isLoggedIn={Boolean(user)}
+              variant="detail"
+            />
+            {book?.id && (
               <BookmarkButton
                 bookId={book.id}
                 initialBookmarked={bookmarkedByMe}
@@ -307,15 +319,10 @@ export default async function PostDetailPage({
                 isLoggedIn={Boolean(user)}
                 variant="detail"
               />
-              <p className="mt-1.5 text-[11px] text-text/40">
-                나중에 아이와 읽고 싶은 책을 저장해 두세요.
-              </p>
-            </div>
-          )}
+            )}
+          </div>
           <PostReactions
             postId={post.id}
-            initialLiked={liked}
-            initialCount={likeCount ?? 0}
             initialComments={comments}
             currentUserId={user?.id ?? null}
             currentUserNickname={myNickname}
