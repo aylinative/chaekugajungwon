@@ -1,0 +1,334 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { createServerSupabase } from '@/lib/supabase-server'
+import { RECOMMEND_GROUPS, AGE_LABEL_FULL, sortGroupLabelsByAge } from '@/lib/groups'
+import { REACTION_BY_VALUE } from '@/lib/reactions'
+import { getBookDistribution } from '@/lib/distribution'
+import { getDistributionSummary } from '@/components/book/PeriodDistribution'
+import PeriodDistribution from '@/components/book/PeriodDistribution'
+import BookmarkButton from '@/components/BookmarkButton'
+import RecommendButton from '@/components/RecommendButton'
+import BottomTabBar from '@/components/BottomTabBar'
+
+// 책 단위 페이지 (CLAUDE.md 19.2) — 같은 책의 모든 기록이 한 URL에 누적된다.
+// Server Component SSR 필수 (크롤러가 내용을 읽어야 함). slug는 ISBN13(books.aladin_item_id).
+// 추천 시기 분포는 상시 노출 (바텀시트와 달리 이 페이지는 정보를 보러 온 사람용 — 19.2-4).
+// 댓글은 기록별(comments.post_id) 유지 — 이 페이지에는 댓글 없음 (17장 결정 (가)).
+
+const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
+  RECOMMEND_GROUPS.map((g) => [g.label, g.selectedClass])
+)
+const LABEL_TO_EMOJI_MAP: Record<string, string> = Object.fromEntries(
+  RECOMMEND_GROUPS.map((g) => [g.label, g.emoji])
+)
+
+interface BookRow {
+  id: string
+  title: string | null
+  author: string | null
+  publisher: string | null
+  published_date: string | null
+  cover_image_url: string | null
+  aladin_url: string | null
+  is_out_of_print: boolean | null
+  bookmark_count: number
+}
+
+interface BookPostRow {
+  id: string
+  text_density: number
+  child_reaction: number
+  content: string | null
+  created_at: string
+  author: { nickname: string | null } | null
+  post_groups: { group_name: string }[] | null
+  likes: { count: number }[] | null
+}
+
+const POSTS_SELECT = `id, text_density, child_reaction, content, created_at,
+  author:users!posts_user_id_fkey ( nickname ),
+  post_groups ( group_name ),
+  likes ( count )`
+
+async function getBookData(isbnParam: string) {
+  const isbn = decodeURIComponent(isbnParam)
+  const supabase = await createServerSupabase()
+  const { data: bookRow } = await supabase
+    .from('books')
+    .select(
+      'id, title, author, publisher, published_date, cover_image_url, aladin_url, is_out_of_print, bookmark_count'
+    )
+    .eq('aladin_item_id', isbn)
+    .maybeSingle()
+  return { supabase, book: bookRow as BookRow | null }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ isbn: string }>
+}): Promise<Metadata> {
+  const { isbn } = await params
+  const { supabase, book } = await getBookData(isbn)
+  if (!book?.title) return { title: '그림책 | 책육아정원' }
+
+  const [distribution, { data: postRows }] = await Promise.all([
+    getBookDistribution(supabase, book.id),
+    supabase.from('posts').select('post_groups ( group_name )').eq('book_id', book.id),
+  ])
+
+  // 타이틀의 {시기}: 표 5개 이상이면 분포의 최빈 시기, 미만이면 작성자가 고른 시기 중 가장 어린 것 (19.2-4)
+  let label: string | null = null
+  if (distribution.totalVoters >= 5) {
+    label = getDistributionSummary(distribution.votes, distribution.totalVoters).topLabel
+  }
+  if (!label) {
+    const authorGroups = (
+      (postRows as unknown as { post_groups: { group_name: string }[] | null }[] | null) ?? []
+    ).flatMap((p) => (p.post_groups ?? []).map((g) => g.group_name))
+    label = sortGroupLabelsByAge([...new Set(authorGroups)])[0] ?? null
+  }
+
+  const recordCount = (postRows as unknown[] | null)?.length ?? 0
+  const periodPart = label ? ` - ${label}(${AGE_LABEL_FULL[label] ?? ''})` : ''
+  return {
+    title: `${book.title}${periodPart} 그림책 추천 | 책육아정원`,
+    description: `${book.title} — ${recordCount}개의 책육아 기록과 추천 시기를 확인해보세요.`,
+  }
+}
+
+function DensityStars({ value }: { value: number }) {
+  const filled = Math.max(0, Math.min(5, value))
+  return (
+    <span className="text-xs text-point">
+      {'★'.repeat(filled)}
+      <span className="text-text/20">{'☆'.repeat(5 - filled)}</span>
+    </span>
+  )
+}
+
+// 글밥량 대표값(최빈) — 글밥량은 책의 객관 정보라 기록 카드가 아닌 책 정보 영역에 표시
+function modeOf(nums: number[]): number {
+  const freq = new Map<number, number>()
+  nums.forEach((n) => freq.set(n, (freq.get(n) ?? 0) + 1))
+  let best = nums[0] ?? 0
+  let bestCount = 0
+  for (const [n, c] of freq) {
+    if (c > bestCount || (c === bestCount && n > best)) {
+      best = n
+      bestCount = c
+    }
+  }
+  return best
+}
+
+export default async function BookPage({
+  params,
+}: {
+  params: Promise<{ isbn: string }>
+}) {
+  const { isbn } = await params
+  const { supabase, book } = await getBookData(isbn)
+  if (!book) notFound()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const [{ data: postRows }, distribution, bookmarkRes] = await Promise.all([
+    supabase
+      .from('posts')
+      .select(POSTS_SELECT)
+      .eq('book_id', book.id)
+      .order('created_at', { ascending: true }), // 기록은 작성순으로 누적
+    getBookDistribution(supabase, book.id),
+    user
+      ? supabase
+          .from('bookmarks')
+          .select('book_id')
+          .eq('book_id', book.id)
+          .eq('user_id', user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ])
+
+  const posts = (postRows as unknown as BookPostRow[] | null) ?? []
+  const bookmarkedByMe = Boolean(
+    (bookmarkRes.data as { book_id: string } | null)?.book_id
+  )
+  const pubInfo = [book.publisher, book.published_date].filter(Boolean).join(' · ')
+  const densityMode = posts.length > 0 ? modeOf(posts.map((p) => p.text_density)) : null
+
+  // 내가 추천한 기록들 (기록 카드의 추천 버튼 상태용)
+  const myLikes = new Map<string, string[]>()
+  if (user && posts.length > 0) {
+    const { data: myLikeRows } = await supabase
+      .from('likes')
+      .select('post_id, group_names')
+      .eq('user_id', user.id)
+      .in(
+        'post_id',
+        posts.map((p) => p.id)
+      )
+    for (const row of (myLikeRows as { post_id: string; group_names: string[] | null }[] | null) ??
+      []) {
+      myLikes.set(row.post_id, row.group_names ?? [])
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col bg-bg">
+      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-black/5 bg-bg/90 px-4 py-3 backdrop-blur">
+        <Link href="/" className="text-sm text-main">
+          ‹ 홈
+        </Link>
+        <span className="text-base font-semibold text-text">그림책</span>
+      </header>
+
+      <main className="mx-auto w-full max-w-md flex-1 px-4 pb-10 pt-4">
+        {/* 책 정보 */}
+        <section className="rounded-2xl bg-surface p-4 shadow-sm">
+          <div className="flex gap-4">
+            <div className="h-32 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-surface-muted">
+              {book.cover_image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={book.cover_image_url}
+                  alt={book.title ?? ''}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-2xl">
+                  📖
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-bold leading-snug text-text">
+                {book.title ?? '(제목 없음)'}
+              </h1>
+              {book.author && <p className="mt-1 text-sm text-text/70">{book.author}</p>}
+              {pubInfo && <p className="mt-0.5 text-xs text-text/50">{pubInfo}</p>}
+              {/* 글밥량 대표값 — 책의 객관 정보이므로 책 정보 영역에 표시 */}
+              {densityMode !== null && (
+                <p className="mt-1.5 flex items-center gap-1.5">
+                  <span className="text-xs text-text/50">글밥량</span>
+                  <DensityStars value={densityMode} />
+                </p>
+              )}
+              {book.is_out_of_print && (
+                <span className="mt-2 inline-block rounded-full bg-red-50 px-2 py-0.5 text-[11px] text-red-500">
+                  절판/품절
+                </span>
+              )}
+              {book.aladin_url && (
+                <a
+                  href={book.aladin_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block text-xs text-main underline"
+                >
+                  알라딘에서 보기 ›
+                </a>
+              )}
+            </div>
+          </div>
+          <div className="mt-3 border-t border-black/5 pt-3">
+            <BookmarkButton
+              bookId={book.id}
+              initialBookmarked={bookmarkedByMe}
+              initialCount={book.bookmark_count ?? 0}
+              isLoggedIn={Boolean(user)}
+              variant="detail"
+            />
+          </div>
+        </section>
+
+        {/* 추천 시기 분포 — 상시 노출 (19.2-4) */}
+        <section className="mt-4 rounded-2xl bg-surface p-4 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold text-text">추천 시기 분포</h2>
+          <PeriodDistribution
+            votes={distribution.votes}
+            totalVoters={distribution.totalVoters}
+          />
+        </section>
+
+        {/* 책육아 기록 누적 (작성순) */}
+        <section className="mt-4">
+          <h2 className="mb-2 px-1 text-sm font-semibold text-text">
+            책육아 기록 {posts.length > 0 && `${posts.length}`}
+          </h2>
+          {posts.length === 0 ? (
+            <div className="rounded-2xl bg-surface px-6 py-10 text-center shadow-sm">
+              <p className="text-sm text-text/50">아직 기록이 없어요.</p>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {posts.map((p) => {
+                const groups = (p.post_groups ?? []).map((g) => g.group_name)
+                const likeCount = p.likes?.[0]?.count ?? 0
+                const reaction = REACTION_BY_VALUE[p.child_reaction]
+                return (
+                  <li key={p.id}>
+                    {/* 기록 카드 = 양육자의 평가 전용 (반응·시기·일기).
+                        글밥량 같은 책 객관 정보는 위 책 정보 영역에.
+                        추천은 여기서 바로 누른다 — 세부 페이지는 댓글 진입용. */}
+                    <Link
+                      href={`/posts/${p.id}`}
+                      className="block rounded-2xl bg-surface p-4 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-2 text-sm font-medium text-text">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-main/10 text-xs">
+                            🌿
+                          </span>
+                          {p.author?.nickname ?? '익명'}
+                        </span>
+                        <RecommendButton
+                          postId={p.id}
+                          initialLiked={myLikes.has(p.id)}
+                          initialCount={likeCount}
+                          initialGroups={myLikes.get(p.id) ?? []}
+                          isLoggedIn={Boolean(user)}
+                          variant="card"
+                        />
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {groups.map((g) => (
+                          <span
+                            key={g}
+                            aria-label={g}
+                            className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${
+                              LABEL_TO_BADGE[g] ?? 'bg-surface-muted'
+                            }`}
+                          >
+                            {LABEL_TO_EMOJI_MAP[g] ?? g}
+                          </span>
+                        ))}
+                        {reaction && (
+                          <span className="text-[11px] font-medium text-point">
+                            {reaction.emoji} {reaction.label}
+                          </span>
+                        )}
+                      </div>
+
+                      {p.content && (
+                        <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-text/80">
+                          {p.content}
+                        </p>
+                      )}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+      </main>
+
+      <BottomTabBar />
+    </div>
+  )
+}

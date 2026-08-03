@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
-import PostCard from './PostCard'
+import BookCardItem from './BookCard'
 import type { GroupSectionData } from '@/lib/feed'
 
 const BADGE_BY_VALUE: Record<string, string> = Object.fromEntries(
@@ -55,7 +55,7 @@ export default function GroupSection({
       ) : (
         <div className="flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {section.cards.map((card) => (
-            <PostCard key={card.id} card={card} isLoggedIn={isLoggedIn} />
+            <BookCardItem key={card.bookId} card={card} isLoggedIn={isLoggedIn} />
           ))}
         </div>
       )}

@@ -59,6 +59,16 @@ export const LABEL_TO_EMOJI: Record<string, string> = Object.fromEntries(
 // 한글 라벨을 연령 오름차순(씨앗→어른)으로 — 분포 x축·대표 시기 계산에 사용
 export const GROUP_LABELS_ORDERED: string[] = RECOMMEND_GROUPS.map((g) => g.label)
 
+// SEO(타이틀·검색어)용 한글 풀 연령 표기 — 화면 표기는 M/Y(ageLabel), 메타데이터는 한글
+export const AGE_LABEL_FULL: Record<string, string> = {
+  씨앗: '0~12개월',
+  새싹: '12~18개월',
+  꽃잎: '19~30개월',
+  열매: '31개월~4살',
+  나무: '5살 이상',
+  어른: '어른도 함께',
+}
+
 // 시기 라벨 배열을 연령 오름차순으로 정렬 (대표 시기 = 첫 번째)
 export function sortGroupLabelsByAge(labels: string[]): string[] {
   return [...labels].sort(

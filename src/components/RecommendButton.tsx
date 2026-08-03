@@ -17,7 +17,7 @@ interface Props {
   variant?: 'card' | 'detail'
 }
 
-function ThumbIcon({ filled, size }: { filled: boolean; size: number }) {
+export function ThumbIcon({ filled, size }: { filled: boolean; size: number }) {
   return (
     <svg
       width={size}

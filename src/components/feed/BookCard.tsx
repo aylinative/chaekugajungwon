@@ -3,33 +3,28 @@ import { RECOMMEND_GROUPS, LABEL_TO_EMOJI } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import { BOOKMARK_COUNT_MIN_DISPLAY } from '@/lib/constants'
 import BookmarkButton from '@/components/BookmarkButton'
-import RecommendButton from '@/components/RecommendButton'
-import type { FeedCard } from '@/lib/feed'
+import { ThumbIcon } from '@/components/RecommendButton'
+import type { BookCard } from '@/lib/feed'
+
+// 홈 피드 카드 = 책 1권 (기록 집계). 탭 시 /book/[isbn]으로 이동.
+// 추천(👍)은 표시 전용 — 추천 행위는 책 페이지의 기록 카드·상세에서 한다.
+// 정보 우선순위: 대표 아이 반응 > 기록 수·주제 > 추천 수·저장.
+// 글밥량은 책 페이지에서 확인 (홈에서는 미표시 — 정보 과밀 방지).
 
 const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.selectedClass])
 )
 
-function DensityStars({ value }: { value: number }) {
-  const filled = Math.max(0, Math.min(5, value))
-  return (
-    <span className="text-xs tracking-tight text-point" aria-label={`글밥량 ${filled}단계`}>
-      {'★'.repeat(filled)}
-      <span className="text-text/20">{'☆'.repeat(5 - filled)}</span>
-    </span>
-  )
-}
-
-export default function PostCard({
+export default function BookCardItem({
   card,
   isLoggedIn,
 }: {
-  card: FeedCard
+  card: BookCard
   isLoggedIn: boolean
 }) {
   return (
     <Link
-      href={`/posts/${card.id}`}
+      href={`/book/${encodeURIComponent(card.isbn)}`}
       className="flex w-36 flex-shrink-0 flex-col gap-2"
     >
       {/* 표지 */}
@@ -53,17 +48,20 @@ export default function PostCard({
         {card.title}
       </p>
 
-      {/* 우리 아이 반응 (이모지 + 짧은 라벨, 배경 없이) */}
+      {/* 대표 반응 (최빈) + 기록 수 */}
       {REACTION_BY_VALUE[card.reaction] && (
         <p className="flex items-center gap-1 text-[11px] font-medium text-point">
           <span className="text-sm leading-none">
             {REACTION_BY_VALUE[card.reaction].emoji}
           </span>
           {REACTION_BY_VALUE[card.reaction].label}
+          {card.recordCount > 1 && (
+            <span className="font-normal text-text/40">· 기록 {card.recordCount}</span>
+          )}
         </p>
       )}
 
-      {/* 그룹 배지 */}
+      {/* 시기 배지 (합집합, 최대 2) */}
       <div className="flex flex-wrap gap-1">
         {card.groups.slice(0, 2).map((g) => (
           <span
@@ -85,31 +83,19 @@ export default function PostCard({
         </p>
       )}
 
-      {/* 글밥량 + 나도 추천해요 + 저장 */}
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1">
-          <span className="text-[10px] text-text/40">글밥량</span>
-          <DensityStars value={card.density} />
+      {/* 추천 수(표시 전용) + 저장 */}
+      <div className="flex items-center justify-end gap-1 text-xs text-text/50">
+        <span className="flex items-center gap-0.5 text-text/40" aria-label="추천한 사람 수">
+          <ThumbIcon filled={false} size={13} />
+          {card.recommendUserCount}
         </span>
-        <span className="flex items-center gap-1 text-xs text-text/50">
-          <RecommendButton
-            postId={card.id}
-            initialLiked={card.likedByMe}
-            initialCount={card.likeCount}
-            initialGroups={card.myGroups}
-            isLoggedIn={isLoggedIn}
-            variant="card"
-          />
-          {card.bookId && (
-            <BookmarkButton
-              bookId={card.bookId}
-              initialBookmarked={card.bookmarkedByMe}
-              initialCount={card.bookmarkCount}
-              isLoggedIn={isLoggedIn}
-              variant="card"
-            />
-          )}
-        </span>
+        <BookmarkButton
+          bookId={card.bookId}
+          initialBookmarked={card.bookmarkedByMe}
+          initialCount={card.bookmarkCount}
+          isLoggedIn={isLoggedIn}
+          variant="card"
+        />
       </div>
 
       {/* 저장 수 — 임계치 미만이면 영역 자체를 렌더링하지 않음(0도 표시 금지) */}
