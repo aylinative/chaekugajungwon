@@ -53,9 +53,11 @@ const topicOptions = [
 
 function RecommendCreateInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   // 첫 기록 모드(11.4): 온보딩 직후 또는 기록 0건 상태에서 진입. 배너 + 완료 후 홈 이동.
-  const isFirst = useSearchParams().get('first') === '1'
-  const [query, setQuery] = useState('')
+  const isFirst = searchParams.get('first') === '1'
+  // 검색 화면 '첫 기록 남기기'에서 넘어오면 책 제목이 미리 채워진다 → 진입 즉시 자동 검색
+  const [query, setQuery] = useState(() => searchParams.get('query') ?? '')
   const [books, setBooks] = useState<BookItem[]>([])
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
@@ -104,7 +106,8 @@ function RecommendCreateInner() {
     const keyword = query.replace(/\s+/g, ' ').trim()
     // 책을 막 선택해 제목이 채워진 경우엔 재검색하지 않음
     if (selectedBook && keyword === selectedBook.title) return
-    if (keyword.length < 2) {
+    // 한 글자 제목('점' 등)도 검색 가능해야 하므로 최소 길이는 1
+    if (keyword.length < 1) {
       setBooks([])
       setShowDropdown(false)
       return
