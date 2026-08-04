@@ -463,7 +463,7 @@ SNS 공유
 댓글
 감상평·후기 작성. 작성자는 본인 댓글만 삭제 가능
 검색
-책 제목 입력 → 해당 책이 포함된 기록 노출
+책 제목 입력 → 해당 책이 포함된 기록 노출(/book/[isbn]으로 연결). DB 함수 search_books(supabase/add_search_function.sql): 띄어쓰기 무시 부분 일치('달님안녕'↔'달님 안녕') + pg_trgm 유사도 매칭. 기록 있는 책만, 기록 수→추천 수 정렬, 30건. 결과 없으면 '첫 기록을 남겨보세요' CTA로 기록 유도. ※ 한 글자 오타 매칭은 한글 trigram 특성상 한계 — 필요 시 유사도 임계값 조정
 신고 기능
 ⏸ MVP 이후 추가 예정
 
@@ -572,6 +572,7 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
   supabase/add_bookmark_counter.sql        — books.bookmark_count + 트리거 (다)
   supabase/rename_groups_flower_fruit.sql  — 시기 명칭 봄꽃→꽃잎, 사과→열매
   supabase/migrate_likes_to_book.sql       — likes post_id→book_id (2026.08, 추천의 책 단위 전환)
+  supabase/add_search_function.sql        — search_books 함수 + pg_trgm (책 제목 유사 검색)
   supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 
 
