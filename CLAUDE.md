@@ -586,7 +586,7 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
 globals.css의 @theme 블록 사용 중(v4). 작업 전 Tailwind 버전 재확인할 것.
 
 
-15. 현재 프로젝트 상태 (2026.07 기준, 약 65%)  ← 마지막 커밋 049e8e3
+15. 현재 프로젝트 상태 (2026.08 기준, 약 80%)  ← v1.5, 6.5·6.7단계 완료
 완료된 작업
 작업
 파일
@@ -600,59 +600,54 @@ src/app/api/auth/*, src/app/auth/callback
 온보딩(닉네임·아이정보) + 프로필 저장 API
 src/app/onboarding, src/app/api/auth/profile
 ✅
-알라딘 검색 API(CID 기준 + mallType 필터)
+알라딘 검색 API(국내 CID + 외국도서 Foreign 병렬, mallType 필터)
 src/app/api/aladin/search/route.ts
-✅
-기록하기 폼(검색 자동완성 드롭다운, 우리 아이 반응 3단계)
+✅ (영어 원서 검색 실측 확인)
+기록하기 폼(검색 자동완성, 반응 3단계+ⓘ, 시기 아이콘 칩+연령범위, 아이칩ㅣ예전에 자동 체크)
 src/app/recommend/create/page.tsx
-✅ 저장 검증 완료
-기록 저장 API(books/posts/post_groups/post_tags 정규화)
-src/app/api/recommend/route.ts
-✅ 저장 검증 완료
-홈 피드(SSR, 월령 6그룹 섹션, 태그 필터, 인기순 카드, 반응≥2만 노출)
-src/app/page.tsx, src/lib/feed.ts, src/components/feed/*
 ✅
-게시물 상세(SSR, 3영역, generateMetadata)
+기록 저장 API(정규화 저장 + 기록 시 저장 자동 해제)
+src/app/api/recommend/route.ts
+✅
+홈 피드(SSR, 책 1권=카드 1개 집계, 시기별 정렬 전환, 태그 필터, 반응≥2만 노출)
+src/app/page.tsx, src/lib/feed.ts, src/lib/ranking.ts, src/components/feed/*
+✅
+책 단위 페이지(/book/[isbn]: 분포 상시·기록 누적·generateMetadata)
+src/app/book/[isbn]/page.tsx, src/lib/distribution.ts
+✅
+게시물 상세(SSR, 3영역, 댓글 진입용)
 src/app/posts/[id]/page.tsx
 ✅
-좋아요 토글 + 댓글 작성/삭제
-src/app/api/posts/[id]/*, src/components/post/PostReactions.tsx
+나도 추천해요(책 단위 likes.book_id + 바텀시트 + 분포 컴포넌트)
+src/app/api/books/[id]/recommend, src/components/RecommendButton.tsx, post/RecommendSheet.tsx, book/PeriodDistribution.tsx
 ✅
-마이페이지(프로필 편집, 독서 통계, 책육아 기록 목록)
-src/app/mypage, src/components/mypage/ProfileEditor.tsx
+저장(북마크, book_id 단위 + 양방향 가드 + 카운터 트리거)
+src/app/api/books/[id]/bookmark, src/components/BookmarkButton.tsx
 ✅
-공통 레이아웃(하단 탭바, 상단 헤더)
-src/components/BottomTabBar.tsx, FeedHeader.tsx
+댓글 작성/삭제
+src/app/api/posts/[id]/comments, src/components/post/PostReactions.tsx
 ✅
-아이 나이 자동 계산·갱신(일 단위 반영)
-src/lib/age.ts, src/components/AgeLabel.tsx
+마이페이지(프로필 편집, 통계, ①함께 읽은 책 / ②읽고 싶은 책 2분할)
+src/app/mypage, src/components/mypage/*
 ✅
-RLS 정책 + child_reaction 마이그레이션 SQL
-supabase/rls_policies.sql, supabase/add_child_reaction.sql
+공통 레이아웃(하단 탭바, 상단 헤더), 아이 나이 자동 계산·갱신
+src/components/BottomTabBar.tsx, FeedHeader.tsx, src/lib/age.ts, AgeLabel.tsx
+✅
+DB 마이그레이션 전체(13.3 목록) + RLS
+supabase/*.sql
 ✅ (Supabase 적용 완료)
 
-미완료 (앞으로 만들 것) — 2026.07.31 갱신
-■ DB 마이그레이션 (선행)
-  - likes.group_names 추가(가) / bookmarks book_id 전환(나) / books.bookmark_count 트리거(다)
-■ 6.5단계 (다음 작업)
-  - B: 저장(북마크) 구현 + 마이페이지 ②목록(나중에 읽을 책)
-  - C: 반응 ⓘ 문구 적용 ("솔직한 반응이 다른 양육자들에게 도움이 돼요")
-  - F: 기록 폼 세그먼트 버튼(지금 읽고 있어요 / 예전에 읽었어요) + 시기 자동 체크
-  - D: 좋아요 → '나도 추천해요'(👍) 전환 + 추천 바텀시트 + group_names 저장
-  - E: 알라딘 외국도서(SearchTarget=Foreign) 병렬 호출 + 106165 재배치
-  - 아이 나이 태그 표시 제거 (상세 ①영역)
-■ 6.7단계 — 책 단위 통합 (셋을 한 작업으로)
-  - 홈 피드 카드를 '기록 1건' → '책 1권' 단위로 묶기
-  - /book/[isbn] 신설 + 추천 시기 분포
-  - 시기 섹션별 정렬 전환 로직 (시기당 10건 기준)
-  ⚠️ 카드 단위가 바뀌면 집계 기준도 바뀌므로, 정렬을 먼저 만들면 두 번 짜게 된다.
-■ 나머지
-  - A: 도서 검색 전체화면 오버레이
+미완료 (앞으로 만들 것) — 2026.08 갱신
+■ 배포 전 정리 (필수)
+  - 샘플 데이터 삭제: supabase/cleanup_sample.sql 실행
+  - 개발용 분포 샘플 페이지 삭제: src/app/dev/distribution
+■ 남은 기능
+  - A: 도서 검색 전체화면 오버레이 (우선순위 낮음)
   - 검색 화면(/search 스텁) 고도화 및 필터
   - 그룹 전체보기(/group/[value] 스텁), 사진 실제 업로드(Storage, 현재 blob 미저장)
   - SNS 공유(카카오/링크)
   - 운영자 태그 관리 / 권한·관리 기능
-  - 배포(Vercel) 및 도메인 설정
+  - 배포(Vercel) 및 도메인 구매·설정 → 배포 후 모바일 테스트
 
 
 16. 전체 개발 공정 로드맵
@@ -679,13 +674,13 @@ supabase/rls_policies.sql, supabase/add_child_reaction.sql
 ✅ 완료 (프로필 편집, 통계, 책육아 기록)
 6.5단계
 DB 마이그레이션(가·나·다) → 저장(B) → 기록 폼 개편(C·F) → 나도 추천해요(D) → 외국도서(E)
-🔄 진행 중 (현재 작업)
+✅ 완료 (2026.08. 시기 명칭 꽃잎/열매 전환 포함)
 6.7단계
 책 단위 통합: 홈 피드 책 단위 묶기 + /book/[isbn] + 시기별 정렬 전환 로직
-⏳ (6.5 이후. 셋을 한 작업으로 처리)
+✅ 완료 (2026.08. 추천도 책 단위(likes.book_id)로 전환, 👍 의미 충돌 해소)
 7단계
-공통 기능: 좋아요✅ 댓글✅ / 저장(6.5로 이동) · 검색 고도화 · SNS 공유 · 검색 전체화면(A)
-🔄 일부 완료
+공통 기능: 추천✅ 저장✅ 댓글✅ / 검색 고도화 · SNS 공유 · 검색 전체화면(A)
+🔄 일부 완료 (검색·공유 남음)
 8단계
 운영자 기능 (태그 관리, 타인 게시물 삭제)
 ⏳
@@ -728,10 +723,10 @@ bookgardening.com이 유력 후보. 9단계 배포 시 최종 결정
 낮으면 단일 선택 전환 재검토
 같은 책 통합 노출 (/book/[isbn])
 설계 확정·미구현
-현재 홈 피드는 "기록 1건=카드 1개"라 같은 책이 중복 노출됨. 예정: 책 1권=카드 1개로 묶고(집계: 추천 N명·합산 추천 수·대표 반응), 클릭 시 /book/[isbn]에서 상단 책 정보 + 추천 시기 분포 + 여러 기록 카드 누적. 글밥량은 대표값(최빈/평균).
-└ 미결정: /book/[isbn] 댓글 위치
-book 페이지 착수 시 확정
-(가) 기록별 댓글(현행, comments.post_id 그대로) / (나) 책 단위 스레드 / (다) 둘 다. 현재 추천=(가) 유지 — 스키마 변경이 없고, 댓글은 특정 기록에 대한 공감이라 책 단위 스레드는 맥락이 흐려진다. ※ 댓글=기록 없이도 짧은 공감·반응 남기는 장치(추천과 함께 상세 ③반응 영역).
+구현 완료 (2026.08): 책 1권=카드 1개(집계: 추천 N명·대표 반응 최빈·기록 N), 클릭 시 /book/[isbn]에서 책 정보(글밥량 대표값 포함) + 추천 시기 분포 상시 + 기록 카드 작성순 누적.
+└ /book/[isbn] 댓글 위치
+확정 (2026.08): (가) 기록별 댓글
+comments.post_id 그대로, 책 페이지에는 댓글 없음. 이유: 스키마 변경이 없고, 댓글은 특정 기록에 대한 공감이라 책 단위 스레드는 맥락이 흐려진다. /posts/[id]는 댓글 진입·공유 링크용으로 유지.
 👍 아이콘의 의미 충돌
 확정 (2026.08 해소)
 엄지의 관습적 의미("후기 도움돼요"=기록 공감)와 기능("나도 이 책을 이 시기에 추천")이 어긋나던 문제 → 추천을 책 레벨로 이동해 해소: likes를 book_id 단위로 전환(migrate_likes_to_book.sql), 버튼은 책 페이지·상세의 책 정보/반응 영역에만 배치(기록 카드에서 제거). 기록 공감('도움돼요')은 출시 후 기록 정렬이 필요해질 때 별도 장치로 신설 검토.
@@ -894,3 +889,6 @@ CLAUDE.md v1.4
 CLAUDE.md v1.4.1
 2026.08
 시기 명칭 변경: 봄꽃→꽃잎, 열매(구 사과) — 성장 서사(씨앗→새싹→꽃잎→열매→나무) 정합. DB 마이그레이션 supabase/rename_groups_flower_fruit.sql(post_groups·likes CHECK 재정의+데이터 치환) 실행 완료. 코드 value(springflower/apple)·컬러 토큰은 유지, 화면 라벨만 변경. 시기를 단어로 쓸 때는 씨앗/새싹/꽃잎/열매/나무/어른으로 통일. 분포도(PeriodDistribution)에 시기명 아래 연령 기간 병기. 추천 후 표기는 시기 한글 대신 아이콘(추천함 · 🌸 +2), 홈 피드 카드는 글자 없이 엄지 아이콘 채움+색으로 추천 여부 표현. 상세 ③에서 추천·저장 버튼 한 줄 정렬. 개발용 분포 샘플 /dev/distribution (배포 전 삭제).
+CLAUDE.md v1.5
+2026.08
+6.5·6.7단계 완료, 완료율 약 80%. 책 단위 통합: 홈 피드 책 1권=카드 1개(대표 반응 최빈·기록 N), /book/[isbn] SSR+generateMetadata(분포 최빈 시기), 시기별 정렬 전환(ranking.ts, 임계 10), 분포 집계 lib/distribution.ts 공용. 홈 카드 정보 우선순위 확정(아이반응>기록수·주제>추천·저장, 글밥량 미표시), 책 페이지 정보 배치(책 정보=객관(글밥량 대표값)/기록 카드=양육자 평가). 연령 표기 M/Y 축약(ageLabel), SEO는 한글(AGE_LABEL_FULL). 👍 의미 충돌 해소: 추천을 책 단위로 전환(migrate_likes_to_book.sql, likes.book_id PK), API /api/books/[id]/recommend, 버튼은 책 정보 영역으로(기록 카드 제거). 댓글 위치 (가) 기록별 확정. 샘플 데이터 시드(seed_sample.sql, 배포 전 cleanup 필수).
