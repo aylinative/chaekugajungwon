@@ -43,13 +43,11 @@ interface BookPostRow {
   created_at: string
   author: { nickname: string | null } | null
   post_groups: { group_name: string }[] | null
-  likes: { count: number }[] | null
 }
 
 const POSTS_SELECT = `id, text_density, child_reaction, content, created_at,
   author:users!posts_user_id_fkey ( nickname ),
-  post_groups ( group_name ),
-  likes ( count )`
+  post_groups ( group_name )`
 
 async function getBookData(isbnParam: string) {
   const isbn = decodeURIComponent(isbnParam)
@@ -160,21 +158,18 @@ export default async function BookPage({
   const pubInfo = [book.publisher, book.published_date].filter(Boolean).join(' · ')
   const densityMode = posts.length > 0 ? modeOf(posts.map((p) => p.text_density)) : null
 
-  // 내가 추천한 기록들 (기록 카드의 추천 버튼 상태용)
-  const myLikes = new Map<string, string[]>()
-  if (user && posts.length > 0) {
-    const { data: myLikeRows } = await supabase
+  // 내 추천 여부 (책 단위 — 책 정보 카드의 추천 버튼 상태용)
+  let myGroups: string[] = []
+  let likedByMe = false
+  if (user) {
+    const { data: myLikeRow } = await supabase
       .from('likes')
-      .select('post_id, group_names')
+      .select('group_names')
       .eq('user_id', user.id)
-      .in(
-        'post_id',
-        posts.map((p) => p.id)
-      )
-    for (const row of (myLikeRows as { post_id: string; group_names: string[] | null }[] | null) ??
-      []) {
-      myLikes.set(row.post_id, row.group_names ?? [])
-    }
+      .eq('book_id', book.id)
+      .maybeSingle()
+    likedByMe = Boolean(myLikeRow)
+    myGroups = (myLikeRow as { group_names: string[] | null } | null)?.group_names ?? []
   }
 
   return (
@@ -234,7 +229,16 @@ export default async function BookPage({
               )}
             </div>
           </div>
-          <div className="mt-3 border-t border-black/5 pt-3">
+          {/* 나도 추천해요(책·시기 판단) + 저장 — 둘 다 책 레벨이므로 책 정보 영역에 (2026.08) */}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-black/5 pt-3">
+            <RecommendButton
+              bookId={book.id}
+              initialLiked={likedByMe}
+              initialCount={distribution.totalVoters}
+              initialGroups={myGroups}
+              isLoggedIn={Boolean(user)}
+              variant="detail"
+            />
             <BookmarkButton
               bookId={book.id}
               initialBookmarked={bookmarkedByMe}
@@ -267,32 +271,23 @@ export default async function BookPage({
             <ul className="space-y-3">
               {posts.map((p) => {
                 const groups = (p.post_groups ?? []).map((g) => g.group_name)
-                const likeCount = p.likes?.[0]?.count ?? 0
                 const reaction = REACTION_BY_VALUE[p.child_reaction]
                 return (
                   <li key={p.id}>
                     {/* 기록 카드 = 양육자의 평가 전용 (반응·시기·일기).
-                        글밥량 같은 책 객관 정보는 위 책 정보 영역에.
-                        추천은 여기서 바로 누른다 — 세부 페이지는 댓글 진입용. */}
+                        글밥량은 책 정보 영역에, 추천(책·시기 판단)도 책 정보 영역에 (2026.08).
+                        세부 페이지(/posts/[id])는 댓글 진입·공유 링크용. */}
                     <Link
                       href={`/posts/${p.id}`}
                       className="block rounded-2xl bg-surface p-4 shadow-sm"
                     >
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
                         <span className="flex items-center gap-2 text-sm font-medium text-text">
                           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-main/10 text-xs">
                             🌿
                           </span>
                           {p.author?.nickname ?? '익명'}
                         </span>
-                        <RecommendButton
-                          postId={p.id}
-                          initialLiked={myLikes.has(p.id)}
-                          initialCount={likeCount}
-                          initialGroups={myLikes.get(p.id) ?? []}
-                          isLoggedIn={Boolean(user)}
-                          variant="card"
-                        />
                       </div>
 
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">

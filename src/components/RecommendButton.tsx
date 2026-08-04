@@ -9,7 +9,7 @@ import RecommendSheet, { type RecommendResult } from '@/components/post/Recommen
 // 상세: '추천함 · 🌱 +2' — 대표 시기는 연령 오름차순 첫 번째, 아이콘으로 표기 (10.3)
 
 interface Props {
-  postId: string
+  bookId: string // 추천은 책 단위 (2026.08 전환)
   initialLiked: boolean
   initialCount: number
   initialGroups: string[] // 내가 고른 시기 (재탭 시 시트에 표시)
@@ -36,7 +36,7 @@ export function ThumbIcon({ filled, size }: { filled: boolean; size: number }) {
 }
 
 export default function RecommendButton({
-  postId,
+  bookId,
   initialLiked,
   initialCount,
   initialGroups,
@@ -79,7 +79,7 @@ export default function RecommendButton({
 
   const sheet = sheetOpen ? (
     <RecommendSheet
-      postId={postId}
+      bookId={bookId}
       initialGroups={liked ? groups : []}
       onSaved={handleSaved}
       onClose={() => setSheetOpen(false)}

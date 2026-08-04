@@ -332,7 +332,8 @@ Supabase에 시드 데이터로 이미 등록 완료
   - 책 정보 영역 = 책의 객관 정보: 표지·제목·저자·출판·절판·알라딘 링크 + 글밥량 대표값(최빈) + 저장 버튼
   - 기록 카드 = 양육자의 평가 전용: 닉네임·시기 배지·우리 아이 반응·책육아 일기(3줄)
     글밥량은 기록 카드에 표시하지 않는다(책 객관 정보이므로 위로 이동).
-  - '나도 추천해요'(👍)는 책 페이지의 각 기록 카드에서 바로 누른다(바텀시트).
+  - '나도 추천해요'(👍)는 책 정보 영역(저장 버튼 옆)에서 누른다(바텀시트) — 책·시기 판단이므로.
+    기록 카드에는 두지 않는다(2026.08 확정 — '후기 도움돼요'로 오독됨).
     세부 기록 페이지(/posts/[id])는 댓글 진입·공유 링크용으로 유지.
 
 10.3 '나도 추천해요' 바텀시트 (2026.07.31 신설)
@@ -446,7 +447,7 @@ OAuth 2.0 기반 소셜 로그인
 SNS 공유
 게시물 외부 공유 (카카오·링크 복사 등)
 나도 추천해요 (구 좋아요)
-👍 엄지 아이콘. 탭 시 바텀시트로 추천 시기 다중 선택 → 완료. 재탭 시 수정·해제 가능. 홈 피드 정렬의 1차 기준. DB 테이블·컬럼은 likes 유지, group_names 컬럼만 추가. 표기: 카드 '추천함' / 상세 '추천함 · 꽃잎 +2'
+👍 엄지 아이콘. 탭 시 바텀시트로 추천 시기 다중 선택 → 완료. 재탭 시 수정·해제 가능. 홈 피드 정렬의 1차 기준. 저장 단위는 책(likes.book_id, 2026.08 전환) — "책·시기에 대한 판단"이므로 책 레벨이 정합. 버튼 위치: 책 페이지·상세의 책 정보/반응 영역(기록 카드 아님 — 기록 카드에 두면 '후기 도움돼요'로 오독). 표기: 카드 '추천함' / 상세 '추천함 · 🌸 +2'(대표 시기 아이콘)
 저장 (북마크)
 '아이와 함께 읽고 싶은 책' 개인 리스트. 마이페이지 ②목록의 소스. 저장 단위는 게시물이 아니라 책(book_id) — 같은 책의 다른 기록을 저장해도 리스트에 1권만 뜬다. 랭킹·정렬에 사용하지 않는다(모집단이 '아직 안 읽은 사람'이라 추천과 배타적). 그 책을 기록하면 자동으로 저장 해제되고, 이미 기록한 책은 저장할 수 없다(409 "이미 아이와 함께 읽은 책이에요") — 양방향 가드로 ①·② 목록의 모순을 방지. 저장 수 노출 조건 3가지: (1) 숫자만 공개, 명단 절대 비공개 (2) 5명 이상일 때만 표시, 미만이면 영역 자체를 렌더링하지 않음(0도 금지). 상수 BOOKMARK_COUNT_MIN_DISPLAY = 5 (3) 랭킹·정렬 미사용. 운영 지표로서 "저장은 많은데 기록이 없는 책" = 콘텐츠를 어디에 채울지 알려주는 내부 신호.
 댓글
@@ -519,12 +520,14 @@ Server Component의 setAll 쿠키 핸들러는 반드시 try/catch로 감쌀 것
   - post_images: post_id, image_url, sort_order
   - post_children: post_id, child_id
   - operator_tags: id, name, tag_category, is_active, created_by, created_at
-  - likes: user_id, post_id, group_names(text[] NOT NULL DEFAULT '{}'), created_at
-           ※ UI 라벨은 '나도 추천해요'. 테이블·컬럼명 likes는 유지(불필요한 마이그레이션 회피).
+  - likes: user_id, book_id(→books), group_names(text[] NOT NULL DEFAULT '{}'), created_at
+           ← 2026.08 변경 (구: post_id). PK(user_id, book_id) — user당 책 1행 = 행 수가 곧 추천자 수.
+           ※ UI 라벨은 '나도 추천해요'. 테이블명 likes는 유지.
+           ※ 책 단위로 전환한 이유: 추천 = "책·시기에 대한 판단"이라 책 레벨이 정합(17장 👍 의미 충돌 해소).
+             기록 간 랭킹은 미사용(홈=책 단위, 책 페이지=작성순)이라 손실 없음.
+             기록 공감('도움돼요')이 필요해지면 출시 후 별도 장치로 신설.
            ※ group_names = 이 사용자가 추천하는 시기 배열. 다중 선택.
              CHECK 제약으로 6개 한글 라벨만 허용(post_groups와 동일).
-           ※ post_id 단위를 유지할 것. 책 단위로 저장하면 같은 책의 기록 5개가
-             전부 같은 카운트를 갖게 되어 기록 간 랭킹이 불가능해진다.
            ※ 레거시 행은 group_names = '{}' 로 남고 시기 집계에서 자동 제외된다.
   - bookmarks: user_id, book_id(→books), created_at   ← 2026.07.31 변경 (구: post_id)
            ※ 저장 단위는 책. UNIQUE(user_id, book_id). 19.2의 /book/[isbn] 구조와 일관.
@@ -538,27 +541,28 @@ RLS 정책: supabase/rls_policies.sql 에 정의. "누구나 읽기 / 본인 것
           operator_tags 쓰기는 운영자만". 스키마 변경 시 이 파일도 갱신하고 SQL Editor에서 재실행.
 users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대비해 recommend/profile 라우트에서 upsert self-heal.
 
-주요 쿼리 패턴 (2026.07.31 추가):
-  -- (1) 기록 랭킹용 추천 수 — 기존 좋아요 집계와 동일, 수정 불필요
-  select post_id, count(*) as recommend_count from likes group by post_id;
+주요 쿼리 패턴 (2026.08 갱신 — likes book_id 전환 반영):
+  -- (1) 책 추천자 수 — user당 1행이라 단순 count
+  select book_id, count(*) as recommend_count from likes group by book_id;
 
-  -- (2) 책 단위 '추천 시기 분포' (/book/[isbn] ①영역, 바텀시트 완료 후)
-  select g as group_name, count(distinct l.user_id) as votes
+  -- (2) 책 단위 '추천 시기 분포' (/book/[isbn] 상시, 바텀시트 완료 후) — 조인 불필요
+  select g as group_name, count(*) as votes
     from likes l
-    join posts p on p.id = l.post_id
     cross join lateral unnest(l.group_names) as g
-   where p.book_id = $1
+   where l.book_id = $1
    group by g;
-  -- count(distinct user_id): 같은 사람이 같은 책의 여러 기록에 추천한 중복 제거
+  -- 구현: src/lib/distribution.ts (JS 집계, recommend API·책 페이지 공용)
 
   -- (3) 저장 수 — books.bookmark_count 를 그대로 읽는다 (트리거로 동기화, 직접 count 금지)
 
-마이그레이션 파일:
-  supabase/add_child_reaction.sql        — posts.child_reaction (적용 완료)
-  supabase/add_like_groups.sql           — likes.group_names (가)
-  supabase/migrate_bookmarks_to_book.sql — bookmarks post_id→book_id (나)
-  supabase/add_bookmark_counter.sql      — books.bookmark_count + 트리거 (다)
-  ⚠️ 가 → 나 → 다 순서로 실행할 것. '다'를 먼저 실행하면 book_id가 없어 실패한다.
+마이그레이션 파일 (전부 적용 완료):
+  supabase/add_child_reaction.sql          — posts.child_reaction
+  supabase/add_like_groups.sql             — likes.group_names (가)
+  supabase/migrate_bookmarks_to_book.sql   — bookmarks post_id→book_id (나)
+  supabase/add_bookmark_counter.sql        — books.bookmark_count + 트리거 (다)
+  supabase/rename_groups_flower_fruit.sql  — 시기 명칭 봄꽃→꽃잎, 사과→열매
+  supabase/migrate_likes_to_book.sql       — likes post_id→book_id (2026.08, 추천의 책 단위 전환)
+  supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 
 
 14. 디자인 시스템
@@ -729,8 +733,8 @@ bookgardening.com이 유력 후보. 9단계 배포 시 최종 결정
 book 페이지 착수 시 확정
 (가) 기록별 댓글(현행, comments.post_id 그대로) / (나) 책 단위 스레드 / (다) 둘 다. 현재 추천=(가) 유지 — 스키마 변경이 없고, 댓글은 특정 기록에 대한 공감이라 책 단위 스레드는 맥락이 흐려진다. ※ 댓글=기록 없이도 짧은 공감·반응 남기는 장치(추천과 함께 상세 ③반응 영역).
 👍 아이콘의 의미 충돌
-미결 (2026.08 제기)
-엄지 아이콘의 관습적 의미는 "이 후기(기록)가 도움돼요"(기록 공감)인데, 기능의 실제 의미는 "나도 이 책을 이 시기에 추천해요"(책·시기 판단, 바텀시트)라 어긋남. book 페이지 기록 카드에서 엄지를 누르면 기록 공감으로 오독될 가능성. 후보: (a) 아이콘 교체 (b) 라벨 노출 강화 (c) '기록 공감(도움돼요)'과 '책 추천'을 별도 장치로 분리 — 분리 시 신호 축 재설계 필요(18.1). 다음 논의 때 확정.
+확정 (2026.08 해소)
+엄지의 관습적 의미("후기 도움돼요"=기록 공감)와 기능("나도 이 책을 이 시기에 추천")이 어긋나던 문제 → 추천을 책 레벨로 이동해 해소: likes를 book_id 단위로 전환(migrate_likes_to_book.sql), 버튼은 책 페이지·상세의 책 정보/반응 영역에만 배치(기록 카드에서 제거). 기록 공감('도움돼요')은 출시 후 기록 정렬이 필요해질 때 별도 장치로 신설 검토.
 신고 기능
 보류
 MVP 이후 추가
@@ -760,7 +764,7 @@ MVP 이후 추가
        → 책 검증(월령별 반응). 1건당 1개 값이라 변별력이 없고, 자기신고 값이라 정렬엔 부적합.
          이미 '피드 노출 자격' 필터로 쓰고 있어 정렬에 또 쓰면 이중 사용이 된다.
   ② 나도 추천해요 : 모집단 = 읽었지만 기록은 안 쓴 사람 포함. 남이 눌러주는 N명 집계값.
-       → 기록 정렬 + 추천 시기(group_names) 집계
+       → 책 단위 저장(likes.book_id, 2026.08 전환). 홈 피드(책 카드) 정렬 + 추천 시기(group_names) 집계
   ③ 저장(북마크) : 모집단 = 아직 안 읽은 사람 → 개인 위시리스트. 랭킹 미사용
   ※ ②와 ③은 모집단이 배타적이다(이미 읽었으면 저장하지 않는다).
     합산하면 서로 다른 모집단을 섞게 되어 의미가 훼손된다.

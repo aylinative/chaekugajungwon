@@ -53,6 +53,7 @@ interface RawPost {
     cover_image_url: string | null
     aladin_item_id: string | null
     bookmark_count: number
+    likes: { count: number }[] | null // 책 단위 추천자 수 (likes.book_id, user당 1행)
   } | null
   post_groups: { group_name: string }[] | null
   post_tags:
@@ -62,7 +63,6 @@ interface RawPost {
         operator_tags: { name: string } | null
       }[]
     | null
-  likes: { user_id: string }[] | null
 }
 
 // 최빈값 (동률이면 큰 값 — 반응 3>2, 글밥은 무해)
@@ -102,10 +102,9 @@ export async function getFeedData(
         .from('posts')
         .select(
           `id, text_density, child_reaction, created_at,
-           book:books ( id, title, cover_image_url, aladin_item_id, bookmark_count ),
+           book:books ( id, title, cover_image_url, aladin_item_id, bookmark_count, likes ( count ) ),
            post_groups ( group_name ),
-           post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) ),
-           likes ( user_id )`
+           post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) )`
         )
         .order('created_at', { ascending: false }),
       userId
@@ -143,10 +142,6 @@ export async function getFeedData(
     const qualifying = list.filter((p) => isRecommended(p.child_reaction))
     if (qualifying.length === 0) continue
 
-    // 추천 수는 책 단위 distinct user (반응 1 기록에 달린 추천도 책에 대한 신호이므로 전체 기록 기준)
-    const likeUsers = new Set<string>()
-    list.forEach((p) => (p.likes ?? []).forEach((l) => likeUsers.add(l.user_id)))
-
     const book = list[0].book!
     cards.push({
       bookId,
@@ -154,7 +149,8 @@ export async function getFeedData(
       title: book.title ?? '(제목 없음)',
       cover: book.cover_image_url,
       recordCount: list.length,
-      recommendUserCount: likeUsers.size,
+      // 추천은 책 단위 저장(user당 1행)이라 행 수 = 추천한 사람 수
+      recommendUserCount: book.likes?.[0]?.count ?? 0,
       reaction: modeOf(qualifying.map((p) => p.child_reaction)),
       density: modeOf(list.map((p) => p.text_density)),
       groups: [

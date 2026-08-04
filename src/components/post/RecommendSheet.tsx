@@ -17,13 +17,13 @@ export interface RecommendResult {
 }
 
 interface Props {
-  postId: string
+  bookId: string // 추천은 책 단위 (2026.08 전환)
   initialGroups: string[] // 재탭 시 기존 선택 (신규면 빈 배열)
   onSaved: (result: RecommendResult) => void
   onClose: () => void
 }
 
-export default function RecommendSheet({ postId, initialGroups, onSaved, onClose }: Props) {
+export default function RecommendSheet({ bookId, initialGroups, onSaved, onClose }: Props) {
   const [selected, setSelected] = useState<string[]>(initialGroups)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -47,7 +47,7 @@ export default function RecommendSheet({ postId, initialGroups, onSaved, onClose
     setSaving(true)
     setError('')
     try {
-      const res = await fetch(`/api/posts/${postId}/like`, {
+      const res = await fetch(`/api/books/${bookId}/recommend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ group_names: selected }),

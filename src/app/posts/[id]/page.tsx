@@ -104,20 +104,21 @@ export default async function PostDetailPage({
     data: { user },
   } = await supabase.auth.getUser()
 
+  // 추천은 책 단위 (2026.08 전환) — 이 책을 추천한 사람 수
   const { count: likeCount } = await supabase
     .from('likes')
     .select('*', { count: 'exact', head: true })
-    .eq('post_id', id)
+    .eq('book_id', post.book?.id ?? '')
 
   let liked = false
   let myGroups: string[] = []
   let myNickname = ''
   let bookmarkedByMe = false
-  if (user) {
+  if (user && post.book?.id) {
     const { data: likeRow } = await supabase
       .from('likes')
-      .select('post_id, group_names')
-      .eq('post_id', id)
+      .select('book_id, group_names')
+      .eq('book_id', post.book.id)
       .eq('user_id', user.id)
       .maybeSingle()
     liked = Boolean(likeRow)
@@ -303,14 +304,16 @@ export default async function PostDetailPage({
         <section className="mt-4 rounded-2xl bg-surface p-4 shadow-sm">
           {/* 나도 추천해요 + 저장 — 한 줄 정렬 */}
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-black/5 pb-4">
-            <RecommendButton
-              postId={post.id}
-              initialLiked={liked}
-              initialCount={likeCount ?? 0}
-              initialGroups={myGroups}
-              isLoggedIn={Boolean(user)}
-              variant="detail"
-            />
+            {book?.id && (
+              <RecommendButton
+                bookId={book.id}
+                initialLiked={liked}
+                initialCount={likeCount ?? 0}
+                initialGroups={myGroups}
+                isLoggedIn={Boolean(user)}
+                variant="detail"
+              />
+            )}
             {book?.id && (
               <BookmarkButton
                 bookId={book.id}

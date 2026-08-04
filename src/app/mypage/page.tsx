@@ -19,7 +19,6 @@ interface MyPostRow {
   book_id: string
   book: { title: string | null; cover_image_url: string | null } | null
   post_groups: { group_name: string }[] | null
-  likes: { count: number }[] | null
 }
 
 interface MyBookmarkRow {
@@ -54,8 +53,7 @@ export default async function MyPage() {
       .select(
         `id, created_at, book_id,
          book:books ( title, cover_image_url ),
-         post_groups ( group_name ),
-         likes ( count )`
+         post_groups ( group_name )`
       )
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
@@ -138,7 +136,6 @@ export default async function MyPage() {
             <ul className="space-y-2">
               {posts.map((p) => {
                 const groups = (p.post_groups ?? []).map((g) => g.group_name)
-                const likeCount = p.likes?.[0]?.count ?? 0
                 const date = new Date(p.created_at).toLocaleDateString('ko-KR', {
                   year: 'numeric',
                   month: 'long',
@@ -181,12 +178,8 @@ export default async function MyPage() {
                             </span>
                           ))}
                         </div>
-                        <div className="mt-auto flex items-center justify-between pt-1 text-xs text-text/40">
+                        <div className="mt-auto pt-1 text-xs text-text/40">
                           <span>{date}</span>
-                          <span className="flex items-center gap-0.5">
-                            <span>👍</span>
-                            {likeCount}
-                          </span>
                         </div>
                       </div>
                     </Link>

@@ -1,19 +1,20 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { GROUP_LABELS_ORDERED } from '@/lib/groups'
-import { getBookDistributionByPostId } from '@/lib/distribution'
+import { getBookDistribution } from '@/lib/distribution'
 
-// '나도 추천해요' (구 좋아요) — 바텀시트에서 고른 추천 시기(group_names)와 함께 저장.
+// '나도 추천해요' — 책 단위 (2026.08: post 단위에서 전환).
+// "나도 이 책을 이 시기 아이에게 추천한다"는 책·시기에 대한 판단이므로 book_id에 저장.
 // body: { group_names: string[] } (한글 라벨, likes CHECK 제약과 동일)
 //  - 1개 이상: upsert (재탭 수정 포함)
 //  - 0개: 행 삭제 = 추천 해제
-// 응답에 책 단위 '추천 시기 분포'를 포함해 완료 직후 바로 보여줄 수 있게 한다 (10.3).
+// 응답에 분포를 포함해 완료 직후 바로 보여줄 수 있게 한다 (10.3).
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id: postId } = await params
+  const { id: bookId } = await params
   const supabase = await createServerSupabase()
 
   const {
@@ -35,7 +36,7 @@ export async function POST(
     const { error } = await supabase
       .from('likes')
       .delete()
-      .eq('post_id', postId)
+      .eq('book_id', bookId)
       .eq('user_id', user.id)
     if (error) {
       console.error('Recommend delete error:', error)
@@ -46,8 +47,8 @@ export async function POST(
     const { error } = await supabase
       .from('likes')
       .upsert(
-        { post_id: postId, user_id: user.id, group_names: groupNames },
-        { onConflict: 'user_id,post_id' }
+        { book_id: bookId, user_id: user.id, group_names: groupNames },
+        { onConflict: 'user_id,book_id' }
       )
     if (error) {
       console.error('Recommend upsert error:', error)
@@ -57,13 +58,13 @@ export async function POST(
   }
 
   const [{ count }, distribution] = await Promise.all([
-    supabase.from('likes').select('*', { count: 'exact', head: true }).eq('post_id', postId),
-    getBookDistributionByPostId(supabase, postId),
+    supabase.from('likes').select('*', { count: 'exact', head: true }).eq('book_id', bookId),
+    getBookDistribution(supabase, bookId),
   ])
 
   return NextResponse.json({
     liked,
-    count: count ?? 0,
+    count: count ?? 0, // 이 책을 추천한 사람 수 (user당 1행)
     groupNames,
     distribution: distribution.votes,
     totalVoters: distribution.totalVoters,
