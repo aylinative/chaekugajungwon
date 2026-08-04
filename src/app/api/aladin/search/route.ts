@@ -45,7 +45,7 @@ async function searchByCategory(
   const url = new URL('http://www.aladin.co.kr/ttb/api/ItemSearch.aspx');
   url.searchParams.set('ttbkey', ttbKey);
   url.searchParams.set('Query', query);
-  url.searchParams.set('QueryType', 'Title'); // 제목 검색
+  url.searchParams.set('QueryType', 'Keyword'); // 제목+저자 통합 검색 (작가명 검색 지원, 2026.08)
   url.searchParams.set('SearchTarget', searchTarget);
   url.searchParams.set('CategoryId', String(categoryId));
   url.searchParams.set('MaxResults', String(maxResults));

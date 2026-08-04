@@ -1,5 +1,5 @@
--- 책 제목 유사 검색 함수 (2026.08)
--- 1) 띄어쓰기 무시 부분 일치: '달님안녕' ↔ '달님 안녕'
+-- 책 제목+작가 유사 검색 함수 (2026.08, 작가 검색 추가)
+-- 1) 띄어쓰기 무시 부분 일치: '달님안녕' ↔ '달님 안녕' (제목·작가 모두)
 -- 2) pg_trgm 유사도: 가벼운 오타·변형도 매칭 (기본 임계값 0.3)
 -- 기록이 있는 책만 반환, 기록 수 → 추천 수 순 정렬.
 
@@ -30,6 +30,8 @@ as $$
    where (
            replace(lower(b.title), ' ', '') like '%' || replace(q.esc, ' ', '') || '%' escape '\'
            or b.title % q.raw
+           or replace(lower(coalesce(b.author, '')), ' ', '') like '%' || replace(q.esc, ' ', '') || '%' escape '\'
+           or coalesce(b.author, '') % q.raw
          )
      and exists (select 1 from posts p where p.book_id = b.id)
    order by record_count desc, recommend_count desc
