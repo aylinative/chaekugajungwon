@@ -11,6 +11,7 @@ interface AladinItem {
   isbn13: string;
   stockstatus: string;
   mallType: string; // BOOK(국내도서) / FOREIGN(외국도서) / EBOOK / DVD / MUSIC / USED
+  salesPoint: number; // 알라딘 판매지수 — 상위 노출 정렬에 사용
 }
 
 interface AladinResponse {
@@ -108,10 +109,9 @@ export async function GET(request: NextRequest) {
       ),
     ]);
 
-    // 배열 순서가 국내도서 먼저이므로 병합 결과도 국내도서 우선 정렬이 된다.
     // isbn13(없으면 link) 기준으로 중복 제거.
     const seen = new Set<string>();
-    const items = perCategory
+    const merged = perCategory
       .flat()
       .filter((item) => item.mallType === 'BOOK' || item.mallType === 'FOREIGN')
       .filter((item) => {
@@ -119,17 +119,36 @@ export async function GET(request: NextRequest) {
         if (!key || seen.has(key)) return false;
         seen.add(key);
         return true;
-      })
-      .map((item) => ({
-        title: item.title,
-        author: item.author,
-        publisher: item.publisher,
-        pubDate: item.pubDate,
-        cover: item.cover,
-        link: item.link,
-        isbn13: item.isbn13,
-        isOutOfPrint: item.stockstatus !== '' && item.stockstatus != null,
-      }));
+      });
+
+    // 상위 노출 정렬: ① 제목 정확 일치(공백 무시) → ② 검색어로 시작 → ③ 국내도서 우선 → ④ 세일즈포인트 순
+    // (예: '점' 검색 시 제목이 정확히 '점'인 책이 '점'을 포함만 하는 97권보다 먼저 나와야 한다)
+    const normQuery = query.replace(/\s+/g, '').toLowerCase();
+    const exactness = (title: string) => {
+      const t = title.replace(/\s+/g, '').toLowerCase();
+      if (t === normQuery) return 2;
+      if (t.startsWith(normQuery)) return 1;
+      return 0;
+    };
+    merged.sort((a, b) => {
+      const ex = exactness(b.title) - exactness(a.title);
+      if (ex !== 0) return ex;
+      const domestic =
+        (a.mallType === 'FOREIGN' ? 1 : 0) - (b.mallType === 'FOREIGN' ? 1 : 0);
+      if (domestic !== 0) return domestic;
+      return (b.salesPoint ?? 0) - (a.salesPoint ?? 0);
+    });
+
+    const items = merged.map((item) => ({
+      title: item.title,
+      author: item.author,
+      publisher: item.publisher,
+      pubDate: item.pubDate,
+      cover: item.cover,
+      link: item.link,
+      isbn13: item.isbn13,
+      isOutOfPrint: item.stockstatus !== '' && item.stockstatus != null,
+    }));
 
     return NextResponse.json({ items });
   } catch (error) {
