@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { RECOMMEND_GROUPS, getGroupValueByMonths } from '@/lib/groups'
 import { CHILD_REACTIONS } from '@/lib/reactions'
@@ -51,8 +51,10 @@ const topicOptions = [
   '병풍/팝업책',
 ]
 
-export default function RecommendCreatePage() {
+function RecommendCreateInner() {
   const router = useRouter()
+  // 첫 기록 모드(11.4): 온보딩 직후 또는 기록 0건 상태에서 진입. 배너 + 완료 후 홈 이동.
+  const isFirst = useSearchParams().get('first') === '1'
   const [query, setQuery] = useState('')
   const [books, setBooks] = useState<BookItem[]>([])
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null)
@@ -243,7 +245,11 @@ export default function RecommendCreatePage() {
       }
 
       setSubmitSuccess('기록을 남겼어요.')
-      // 등록한 게시물 상세 페이지로 이동
+      // 첫 기록이면 홈(피드)으로 입장, 이후 기록은 상세 페이지로
+      if (isFirst) {
+        router.push('/')
+        return
+      }
       if (data.postId) {
         router.push(`/posts/${data.postId}`)
         return
@@ -260,12 +266,32 @@ export default function RecommendCreatePage() {
     <main className="min-h-screen bg-bg text-text">
       <div className="mx-auto max-w-md px-4 pb-10 pt-5">
         <header className="mb-4 flex items-center justify-between">
-          <a href="/" className="text-sm text-main">
-            ← 홈으로
-          </a>
-          <h1 className="text-lg font-semibold">책 기록하기</h1>
+          {/* 첫 기록 모드에서는 홈이 다시 이 화면으로 리다이렉트되므로 링크를 숨긴다 */}
+          {isFirst ? (
+            <div className="w-12" />
+          ) : (
+            <a href="/" className="text-sm text-main">
+              ← 홈으로
+            </a>
+          )}
+          <h1 className="text-lg font-semibold">
+            {isFirst ? '첫 책 기록하기' : '책 기록하기'}
+          </h1>
           <div className="w-12" />
         </header>
+
+        {/* 첫 기록 웰컴 배너 (11.4) */}
+        {isFirst && (
+          <section className="mb-4 rounded-2xl bg-main/10 p-4">
+            <p className="text-sm font-semibold text-main">
+              🌿 책육아정원은 기록으로 시작해요
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-text/70">
+              아이와 함께 읽었던 책 한 권을 먼저 기록해주세요.
+              이런 기록들이 모여 우리 아이 시기에 맞는 그림책 추천이 됩니다.
+            </p>
+          </section>
+        )}
 
         <section className="rounded-2xl bg-surface p-4 shadow-sm">
           <label htmlFor="book-search" className="mb-2 block text-sm font-medium">
@@ -575,10 +601,19 @@ export default function RecommendCreatePage() {
             disabled={isSubmitting}
             className="w-full rounded-2xl bg-main px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {isSubmitting ? '기록 중...' : '기록 남기기'}
+            {isSubmitting ? '기록 중...' : isFirst ? '첫 기록 남기고 시작하기' : '기록 남기기'}
           </button>
         </section>
       </div>
     </main>
+  )
+}
+
+// useSearchParams는 Suspense 경계가 필요하다 (Next.js CSR bailout)
+export default function RecommendCreatePage() {
+  return (
+    <Suspense fallback={null}>
+      <RecommendCreateInner />
+    </Suspense>
   )
 }

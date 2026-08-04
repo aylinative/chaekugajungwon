@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { getFeedData } from '@/lib/feed'
 import FeedHeader from '@/components/FeedHeader'
@@ -36,6 +37,16 @@ export default async function Home({
         </div>
       </main>
     )
+  }
+
+  // 첫 기록 게이트(11.4): 기록 0건이면 피드 대신 첫 기록 화면으로.
+  // 이 서비스의 핵심은 추천 기록이 쌓이는 것 — 모든 유저는 1건 쓰고 시작한다.
+  const { count: myPostCount } = await supabase
+    .from('posts')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+  if ((myPostCount ?? 0) === 0) {
+    redirect('/recommend/create?first=1')
   }
 
   // 로그인 후: 홈 피드

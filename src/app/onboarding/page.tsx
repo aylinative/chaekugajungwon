@@ -81,7 +81,8 @@ export default function OnboardingPage() {
         throw new Error(data.error || '저장에 실패했습니다.')
       }
 
-      router.replace('/')
+      // 온보딩 다음은 첫 기록 — 모든 유저는 기록 1건을 쓰고 서비스를 시작한다 (11.4)
+      router.replace('/recommend/create?first=1')
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
       setIsSubmitting(false)
