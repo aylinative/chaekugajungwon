@@ -18,14 +18,16 @@ const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
 export default function BookCardItem({
   card,
   isLoggedIn,
+  fullWidth = false,
 }: {
   card: BookCard
   isLoggedIn: boolean
+  fullWidth?: boolean // true=그리드 셀 꽉 채움(전체보기) / false=가로 스크롤 고정폭(홈)
 }) {
   return (
     <Link
       href={`/book/${encodeURIComponent(card.isbn)}`}
-      className="flex w-36 flex-shrink-0 flex-col gap-2"
+      className={`flex flex-col gap-2 ${fullWidth ? 'w-full' : 'w-36 flex-shrink-0'}`}
     >
       {/* 표지 */}
       <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-surface-muted shadow-sm">

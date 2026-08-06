@@ -42,6 +42,13 @@ export interface FeedData {
   sections: GroupSectionData[]
 }
 
+export interface GroupCardsData {
+  value: string
+  label: string
+  ageLabel: string
+  cards: BookCard[]
+}
+
 interface RawPost {
   id: string
   text_density: number
@@ -86,33 +93,36 @@ function topicsOf(p: RawPost): string[] {
     .filter((t): t is string => Boolean(t))
 }
 
-export async function getFeedData(
-  supabase: SupabaseClient,
-  tagFilter?: string,
-  userId?: string
-): Promise<FeedData> {
-  const [{ data: tagRows }, { data: postRows }, { data: bookmarkRows }] =
-    await Promise.all([
-      supabase
-        .from('operator_tags')
-        .select('id, name')
-        .eq('is_active', true)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('posts')
-        .select(
-          `id, text_density, child_reaction, created_at,
-           book:books ( id, title, cover_image_url, aladin_item_id, bookmark_count, likes ( count ) ),
-           post_groups ( group_name ),
-           post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) )`
-        )
-        .order('created_at', { ascending: false }),
-      userId
-        ? supabase.from('bookmarks').select('book_id').eq('user_id', userId)
-        : Promise.resolve({ data: null }),
-    ])
+async function fetchOperatorTags(supabase: SupabaseClient): Promise<OperatorTag[]> {
+  const { data } = await supabase
+    .from('operator_tags')
+    .select('id, name')
+    .eq('is_active', true)
+    .order('created_at', { ascending: true })
+  return (data as OperatorTag[] | null) ?? []
+}
 
-  const operatorTags: OperatorTag[] = (tagRows as OperatorTag[] | null) ?? []
+// posts + bookmarks 조회 → 책 단위 카드 집계 + 시기별 누적 기록 수.
+// 홈 피드(getFeedData)와 그룹 전체보기(getGroupCards)가 공유한다.
+async function aggregateBookCards(
+  supabase: SupabaseClient,
+  userId?: string
+): Promise<{ cards: BookCard[]; groupRecordCounts: Map<string, number> }> {
+  const [{ data: postRows }, { data: bookmarkRows }] = await Promise.all([
+    supabase
+      .from('posts')
+      .select(
+        `id, text_density, child_reaction, created_at,
+         book:books ( id, title, cover_image_url, aladin_item_id, bookmark_count, likes ( count ) ),
+         post_groups ( group_name ),
+         post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) )`
+      )
+      .order('created_at', { ascending: false }),
+    userId
+      ? supabase.from('bookmarks').select('book_id').eq('user_id', userId)
+      : Promise.resolve({ data: null }),
+  ])
+
   const bookmarkedBookIds = new Set(
     ((bookmarkRows as { book_id: string }[] | null) ?? []).map((b) => b.book_id)
   )
@@ -121,7 +131,6 @@ export async function getFeedData(
 
   // 시기별 누적 기록 수 (정렬 전환 임계값 판정용 — 태그 필터와 무관한 시기 전체 기준)
   const groupRecordCounts = new Map<string, number>()
-  // 책 단위 묶기
   const byBook = new Map<string, RawPost[]>()
   for (const p of posts) {
     const bookId = p.book!.id
@@ -137,7 +146,7 @@ export async function getFeedData(
 
   const cards: BookCard[] = []
   for (const [bookId, list] of byBook) {
-    // 홈 피드 = 커뮤니티 추천: 반응 2 이상 기록이 있는 책만 노출.
+    // 커뮤니티 추천: 반응 2 이상 기록이 있는 책만 노출.
     // '그냥 봤어요'(1)만 있는 책은 개인 기록·책 단위 집계에는 남지만 피드엔 안 뜸.
     const qualifying = list.filter((p) => isRecommended(p.child_reaction))
     if (qualifying.length === 0) continue
@@ -166,6 +175,19 @@ export async function getFeedData(
     })
   }
 
+  return { cards, groupRecordCounts }
+}
+
+export async function getFeedData(
+  supabase: SupabaseClient,
+  tagFilter?: string,
+  userId?: string
+): Promise<FeedData> {
+  const [operatorTags, { cards, groupRecordCounts }] = await Promise.all([
+    fetchOperatorTags(supabase),
+    aggregateBookCards(supabase, userId),
+  ])
+
   const filtered = tagFilter ? cards.filter((c) => c.topics.includes(tagFilter)) : cards
 
   const sections: GroupSectionData[] = RECOMMEND_GROUPS.map((g) => {
@@ -178,4 +200,21 @@ export async function getFeedData(
   })
 
   return { operatorTags, sections }
+}
+
+// 그룹 전체보기: 해당 시기 카드 전체(캡 없음)를 홈과 동일한 랭킹으로 정렬해 반환.
+// 잘못된 그룹 value면 null.
+export async function getGroupCards(
+  supabase: SupabaseClient,
+  groupValue: string,
+  userId?: string
+): Promise<GroupCardsData | null> {
+  const group = RECOMMEND_GROUPS.find((g) => g.value === groupValue)
+  if (!group) return null
+
+  const { cards, groupRecordCounts } = await aggregateBookCards(supabase, userId)
+  const inGroup = cards.filter((c) => c.groups.includes(group.label))
+  const sorted = sortByGroupRanking(inGroup, groupRecordCounts.get(group.label) ?? 0)
+
+  return { value: group.value, label: group.label, ageLabel: group.ageLabel, cards: sorted }
 }
