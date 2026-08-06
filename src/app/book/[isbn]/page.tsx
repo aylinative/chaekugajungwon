@@ -270,7 +270,9 @@ export default async function BookPage({
           ) : (
             <ul className="space-y-3">
               {posts.map((p) => {
-                const groups = (p.post_groups ?? []).map((g) => g.group_name)
+                const groups = sortGroupLabelsByAge(
+                  (p.post_groups ?? []).map((g) => g.group_name)
+                )
                 const reaction = REACTION_BY_VALUE[p.child_reaction]
                 return (
                   <li key={p.id}>

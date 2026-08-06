@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
-import { RECOMMEND_GROUPS, LABEL_TO_EMOJI } from '@/lib/groups'
+import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge } from '@/lib/groups'
 import BottomTabBar from '@/components/BottomTabBar'
 import BookmarkList from '@/components/mypage/BookmarkList'
 import ProfileEditor from '@/components/mypage/ProfileEditor'
@@ -135,7 +135,9 @@ export default async function MyPage() {
           ) : (
             <ul className="space-y-2">
               {posts.map((p) => {
-                const groups = (p.post_groups ?? []).map((g) => g.group_name)
+                const groups = sortGroupLabelsByAge(
+                  (p.post_groups ?? []).map((g) => g.group_name)
+                )
                 const date = new Date(p.created_at).toLocaleDateString('ko-KR', {
                   year: 'numeric',
                   month: 'long',

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { RECOMMEND_GROUPS } from '@/lib/groups'
+import { RECOMMEND_GROUPS, sortGroupLabelsByAge } from '@/lib/groups'
 import { isRecommended } from '@/lib/reactions'
 import { sortByGroupRanking } from '@/lib/ranking'
 
@@ -162,9 +162,10 @@ async function aggregateBookCards(
       recommendUserCount: book.likes?.[0]?.count ?? 0,
       reaction: modeOf(qualifying.map((p) => p.child_reaction)),
       density: modeOf(list.map((p) => p.text_density)),
-      groups: [
+      // 시기는 순서형 — 항상 연령 오름차순으로 노출
+      groups: sortGroupLabelsByAge([
         ...new Set(qualifying.flatMap((p) => (p.post_groups ?? []).map((g) => g.group_name))),
-      ],
+      ]),
       topics: [...new Set(qualifying.flatMap(topicsOf))],
       latestCreatedAt: qualifying
         .map((p) => p.created_at)

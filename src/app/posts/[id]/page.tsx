@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
-import { RECOMMEND_GROUPS, LABEL_TO_EMOJI } from '@/lib/groups'
+import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton from '@/components/RecommendButton'
@@ -166,7 +166,7 @@ export default async function PostDetailPage({
   }))
 
   const book = post.book
-  const groups = (post.post_groups ?? []).map((g) => g.group_name)
+  const groups = sortGroupLabelsByAge((post.post_groups ?? []).map((g) => g.group_name))
   const topics = (post.post_tags ?? [])
     .map((t) => (t.is_operator_tag ? t.operator_tags?.name : t.custom_tag))
     .filter((t): t is string => Boolean(t))
