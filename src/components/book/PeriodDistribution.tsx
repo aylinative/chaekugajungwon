@@ -42,10 +42,16 @@ export function getDistributionSummary(
 export default function PeriodDistribution({ votes, totalVoters, myGroups = [] }: Props) {
   if (totalVoters < MIN_VOTES_FOR_BARS) {
     return (
-      <p className="py-3 text-center text-sm text-text/60">
-        {totalVoters === 0
-          ? '아직 추천한 사람이 없어요'
-          : `아직 ${totalVoters}명이 추천했어요`}
+      <p className="py-3 text-center text-sm leading-relaxed text-text/60">
+        {totalVoters === 0 ? (
+          '아직 추천 데이터가 없어요'
+        ) : (
+          <>
+            아직 <span className="font-medium text-text/80">{totalVoters}명</span>이라
+            <br />
+            시기 분포를 보여주기엔 일러요
+          </>
+        )}
       </p>
     )
   }

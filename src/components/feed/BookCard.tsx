@@ -15,6 +15,25 @@ const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.selectedClass])
 )
 
+// 기록 수 아이콘 (문서) — '기록 N' 텍스트 대신 아이콘으로 통일
+function RecordIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6M8 13h8M8 17h5" />
+    </svg>
+  )
+}
+
 export default function BookCardItem({
   card,
   isLoggedIn,
@@ -50,16 +69,13 @@ export default function BookCardItem({
         {card.title}
       </p>
 
-      {/* 대표 반응 (최빈) + 기록 수 */}
+      {/* 대표 반응 (최빈) */}
       {REACTION_BY_VALUE[card.reaction] && (
         <p className="flex items-center gap-1 text-[11px] font-medium text-point">
           <span className="text-sm leading-none">
             {REACTION_BY_VALUE[card.reaction].emoji}
           </span>
           {REACTION_BY_VALUE[card.reaction].label}
-          {card.recordCount > 1 && (
-            <span className="font-normal text-text/40">· 기록 {card.recordCount}</span>
-          )}
         </p>
       )}
 
@@ -85,9 +101,13 @@ export default function BookCardItem({
         </p>
       )}
 
-      {/* 추천 수(표시 전용) + 저장 */}
-      <div className="flex items-center justify-end gap-1 text-xs text-text/50">
-        <span className="flex items-center gap-0.5 text-text/40" aria-label="추천한 사람 수">
+      {/* 기록 수 + 추천 수(표시 전용) + 저장 — 모두 아이콘 */}
+      <div className="flex items-center justify-end gap-2 text-xs text-text/40">
+        <span className="flex items-center gap-0.5" aria-label={`기록 ${card.recordCount}`}>
+          <RecordIcon size={12} />
+          {card.recordCount}
+        </span>
+        <span className="flex items-center gap-0.5" aria-label={`추천 ${card.recommendUserCount}`}>
           <ThumbIcon filled={false} size={13} />
           {card.recommendUserCount}
         </span>
