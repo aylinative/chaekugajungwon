@@ -554,7 +554,7 @@ Server Component의 setAll 쿠키 핸들러는 반드시 try/catch로 감쌀 것
   books(aladin_item_id=ISBN13로 있으면 재사용/없으면 insert) → users self-heal(upsert) → posts
   → post_groups(시기 value를 한글 label로 변환) → post_tags(운영자태그는 id 연결). 중간 실패 시 posts 롤백.
 시기 저장 방식: post_groups에는 한글 라벨 저장. 폼의 value('seed' 등)는 lib/groups.ts 매핑으로 변환.
-사진/아이 태그: post_images·post_children는 실제 Storage 업로드/아이 선택 UI 구현 시 연결 예정(현재 미저장).
+사진: post_images에 저장(2026.08 구현). 폼에서 File을 Storage 버킷 post-images/{user_id}/{uuid}.{ext}에 업로드(public URL) → recommend API가 post_images에 sort_order와 함께 insert. 상세 페이지에서 표시. 버킷·RLS: supabase/add_post_images_storage.sql(본인 폴더만 업로드/삭제, 누구나 읽기). 아이 태그(post_children)는 아이 선택 UI 구현 시 연결 예정(현재 미저장).
 RLS 정책: supabase/rls_policies.sql 에 정의. "누구나 읽기 / 본인 것만 쓰기(아이·북마크는 본인만 읽기),
           operator_tags 쓰기는 운영자만". 스키마 변경 시 이 파일도 갱신하고 SQL Editor에서 재실행.
 users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대비해 recommend/profile 라우트에서 upsert self-heal.
@@ -580,7 +580,8 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
   supabase/add_bookmark_counter.sql        — books.bookmark_count + 트리거 (다)
   supabase/rename_groups_flower_fruit.sql  — 시기 명칭 봄꽃→꽃잎, 사과→열매
   supabase/migrate_likes_to_book.sql       — likes post_id→book_id (2026.08, 추천의 책 단위 전환)
-  supabase/add_search_function.sql        — search_books 함수 + pg_trgm (책 제목 유사 검색)
+  supabase/add_search_function.sql        — search_books 함수 + pg_trgm (책 제목·작가 유사 검색)
+  supabase/add_post_images_storage.sql     — 기록 사진용 Storage 버킷 post-images + RLS
   supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 
 
@@ -665,7 +666,7 @@ supabase/*.sql
   - 주제 태그 서브 필터: 홈 피드 각 시기 섹션 서브 태그 필터(6.2 밀리의서재식) + 그룹 전체보기 필터.
     현재 홈 상단 전역 태그 필터(TopicFilterBar)만 있음. 데이터 쌓이면 구현.
   - 검색 화면(/search 스텁) 고도화 및 필터
-  - 그룹 전체보기(/group/[value] 스텁), 사진 실제 업로드(Storage, 현재 blob 미저장)
+  - 사진 실제 업로드 ✅(2026.08, post-images 버킷). 그룹 전체보기 ✅
   - SNS 공유(카카오/링크)
   - 운영자 태그 관리 / 권한·관리 기능
   - 배포(Vercel) 및 도메인 구매·설정 → 배포 후 모바일 테스트

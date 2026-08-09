@@ -73,7 +73,8 @@ function RecommendCreateInner() {
   const [readingTime, setReadingTime] = useState<'now' | 'past'>('now')
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const [memo, setMemo] = useState('')
-  const [photoUrls, setPhotoUrls] = useState<string[]>([])
+  // 사진: 실제 File을 들고 있다가 제출 시 Storage 업로드. preview는 blob URL(표시 전용).
+  const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([])
   const [submitError, setSubmitError] = useState('')
   const [submitSuccess, setSubmitSuccess] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -175,12 +176,17 @@ function RecommendCreateInner() {
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || [])
-    const newUrls = files.map((file) => URL.createObjectURL(file))
-    setPhotoUrls((current) => [...current, ...newUrls].slice(0, 3))
+    const added = files.map((file) => ({ file, preview: URL.createObjectURL(file) }))
+    setPhotos((current) => [...current, ...added].slice(0, 3))
+    event.target.value = '' // 같은 파일 다시 선택 가능하도록 초기화
   }
 
   const removePhoto = (index: number) => {
-    setPhotoUrls((current) => current.filter((_, i) => i !== index))
+    setPhotos((current) => {
+      const target = current[index]
+      if (target) URL.revokeObjectURL(target.preview)
+      return current.filter((_, i) => i !== index)
+    })
   }
 
   const handleSubmit = async () => {
@@ -215,6 +221,23 @@ function RecommendCreateInner() {
         return
       }
 
+      // 사진을 Storage에 업로드해 public URL 확보 (경로: {user_id}/{uuid}.{ext})
+      let uploadedUrls: string[] = []
+      if (photos.length > 0) {
+        const results = await Promise.all(
+          photos.map(async ({ file }) => {
+            const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+            const path = `${user.id}/${crypto.randomUUID()}.${ext}`
+            const { error: upErr } = await supabase.storage
+              .from('post-images')
+              .upload(path, file, { contentType: file.type || undefined })
+            if (upErr) throw new Error('사진 업로드에 실패했습니다.')
+            return supabase.storage.from('post-images').getPublicUrl(path).data.publicUrl
+          })
+        )
+        uploadedUrls = results
+      }
+
       const payload = {
         user_id: user.id,
         book_title: selectedBook.title,
@@ -230,7 +253,7 @@ function RecommendCreateInner() {
         reading_amount: selectedAmount,
         topics: selectedTopics,
         memo,
-        photo_urls: photoUrls,
+        photo_urls: uploadedUrls,
       }
 
       const response = await fetch('/api/recommend', {
@@ -565,12 +588,13 @@ function RecommendCreateInner() {
                 onChange={handlePhotoUpload}
                 className="block w-full text-sm text-gray-500 file:mr-3 file:rounded-xl file:border-0 file:bg-main file:px-3 file:py-2 file:text-sm file:text-white"
               />
-              {photoUrls.length > 0 && (
+              {photos.length > 0 && (
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  {photoUrls.map((url, index) => (
-                    <div key={url} className="relative">
+                  {photos.map((photo, index) => (
+                    <div key={photo.preview} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={url}
+                        src={photo.preview}
                         alt={`업로드 이미지 ${index + 1}`}
                         className="h-24 w-full rounded-xl object-cover"
                       />

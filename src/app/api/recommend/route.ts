@@ -24,7 +24,7 @@ interface RecommendPayload {
   reading_amount?: number
   topics?: string[]
   memo?: string
-  // photo_urls는 현재 blob URL(임시)이라 저장하지 않음. 실제 Storage 업로드 구현 시 처리.
+  photo_urls?: string[] // Storage 업로드 후 public URL (폼에서 업로드 완료된 것만)
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -227,8 +227,19 @@ export async function POST(request: Request) {
       }
     }
 
-    // TODO: post_images(사진), post_children(아이 태그)는
-    //       실제 Storage 업로드 / 아이 선택 UI 구현 시 함께 추가.
+    // --- 5) 사진(post_images): 폼에서 Storage 업로드 완료된 public URL만 저장 ---
+    // 실패해도 기록 자체는 성공 처리(사진은 부가 정보) — 롤백하지 않고 로그만.
+    if (Array.isArray(payload.photo_urls) && payload.photo_urls.length > 0) {
+      const imageRows = payload.photo_urls
+        .filter((url): url is string => typeof url === 'string' && url.startsWith('http'))
+        .slice(0, 3)
+        .map((image_url, i) => ({ post_id: postId, image_url, sort_order: i }))
+      if (imageRows.length > 0) {
+        const { error: imageError } = await supabase.from('post_images').insert(imageRows)
+        if (imageError) console.error('Post images insert error:', imageError)
+      }
+    }
+    // TODO: post_children(아이 태그)는 아이 선택 UI 구현 시 추가.
 
     // '아이와 함께 읽고 싶은 책'(저장)에 있던 책을 기록했으면 자동으로 저장 해제.
     // (저장 모집단 = '아직 안 읽은 사람' — 기록했으면 목록에서 빠지는 게 맞다)
