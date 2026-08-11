@@ -9,6 +9,7 @@ import { getDistributionSummary } from '@/components/book/PeriodDistribution'
 import PeriodDistribution from '@/components/book/PeriodDistribution'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton from '@/components/RecommendButton'
+import ShareButton from '@/components/ShareButton'
 import BottomTabBar from '@/components/BottomTabBar'
 
 // 책 단위 페이지 (CLAUDE.md 19.2) — 같은 책의 모든 기록이 한 URL에 누적된다.
@@ -90,9 +91,26 @@ export async function generateMetadata({
 
   const recordCount = (postRows as unknown[] | null)?.length ?? 0
   const periodPart = label ? ` - ${label}(${AGE_LABEL_FULL[label] ?? ''})` : ''
+  const title = `${book.title}${periodPart} 그림책 추천 | 책육아정원`
+  const description = `${book.title} — ${recordCount}개의 책육아 기록과 추천 시기를 확인해보세요.`
+  const image = book.cover_image_url ?? undefined
+
   return {
-    title: `${book.title}${periodPart} 그림책 추천 | 책육아정원`,
-    description: `${book.title} — ${recordCount}개의 책육아 기록과 추천 시기를 확인해보세요.`,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      url: `/book/${encodeURIComponent(isbn)}`,
+      images: image ? [image] : undefined,
+    },
+    twitter: {
+      card: image ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
   }
 }
 
@@ -239,13 +257,20 @@ export default async function BookPage({
               isLoggedIn={Boolean(user)}
               variant="detail"
             />
-            <BookmarkButton
-              bookId={book.id}
-              initialBookmarked={bookmarkedByMe}
-              initialCount={book.bookmark_count ?? 0}
-              isLoggedIn={Boolean(user)}
-              variant="detail"
-            />
+            <div className="flex items-center gap-2">
+              <BookmarkButton
+                bookId={book.id}
+                initialBookmarked={bookmarkedByMe}
+                initialCount={book.bookmark_count ?? 0}
+                isLoggedIn={Boolean(user)}
+                variant="detail"
+              />
+              <ShareButton
+                path={`/book/${encodeURIComponent(isbn)}`}
+                title={`${book.title ?? '그림책'} | 책육아정원`}
+                text={`${book.title ?? '그림책'} — 아이와 함께 읽은 기록과 추천 시기`}
+              />
+            </div>
           </div>
         </section>
 

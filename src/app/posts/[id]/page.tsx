@@ -6,6 +6,7 @@ import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge } from '@/lib/gr
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton from '@/components/RecommendButton'
+import ShareButton from '@/components/ShareButton'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostReactions, { type CommentItem } from '@/components/post/PostReactions'
 
@@ -55,21 +56,38 @@ export async function generateMetadata({
   const supabase = await createServerSupabase()
   const { data } = await supabase
     .from('posts')
-    .select('book:books(title), post_groups(group_name)')
+    .select('book:books(title, cover_image_url), post_groups(group_name)')
     .eq('id', id)
     .maybeSingle()
 
   const raw = data as unknown as {
-    book: { title: string | null } | null
+    book: { title: string | null; cover_image_url: string | null } | null
     post_groups: { group_name: string }[] | null
   } | null
 
-  const title = raw?.book?.title
-  if (!title) return { title: '게시물 | 책육아정원' }
+  const bookTitle = raw?.book?.title
+  if (!bookTitle) return { title: '게시물 | 책육아정원' }
   const group = raw?.post_groups?.[0]?.group_name
+  const title = `${bookTitle}${group ? ` - ${group}` : ''} 그림책 추천 | 책육아정원`
+  const description = `${bookTitle} 그림책을 아이와 함께 읽은 기록과 추천.`
+  const image = raw?.book?.cover_image_url ?? undefined
+
   return {
-    title: `${title}${group ? ` - ${group}` : ''} 그림책 추천 | 책육아정원`,
-    description: `${title} 그림책을 아이와 함께 읽은 기록과 추천.`,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      url: `/posts/${id}`,
+      images: image ? [image] : undefined,
+    },
+    twitter: {
+      card: image ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
   }
 }
 
@@ -182,7 +200,12 @@ export default async function PostDetailPage({
         <Link href="/" className="text-sm text-main">
           ‹ 홈
         </Link>
-        <span className="text-base font-semibold text-text">책육아 기록</span>
+        <span className="flex-1 text-base font-semibold text-text">책육아 기록</span>
+        <ShareButton
+          path={`/posts/${id}`}
+          title={`${book?.title ?? '그림책'} | 책육아정원`}
+          text={`${book?.title ?? '그림책'} — 아이와 함께 읽은 기록`}
+        />
       </header>
 
       <main className="mx-auto w-full max-w-md flex-1 px-4 pb-10 pt-4">
