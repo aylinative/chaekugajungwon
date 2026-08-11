@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createServerSupabase } from '@/lib/supabase-server'
+import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 
 // 댓글 작성
 export async function POST(
@@ -36,7 +36,7 @@ export async function POST(
   return NextResponse.json({ comment: data })
 }
 
-// 댓글 삭제 (본인 것만 — RLS로도 강제됨)
+// 댓글 숨김(소프트 삭제) — 작성자 본인 또는 운영자. hidden_at 세팅으로 조회 제외.
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -57,14 +57,28 @@ export async function DELETE(
     return NextResponse.json({ error: '댓글 id가 없습니다.' }, { status: 400 })
   }
 
+  // 권한 확인: 본인 댓글이거나 운영자
+  const { data: comment } = await supabase
+    .from('comments')
+    .select('user_id')
+    .eq('id', commentId)
+    .maybeSingle()
+  if (!comment) {
+    return NextResponse.json({ error: '댓글을 찾을 수 없습니다.' }, { status: 404 })
+  }
+  const isOwner = (comment as { user_id: string }).user_id === user.id
+  const isOperator = await getIsOperator(supabase, user.id)
+  if (!isOwner && !isOperator) {
+    return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
+  }
+
   const { error } = await supabase
     .from('comments')
-    .delete()
+    .update({ hidden_at: new Date().toISOString() })
     .eq('id', commentId)
-    .eq('user_id', user.id)
 
   if (error) {
-    return NextResponse.json({ error: '댓글 삭제에 실패했습니다.' }, { status: 500 })
+    return NextResponse.json({ error: '숨김 처리에 실패했습니다.' }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

@@ -74,7 +74,11 @@ export async function generateMetadata({
 
   const [distribution, { data: postRows }] = await Promise.all([
     getBookDistribution(supabase, book.id),
-    supabase.from('posts').select('post_groups ( group_name )').eq('book_id', book.id),
+    supabase
+      .from('posts')
+      .select('post_groups ( group_name )')
+      .eq('book_id', book.id)
+      .is('hidden_at', null),
   ])
 
   // 타이틀의 {시기}: 표 5개 이상이면 분포의 최빈 시기, 미만이면 작성자가 고른 시기 중 가장 어린 것 (19.2-4)
@@ -157,6 +161,7 @@ export default async function BookPage({
       .from('posts')
       .select(POSTS_SELECT)
       .eq('book_id', book.id)
+      .is('hidden_at', null)
       .order('created_at', { ascending: true }), // 기록은 작성순으로 누적
     getBookDistribution(supabase, book.id),
     user

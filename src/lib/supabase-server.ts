@@ -1,5 +1,20 @@
 import { createServerClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+
+// 현재 로그인 유저가 운영자(users.is_operator)인지. 비로그인/일반 유저면 false.
+export async function getIsOperator(
+  supabase: SupabaseClient,
+  userId?: string
+): Promise<boolean> {
+  if (!userId) return false
+  const { data } = await supabase
+    .from('users')
+    .select('is_operator')
+    .eq('id', userId)
+    .maybeSingle()
+  return Boolean((data as { is_operator: boolean } | null)?.is_operator)
+}
 
 // Server Component / Route Handler 공용 Supabase 클라이언트.
 // setAll은 Server Component에서 실패할 수 있어 try/catch로 감싼다.

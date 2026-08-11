@@ -117,6 +117,7 @@ async function aggregateBookCards(
          post_groups ( group_name ),
          post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) )`
       )
+      .is('hidden_at', null)
       .order('created_at', { ascending: false }),
     userId
       ? supabase.from('bookmarks').select('book_id').eq('user_id', userId)

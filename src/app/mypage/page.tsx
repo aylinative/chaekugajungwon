@@ -56,6 +56,7 @@ export default async function MyPage() {
          post_groups ( group_name )`
       )
       .eq('user_id', user.id)
+      .is('hidden_at', null)
       .order('created_at', { ascending: false }),
     supabase
       .from('bookmarks')

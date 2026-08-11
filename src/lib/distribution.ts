@@ -28,7 +28,11 @@ export async function getBookDistribution(
 ): Promise<BookDistribution> {
   const [{ data: likeRows }, { data: postRows }] = await Promise.all([
     supabase.from('likes').select('user_id, group_names').eq('book_id', bookId),
-    supabase.from('posts').select('user_id, post_groups ( group_name )').eq('book_id', bookId),
+    supabase
+      .from('posts')
+      .select('user_id, post_groups ( group_name )')
+      .eq('book_id', bookId)
+      .is('hidden_at', null),
   ])
 
   // 유저별 시기 집합(합집합). 추천·기록·다중 기록의 중복을 모두 제거한다.

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { createServerSupabase } from '@/lib/supabase-server'
+import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import BookmarkButton from '@/components/BookmarkButton'
@@ -9,6 +9,7 @@ import RecommendButton from '@/components/RecommendButton'
 import ShareButton from '@/components/ShareButton'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostReactions, { type CommentItem } from '@/components/post/PostReactions'
+import HidePostButton from '@/components/post/HidePostButton'
 
 const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.selectedClass])
@@ -58,6 +59,7 @@ export async function generateMetadata({
     .from('posts')
     .select('book:books(title, cover_image_url), post_groups(group_name)')
     .eq('id', id)
+    .is('hidden_at', null)
     .maybeSingle()
 
   const raw = data as unknown as {
@@ -113,6 +115,7 @@ export default async function PostDetailPage({
     .from('posts')
     .select(DETAIL_SELECT)
     .eq('id', id)
+    .is('hidden_at', null)
     .maybeSingle()
 
   if (!postData) notFound()
@@ -121,6 +124,10 @@ export default async function PostDetailPage({
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  const isOperator = await getIsOperator(supabase, user?.id)
+  const isOwner = Boolean(user && user.id === post.user_id)
+  const canModeratePost = isOwner || isOperator // 게시물 숨김 권한
 
   // 추천은 책 단위 (2026.08 전환) — 이 책을 추천한 사람 수
   const { count: likeCount } = await supabase
@@ -163,6 +170,7 @@ export default async function PostDetailPage({
     .from('comments')
     .select('id, content, created_at, user_id, author:users!comments_user_id_fkey ( nickname )')
     .eq('post_id', id)
+    .is('hidden_at', null)
     .order('created_at', { ascending: true })
 
   const comments: CommentItem[] = (
@@ -201,6 +209,7 @@ export default async function PostDetailPage({
           ‹ 홈
         </Link>
         <span className="flex-1 text-base font-semibold text-text">책육아 기록</span>
+        {canModeratePost && <HidePostButton postId={post.id} />}
         <ShareButton
           path={`/posts/${id}`}
           title={`${book?.title ?? '그림책'} | 책육아정원`}
@@ -353,6 +362,7 @@ export default async function PostDetailPage({
             currentUserId={user?.id ?? null}
             currentUserNickname={myNickname}
             isLoggedIn={Boolean(user)}
+            isOperator={isOperator}
           />
         </section>
       </main>

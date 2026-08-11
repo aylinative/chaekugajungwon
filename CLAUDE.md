@@ -58,7 +58,12 @@ OAuth 2.0 (Supabase Auth 연동)
 일반 사용자
 본인 게시물·댓글 작성/수정/삭제, 나도 추천해요·저장, 댓글 작성
 운영자
-일반 사용자 권한 + 타인 게시물·댓글 삭제, 주제 태그 관리, 특정 계정에 운영자 권한 부여
+일반 사용자 권한 + 타인 게시물·댓글 숨김(모더레이션), 주제 태그 관리, 특정 계정에 운영자 권한 부여
+  ※ 모더레이션 구현(2026.08): 별도 관리자 페이지·계정 없이 users.is_operator=true 계정이 일반 화면에서 처리.
+    소프트 삭제(hidden_at) — posts·comments에 hidden_at, 숨김은 복구 가능. 조회는 전부 hidden_at is null 필터.
+    숨김 버튼은 작성자 본인+운영자에게만 노출. 라벨 '숨김'. API: /api/posts/[id]/hide, 댓글은 comments DELETE(내부 update).
+    RLS 운영자 예외: posts/comments update를 is_operator 허용. getIsOperator(lib/supabase-server.ts)로 판별.
+    신고/자동 모더레이션은 트래픽 생긴 뒤(MVP 이후).
 
 
 운영자 전용 관리 페이지는 별도로 만들지 않는다. 권한 부여는 Supabase 관리 콘솔 또는 운영자 계정 내 설정으로 처리한다.
@@ -580,6 +585,7 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
   supabase/migrate_likes_to_book.sql       — likes post_id→book_id (2026.08, 추천의 책 단위 전환)
   supabase/add_search_function.sql        — search_books 함수 + pg_trgm (책 제목·작가 유사 검색)
   supabase/add_post_images_storage.sql     — 기록 사진용 Storage 버킷 post-images + RLS
+  supabase/add_moderation_hidden.sql       — posts·comments hidden_at(소프트 삭제) + 운영자 RLS 예외
   supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 
 
@@ -665,7 +671,7 @@ supabase/*.sql
     현재 홈 상단 전역 태그 필터(TopicFilterBar)만 있음. 데이터 쌓이면 구현.
   - 사진 실제 업로드 ✅ / 그룹 전체보기 ✅ / 검색(제목·작가) ✅ / SNS 공유·OG ✅ (2026.08)
   - 카카오 전용 공유 버튼 (JS SDK 키 확보 시)
-  - 운영자 태그 관리 / 권한·관리 기능
+  - 모더레이션(타인 글·댓글 숨김) ✅(2026.08). 운영자 태그 관리 UI(간이) 남음
   - 배포(Vercel) 및 도메인 구매·설정 → 배포 후 모바일 테스트
 
 

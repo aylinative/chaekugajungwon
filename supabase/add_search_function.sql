@@ -24,7 +24,7 @@ as $$
            lower(trim(search_query)) as raw
   )
   select b.id, b.aladin_item_id, b.title, b.author, b.cover_image_url,
-         (select count(*) from posts p where p.book_id = b.id) as record_count,
+         (select count(*) from posts p where p.book_id = b.id and p.hidden_at is null) as record_count,
          (select count(*) from likes l where l.book_id = b.id) as recommend_count
     from books b, q
    where (
@@ -33,7 +33,7 @@ as $$
            or replace(lower(coalesce(b.author, '')), ' ', '') like '%' || replace(q.esc, ' ', '') || '%' escape '\'
            or coalesce(b.author, '') % q.raw
          )
-     and exists (select 1 from posts p where p.book_id = b.id)
+     and exists (select 1 from posts p where p.book_id = b.id and p.hidden_at is null)
    order by record_count desc, recommend_count desc
    limit 30
 $$;

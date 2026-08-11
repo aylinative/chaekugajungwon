@@ -17,6 +17,7 @@ interface Props {
   currentUserId: string | null
   currentUserNickname: string
   isLoggedIn: boolean
+  isOperator?: boolean // 운영자면 타인 댓글도 숨김 가능
 }
 
 function formatDate(iso: string) {
@@ -30,6 +31,7 @@ export default function PostReactions({
   currentUserId,
   currentUserNickname,
   isLoggedIn,
+  isOperator = false,
 }: Props) {
   const [comments, setComments] = useState<CommentItem[]>(initialComments)
   const [content, setContent] = useState('')
@@ -94,13 +96,13 @@ export default function PostReactions({
                   <span className="text-[11px] text-text/40">
                     {formatDate(c.created_at)}
                   </span>
-                  {currentUserId === c.user_id && (
+                  {(currentUserId === c.user_id || isOperator) && (
                     <button
                       type="button"
                       onClick={() => deleteComment(c.id)}
                       className="text-[11px] text-text/30 hover:text-red-400"
                     >
-                      삭제
+                      숨김
                     </button>
                   )}
                 </span>
