@@ -63,6 +63,9 @@ OAuth 2.0 (Supabase Auth 연동)
     소프트 삭제(hidden_at) — posts·comments에 hidden_at, 숨김은 복구 가능. 조회는 전부 hidden_at is null 필터.
     숨김 버튼은 작성자 본인+운영자에게만 노출. 라벨 '숨김'. API: /api/posts/[id]/hide, 댓글은 comments DELETE(내부 update).
     RLS 운영자 예외: posts/comments update를 is_operator 허용. getIsOperator(lib/supabase-server.ts)로 판별.
+    복구: 운영자 전용 /moderation 페이지(숨긴 기록·댓글 목록, hidden_at 최신순) + 복구 버튼(API /api/moderation/restore).
+      마이페이지에 운영자만 '🗂️ 숨긴 기록 관리' 링크 노출. 숨김/복구 시 revalidatePath로 캐시 반영.
+      ※ 이 화면은 4장 '관리 페이지 안 만듦'의 예외 — 복구는 내용을 봐야 판단하므로 콘솔로 하기엔 위험/불편.
     신고/자동 모더레이션은 트래픽 생긴 뒤(MVP 이후).
 
 

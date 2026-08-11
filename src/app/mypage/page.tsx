@@ -42,7 +42,7 @@ export default async function MyPage() {
   if (!user) redirect('/')
 
   const [meRes, childRes, postRes, bookmarkRes] = await Promise.all([
-    supabase.from('users').select('nickname').eq('id', user.id).maybeSingle(),
+    supabase.from('users').select('nickname, is_operator').eq('id', user.id).maybeSingle(),
     supabase
       .from('children')
       .select('birth_date')
@@ -77,7 +77,9 @@ export default async function MyPage() {
     )
   }
 
-  const nickname = (meRes.data as { nickname: string | null } | null)?.nickname ?? ''
+  const me = meRes.data as { nickname: string | null; is_operator: boolean } | null
+  const nickname = me?.nickname ?? ''
+  const isOperator = Boolean(me?.is_operator)
   const childRows = childRes.data
   const postRows = postRes.data
   const children = ((childRows as { birth_date: string }[] | null) ?? []).map((c) => ({
@@ -104,6 +106,19 @@ export default async function MyPage() {
       <main className="mx-auto w-full max-w-md flex-1 space-y-4 px-4 pb-24 pt-4">
         {/* 프로필 (닉네임 + 아이 정보 편집) */}
         <ProfileEditor initialNickname={nickname} initialChildren={children} />
+
+        {/* 운영자 전용 — 숨긴 기록 관리(복구) */}
+        {isOperator && (
+          <Link
+            href="/moderation"
+            className="flex items-center justify-between rounded-2xl bg-surface p-4 shadow-sm"
+          >
+            <span className="flex items-center gap-2 text-sm font-medium text-text">
+              🗂️ 숨긴 기록 관리
+            </span>
+            <span className="text-xs text-text/40">운영자 ›</span>
+          </Link>
+        )}
 
         {/* 독서 통계 */}
         <section className="grid grid-cols-2 gap-3">
