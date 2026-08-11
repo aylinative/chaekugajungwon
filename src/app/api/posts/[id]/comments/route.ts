@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 
 // 댓글 작성
@@ -41,7 +42,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  await params
+  const { id: postId } = await params
   const supabase = await createServerSupabase()
 
   const {
@@ -81,5 +82,6 @@ export async function DELETE(
     return NextResponse.json({ error: '숨김 처리에 실패했습니다.' }, { status: 500 })
   }
 
+  revalidatePath(`/posts/${postId}`)
   return NextResponse.json({ success: true })
 }

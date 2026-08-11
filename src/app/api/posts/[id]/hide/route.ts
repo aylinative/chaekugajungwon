@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 
 // 게시물 숨김(소프트 삭제) — 작성자 본인 또는 운영자.
@@ -41,5 +42,7 @@ export async function POST(
     console.error('Post hide error:', error)
     return NextResponse.json({ error: '숨김 처리에 실패했습니다.' }, { status: 500 })
   }
+  // 숨김이 홈·책 페이지 등 여러 진입 경로에 즉시 반영되도록 캐시 재검증
+  revalidatePath('/', 'layout')
   return NextResponse.json({ success: true })
 }
