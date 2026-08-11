@@ -176,18 +176,27 @@ export default async function BookPage({
   const pubInfo = [book.publisher, book.published_date].filter(Boolean).join(' · ')
   const densityMode = posts.length > 0 ? modeOf(posts.map((p) => p.text_density)) : null
 
-  // 내 추천 여부 (책 단위 — 책 정보 카드의 추천 버튼 상태용)
+  // 내 추천 여부 (책 단위 — 책 정보 카드의 추천 버튼 상태용) + 내가 이 책을 기록했는지(넛지용)
   let myGroups: string[] = []
   let likedByMe = false
+  let hasMyRecord = false
   if (user) {
-    const { data: myLikeRow } = await supabase
-      .from('likes')
-      .select('group_names')
-      .eq('user_id', user.id)
-      .eq('book_id', book.id)
-      .maybeSingle()
+    const [{ data: myLikeRow }, { count: myRecordCount }] = await Promise.all([
+      supabase
+        .from('likes')
+        .select('group_names')
+        .eq('user_id', user.id)
+        .eq('book_id', book.id)
+        .maybeSingle(),
+      supabase
+        .from('posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('book_id', book.id)
+        .eq('user_id', user.id),
+    ])
     likedByMe = Boolean(myLikeRow)
     myGroups = (myLikeRow as { group_names: string[] | null } | null)?.group_names ?? []
+    hasMyRecord = (myRecordCount ?? 0) > 0
   }
 
   return (
@@ -348,6 +357,24 @@ export default async function BookPage({
             </ul>
           )}
         </section>
+
+        {/* 기여 넛지(벽 아님): 이 책을 아직 기록하지 않은 로그인 유저에게만. */}
+        {user && !hasMyRecord && (
+          <section className="mt-4 rounded-2xl bg-main/10 p-5 text-center">
+            <p className="text-sm font-semibold text-main">
+              이 책, 아이와 읽어보셨어요?
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-text/60">
+              우리 아이 반응을 기록하면 같은 시기 양육자들에게 큰 도움이 돼요.
+            </p>
+            <Link
+              href={`/recommend/create?query=${encodeURIComponent(book.title ?? '')}`}
+              className="mt-3 inline-block rounded-xl bg-main px-4 py-2 text-sm font-medium text-white"
+            >
+              기록 남기기
+            </Link>
+          </section>
+        )}
       </main>
 
       <BottomTabBar />
