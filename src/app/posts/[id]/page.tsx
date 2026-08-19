@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
-import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge } from '@/lib/groups'
+import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge, AGE_LABEL_FULL } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton from '@/components/RecommendButton'
@@ -69,8 +69,12 @@ export async function generateMetadata({
 
   const bookTitle = raw?.book?.title
   if (!bookTitle) return { title: '게시물 | 책육아정원' }
-  const group = raw?.post_groups?.[0]?.group_name
-  const title = `${bookTitle}${group ? ` - ${group}` : ''} 그림책 추천 | 책육아정원`
+  // 시기가 여러 개면 연령 오름차순 첫 번째(가장 어린 시기) — 책 페이지 규칙과 일관.
+  // 개월범위를 함께 표기(책 페이지 title과 동일 형식): "꽃잎(19~30개월)"
+  const group = sortGroupLabelsByAge((raw?.post_groups ?? []).map((g) => g.group_name))[0]
+  const ageFull = group ? AGE_LABEL_FULL[group] : undefined
+  const groupPart = group ? ` - ${group}${ageFull ? `(${ageFull})` : ''}` : ''
+  const title = `${bookTitle}${groupPart} 그림책 추천 | 책육아정원`
   const description = `${bookTitle} 그림책을 아이와 함께 읽은 기록과 추천.`
   const image = raw?.book?.cover_image_url ?? undefined
 
