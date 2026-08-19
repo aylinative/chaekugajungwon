@@ -87,7 +87,7 @@ export default function BookCardItem({
           <span
             key={g}
             aria-label={g}
-            className={`flex h-6 w-6 items-center justify-center rounded-full text-sm ${
+            className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
               LABEL_TO_BADGE[g] ?? 'bg-surface-muted'
             }`}
           >
