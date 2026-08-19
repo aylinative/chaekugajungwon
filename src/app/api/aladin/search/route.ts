@@ -144,7 +144,9 @@ export async function GET(request: NextRequest) {
       author: item.author,
       publisher: item.publisher,
       pubDate: item.pubDate,
-      cover: item.cover,
+      // 알라딘 표지는 기본 coversum(초소형 ~85px)이라 카드에서 깨져 보인다.
+      // cover500(500px)으로 치환해 선명하게. (경로만 다르고 파일명 동일)
+      cover: item.cover?.replace('/coversum/', '/cover500/') ?? item.cover,
       link: item.link,
       isbn13: item.isbn13,
       isOutOfPrint: item.stockstatus !== '' && item.stockstatus != null,

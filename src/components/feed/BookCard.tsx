@@ -64,20 +64,22 @@ export default function BookCardItem({
         )}
       </div>
 
-      {/* 제목 */}
-      <p className="line-clamp-2 text-sm font-medium leading-snug text-text">
+      {/* 제목 — 항상 2줄 높이 예약(1줄이어도 자리 유지)해 카드 간 정렬을 맞춤 */}
+      <p className="line-clamp-2 min-h-[2.4rem] text-sm font-medium leading-snug text-text">
         {card.title}
       </p>
 
-      {/* 대표 반응 (최빈) */}
-      {REACTION_BY_VALUE[card.reaction] && (
-        <p className="flex items-center gap-1 text-[11px] font-medium text-point">
-          <span className="text-sm leading-none">
-            {REACTION_BY_VALUE[card.reaction].emoji}
-          </span>
-          {REACTION_BY_VALUE[card.reaction].label}
-        </p>
-      )}
+      {/* 대표 반응 (최빈) — 없어도 자리 예약 */}
+      <div className="min-h-[1.1rem]">
+        {REACTION_BY_VALUE[card.reaction] && (
+          <p className="flex items-center gap-1 text-[11px] font-medium text-point">
+            <span className="text-sm leading-none">
+              {REACTION_BY_VALUE[card.reaction].emoji}
+            </span>
+            {REACTION_BY_VALUE[card.reaction].label}
+          </p>
+        )}
+      </div>
 
       {/* 시기 배지 (합집합, 최대 2) */}
       <div className="flex flex-wrap gap-1">
@@ -94,12 +96,14 @@ export default function BookCardItem({
         ))}
       </div>
 
-      {/* 주제 태그 (최대 2) */}
-      {card.topics.length > 0 && (
-        <p className="line-clamp-1 text-[11px] text-text/50">
-          {card.topics.slice(0, 2).map((t) => `#${t}`).join(' ')}
-        </p>
-      )}
+      {/* 주제 태그 (최대 2) — 없어도 자리 예약(주제 유무로 정렬이 어긋나지 않게) */}
+      <div className="min-h-[1rem]">
+        {card.topics.length > 0 && (
+          <p className="line-clamp-1 text-[11px] text-text/50">
+            {card.topics.slice(0, 2).map((t) => `#${t}`).join(' ')}
+          </p>
+        )}
+      </div>
 
       {/* 기록 수 + 추천 수(표시 전용) + 저장 — 모두 아이콘 */}
       <div className="flex items-center justify-end gap-2 text-xs text-text/40">
