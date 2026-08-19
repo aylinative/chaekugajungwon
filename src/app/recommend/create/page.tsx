@@ -21,6 +21,10 @@ interface BookItem {
 
 // 글밥량 = 페이지당 글 양(중립 속성). 별점 연상을 피해 게이지+부연으로 표시.
 const amountOptions = [1, 2, 3, 4, 5]
+// 시기 라벨('씨앗')→폼 값('seed') 역매핑 — 편집 모드에서 기존 post_groups 프리필용
+const GROUP_LABEL_TO_VALUE: Record<string, string> = Object.fromEntries(
+  RECOMMEND_GROUPS.map((g) => [g.label, g.value])
+)
 const topicOptions = [
   '가족',
   '친구',
@@ -52,6 +56,9 @@ function RecommendCreateInner() {
   const searchParams = useSearchParams()
   // 첫 기록 모드(11.4): 온보딩 직후 또는 기록 0건 상태에서 진입. 배너 + 완료 후 홈 이동.
   const isFirst = searchParams.get('first') === '1'
+  // 편집 모드(?edit=<postId>): 내 기록 수정. 책은 고정, 시기·반응·글밥량·주제·일기만 편집.
+  const editId = searchParams.get('edit')
+  const isEdit = Boolean(editId)
   // 검색 화면 '첫 기록 남기기'에서 넘어오면 책 제목이 미리 채워진다 → 진입 즉시 자동 검색
   const [query, setQuery] = useState(() => searchParams.get('query') ?? '')
   const [books, setBooks] = useState<BookItem[]>([])
@@ -100,6 +107,7 @@ function RecommendCreateInner() {
 
   // 입력 시 300ms 디바운스 후 자동 검색 (자동완성 드롭다운)
   useEffect(() => {
+    if (isEdit) return // 편집 모드는 책 고정 — 검색하지 않음
     const keyword = query.replace(/\s+/g, ' ').trim()
     // 책을 막 선택해 제목이 채워진 경우엔 재검색하지 않음
     if (selectedBook && keyword === selectedBook.title) return
@@ -144,6 +152,7 @@ function RecommendCreateInner() {
   // - '예전에 읽었어요' → 앵커 제거를 위해 전부 해제 (현재 월령은 틀린 앵커)
   // 이후 칩은 세그먼트와 무관하게 자유롭게 다중 선택·해제 가능.
   useEffect(() => {
+    if (isEdit) return // 편집 모드는 기존 시기를 프리필 — 자동 체크로 덮어쓰지 않음
     if (children.length === 0) return
     if (readingTime === 'past') {
       setSelectedGroups([])
@@ -153,6 +162,88 @@ function RecommendCreateInner() {
     const autoValue = getGroupValueByMonths(getMonths(child.birth_date))
     setSelectedGroups([autoValue])
   }, [children, selectedChildIdx, readingTime])
+
+  // 편집 모드: 기존 기록을 불러와 프리필 (작성자 아니면 홈으로)
+  useEffect(() => {
+    if (!editId) return
+    async function loadPost() {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/')
+        return
+      }
+      const { data } = await supabase
+        .from('posts')
+        .select(
+          `id, user_id, child_reaction, text_density, content,
+           book:books ( title, author, publisher, published_date, cover_image_url, aladin_url, aladin_item_id, is_out_of_print ),
+           post_groups ( group_name ),
+           post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) )`
+        )
+        .eq('id', editId)
+        .is('hidden_at', null)
+        .maybeSingle()
+
+      const row = data as unknown as {
+        user_id: string
+        child_reaction: number | null
+        text_density: number | null
+        content: string | null
+        book: {
+          title: string | null
+          author: string | null
+          publisher: string | null
+          published_date: string | null
+          cover_image_url: string | null
+          aladin_url: string | null
+          aladin_item_id: string | null
+          is_out_of_print: boolean | null
+        } | null
+        post_groups: { group_name: string }[] | null
+        post_tags:
+          | { custom_tag: string | null; is_operator_tag: boolean; operator_tags: { name: string } | null }[]
+          | null
+      } | null
+
+      if (!row || row.user_id !== user.id) {
+        router.push('/') // 없거나 내 기록이 아니면 접근 불가
+        return
+      }
+
+      const b = row.book
+      if (b) {
+        setSelectedBook({
+          title: b.title ?? '',
+          author: b.author ?? '',
+          publisher: b.publisher ?? '',
+          pubDate: b.published_date ?? '',
+          cover: b.cover_image_url ?? '',
+          link: b.aladin_url ?? '',
+          isbn13: b.aladin_item_id ?? '',
+          isOutOfPrint: Boolean(b.is_out_of_print),
+        })
+        setQuery(b.title ?? '')
+      }
+      setSelectedGroups(
+        (row.post_groups ?? [])
+          .map((g) => GROUP_LABEL_TO_VALUE[g.group_name])
+          .filter((v): v is string => Boolean(v))
+      )
+      if (row.child_reaction) setSelectedReaction(row.child_reaction)
+      if (row.text_density) setSelectedAmount(row.text_density)
+      setSelectedTopics(
+        (row.post_tags ?? [])
+          .map((t) => (t.is_operator_tag ? t.operator_tags?.name : t.custom_tag))
+          .filter((v): v is string => Boolean(v))
+      )
+      setMemo(row.content ?? '')
+    }
+    loadPost()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId])
 
   const toggleGroup = (groupValue: string) => {
     setSelectedGroups((current) =>
@@ -206,6 +297,26 @@ function RecommendCreateInner() {
     setSubmitSuccess('')
 
     try {
+      // 편집 모드: 책·사진은 그대로 두고 속성(시기·반응·글밥량·주제·일기)만 PATCH
+      if (isEdit && editId) {
+        const res = await fetch(`/api/posts/${editId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            groups: selectedGroups,
+            child_reaction: selectedReaction,
+            reading_amount: selectedAmount,
+            topics: selectedTopics,
+            memo,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok || data.error) throw new Error(data.error || '수정에 실패했습니다.')
+        setSubmitSuccess('기록을 수정했어요.')
+        router.push(`/posts/${editId}`)
+        return
+      }
+
       const supabase = createClient()
       const {
         data: { user },
@@ -297,7 +408,7 @@ function RecommendCreateInner() {
             </a>
           )}
           <h1 className="text-lg font-semibold">
-            {isFirst ? '첫 책 기록하기' : '책 기록하기'}
+            {isEdit ? '기록 수정' : isFirst ? '첫 책 기록하기' : '책 기록하기'}
           </h1>
           <div className="w-12" />
         </header>
@@ -315,6 +426,7 @@ function RecommendCreateInner() {
           </section>
         )}
 
+        {!isEdit && (
         <section className="rounded-2xl bg-surface p-4 shadow-sm">
           <label htmlFor="book-search" className="mb-2 block text-sm font-medium">
             책 제목으로 검색
@@ -377,6 +489,7 @@ function RecommendCreateInner() {
             <p className="mt-2 text-sm text-gray-400">검색 결과가 없어요.</p>
           )}
         </section>
+        )}
 
         {selectedBook && (
           <section className="mt-4 rounded-2xl bg-surface p-4 shadow-sm">
@@ -598,8 +711,12 @@ function RecommendCreateInner() {
               className="w-full rounded-2xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-main"
             />
 
+            {!isEdit && (
             <div className="mt-3">
-              <label className="mb-2 block text-sm font-medium">사진 업로드 (최대 3장)</label>
+              <label className="mb-2 block text-sm font-medium">참고사진 (선택 · 최대 3장)</label>
+              <p className="mb-2 text-xs text-text/50">
+                기록에 꼭 필요하진 않아요. 책의 한 장면 등 참고할 사진이 있으면 올려주세요.
+              </p>
               <input
                 type="file"
                 accept="image/*"
@@ -629,6 +746,7 @@ function RecommendCreateInner() {
                 </div>
               )}
             </div>
+            )}
           </div>
         </section>
 
@@ -647,7 +765,15 @@ function RecommendCreateInner() {
             disabled={isSubmitting}
             className="w-full rounded-2xl bg-main px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {isSubmitting ? '기록 중...' : isFirst ? '첫 기록 남기고 시작하기' : '기록 남기기'}
+            {isEdit
+              ? isSubmitting
+                ? '수정 중...'
+                : '수정 완료'
+              : isSubmitting
+                ? '기록 중...'
+                : isFirst
+                  ? '첫 기록 남기고 시작하기'
+                  : '기록 남기기'}
           </button>
         </section>
       </div>

@@ -11,6 +11,7 @@ import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton from '@/components/RecommendButton'
 import ShareButton from '@/components/ShareButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
+import HidePostButton from '@/components/post/HidePostButton'
 import BottomTabBar from '@/components/BottomTabBar'
 
 // 책 단위 페이지 (CLAUDE.md 19.2) — 같은 책의 모든 기록이 한 URL에 누적된다.
@@ -39,6 +40,7 @@ interface BookRow {
 
 interface BookPostRow {
   id: string
+  user_id: string
   text_density: number
   child_reaction: number
   content: string | null
@@ -47,7 +49,7 @@ interface BookPostRow {
   post_groups: { group_name: string }[] | null
 }
 
-const POSTS_SELECT = `id, text_density, child_reaction, content, created_at,
+const POSTS_SELECT = `id, user_id, text_density, child_reaction, content, created_at,
   author:users!posts_user_id_fkey ( nickname ),
   post_groups ( group_name )`
 
@@ -305,14 +307,14 @@ export default async function BookPage({
                 )
                 const reaction = REACTION_BY_VALUE[p.child_reaction]
                 return (
-                  <li key={p.id}>
+                  <li
+                    key={p.id}
+                    className="overflow-hidden rounded-2xl bg-surface shadow-sm"
+                  >
                     {/* 기록 카드 = 양육자의 평가 전용 (반응·시기·일기).
                         글밥량은 책 정보 영역에, 추천(책·시기 판단)도 책 정보 영역에 (2026.08).
                         세부 페이지(/posts/[id])는 댓글 진입·공유 링크용. */}
-                    <Link
-                      href={`/posts/${p.id}`}
-                      className="block rounded-2xl bg-surface p-4 shadow-sm"
-                    >
+                    <Link href={`/posts/${p.id}`} className="block p-4">
                       <div className="flex items-center gap-2">
                         <span className="flex items-center gap-2 text-sm font-medium text-text">
                           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-main/10 text-xs">
@@ -347,6 +349,23 @@ export default async function BookPage({
                         </p>
                       )}
                     </Link>
+                    {/* 작성자 본인에게만 수정/삭제 (삭제는 소프트, stay=그 자리 새로고침) */}
+                    {user?.id === p.user_id && (
+                      <div className="flex justify-end gap-3 border-t border-black/5 px-4 py-1.5">
+                        <Link
+                          href={`/recommend/create?edit=${p.id}`}
+                          className="text-xs text-text/40"
+                        >
+                          수정
+                        </Link>
+                        <HidePostButton
+                          postId={p.id}
+                          label="삭제"
+                          confirmText="이 기록을 삭제할까요? 목록에서 보이지 않게 됩니다."
+                          stay
+                        />
+                      </div>
+                    )}
                   </li>
                 )
               })}

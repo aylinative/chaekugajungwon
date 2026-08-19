@@ -204,7 +204,21 @@ export default async function PostDetailPage({
           ‹ 홈
         </Link>
         <span className="flex-1 text-base font-semibold text-text">책육아 기록</span>
-        {canModeratePost && <HidePostButton postId={post.id} />}
+        {/* 작성자: 수정 + 삭제(소프트) / 운영자(타인 글): 숨김 */}
+        {isOwner && (
+          <Link href={`/recommend/create?edit=${post.id}`} className="text-xs text-text/40">
+            수정
+          </Link>
+        )}
+        {isOwner ? (
+          <HidePostButton
+            postId={post.id}
+            label="삭제"
+            confirmText="이 기록을 삭제할까요? 목록에서 보이지 않게 됩니다."
+          />
+        ) : (
+          isOperator && <HidePostButton postId={post.id} />
+        )}
         <ShareButton
           path={`/posts/${id}`}
           title={`${book?.title ?? '그림책'} | 책육아정원`}

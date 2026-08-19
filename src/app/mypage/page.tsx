@@ -6,6 +6,7 @@ import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge } from '@/lib/gr
 import BottomTabBar from '@/components/BottomTabBar'
 import BookmarkList from '@/components/mypage/BookmarkList'
 import ProfileEditor from '@/components/mypage/ProfileEditor'
+import HidePostButton from '@/components/post/HidePostButton'
 
 export const metadata: Metadata = { title: '마이페이지 | 책육아정원' }
 
@@ -160,10 +161,10 @@ export default async function MyPage() {
                   day: 'numeric',
                 })
                 return (
-                  <li key={p.id}>
+                  <li key={p.id} className="overflow-hidden rounded-2xl bg-surface shadow-sm">
                     <Link
                       href={`/posts/${p.id}`}
-                      className="flex gap-3 rounded-2xl bg-surface p-3 shadow-sm"
+                      className="flex gap-3 p-3"
                     >
                       <div className="h-20 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-surface-muted">
                         {p.book?.cover_image_url ? (
@@ -201,6 +202,20 @@ export default async function MyPage() {
                         </div>
                       </div>
                     </Link>
+                    <div className="flex justify-end gap-3 border-t border-black/5 px-3 py-1.5">
+                      <Link
+                        href={`/recommend/create?edit=${p.id}`}
+                        className="text-xs text-text/40"
+                      >
+                        수정
+                      </Link>
+                      <HidePostButton
+                        postId={p.id}
+                        label="삭제"
+                        confirmText="이 기록을 삭제할까요? 목록에서 보이지 않게 됩니다."
+                        stay
+                      />
+                    </div>
                   </li>
                 )
               })}
