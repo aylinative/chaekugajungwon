@@ -7,6 +7,7 @@ import { REACTION_BY_VALUE } from '@/lib/reactions'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton from '@/components/RecommendButton'
 import ShareButton from '@/components/ShareButton'
+import TextDensityMeter from '@/components/TextDensityMeter'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostReactions, { type CommentItem } from '@/components/post/PostReactions'
 import HidePostButton from '@/components/post/HidePostButton'
@@ -95,16 +96,6 @@ export async function generateMetadata({
       images: image ? [image] : undefined,
     },
   }
-}
-
-function DensityStars({ value }: { value: number }) {
-  const filled = Math.max(0, Math.min(5, value))
-  return (
-    <span className="text-point">
-      {'★'.repeat(filled)}
-      <span className="text-text/20">{'☆'.repeat(5 - filled)}</span>
-    </span>
-  )
 }
 
 export default async function PostDetailPage({
@@ -300,10 +291,10 @@ export default async function PostDetailPage({
           )}
 
           {/* 글밥량 + 우리 아이 반응 */}
-          <div className="flex items-center gap-4 text-sm">
-            <span className="flex items-center gap-1.5">
-              <span className="text-xs text-text/50">글밥량</span>
-              <DensityStars value={post.text_density} />
+          <div className="flex items-start gap-4 text-sm">
+            <span className="flex items-start gap-1.5">
+              <span className="text-xs leading-5 text-text/50">글밥량</span>
+              <TextDensityMeter value={post.text_density} />
             </span>
             {REACTION_BY_VALUE[post.child_reaction] && (
               <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs text-text/70">

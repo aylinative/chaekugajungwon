@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { RECOMMEND_GROUPS, getGroupValueByMonths } from '@/lib/groups'
 import { CHILD_REACTIONS } from '@/lib/reactions'
+import { densityHint } from '@/lib/density'
 import { getMonths, getAgeDisplay, getZodiacEmoji } from '@/lib/age'
 
 interface BookItem {
@@ -18,13 +19,8 @@ interface BookItem {
   isOutOfPrint: boolean
 }
 
-const amountOptions = [
-  { value: 1, label: '★☆☆☆☆', hint: '1~2단어' },
-  { value: 2, label: '★★☆☆☆', hint: '1문장 내외' },
-  { value: 3, label: '★★★☆☆', hint: '2~3문장' },
-  { value: 4, label: '★★★★☆', hint: '여러 문장' },
-  { value: 5, label: '★★★★★', hint: '글 많은 편' },
-]
+// 글밥량 = 페이지당 글 양(중립 속성). 별점 연상을 피해 게이지+부연으로 표시.
+const amountOptions = [1, 2, 3, 4, 5]
 const topicOptions = [
   '가족',
   '친구',
@@ -528,23 +524,46 @@ function RecommendCreateInner() {
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-medium">페이지당 평균 글밥량</p>
+            <p className="mb-1 text-sm font-medium">페이지당 글밥량</p>
+            <p className="mb-2 text-xs text-text/50">
+              글이 적은 책도 좋은 그림책이에요 — 좋고 나쁨이 아니라 글의 양이에요
+            </p>
             <div className="grid grid-cols-2 gap-2">
-              {amountOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setSelectedAmount(option.value)}
-                  className={`rounded-2xl px-3 py-2 text-left text-sm ${
-                    selectedAmount === option.value
-                      ? 'bg-point text-white'
-                      : 'bg-surface-accent text-text'
-                  }`}
-                >
-                  <div>{option.label}</div>
-                  <div className="mt-1 text-xs opacity-80">{option.hint}</div>
-                </button>
-              ))}
+              {amountOptions.map((level) => {
+                const selected = selectedAmount === level
+                return (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setSelectedAmount(level)}
+                    className={`rounded-2xl px-3 py-2 text-left text-sm ${
+                      selected ? 'bg-point text-white' : 'bg-surface-accent text-text'
+                    }`}
+                  >
+                    <span className="flex gap-0.5">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <span
+                          key={i}
+                          className={`h-1.5 w-4 rounded-full ${
+                            i <= level
+                              ? selected
+                                ? 'bg-white'
+                                : 'bg-main'
+                              : selected
+                                ? 'bg-white/30'
+                                : 'bg-main/20'
+                          }`}
+                        />
+                      ))}
+                    </span>
+                    <div className="mt-1.5 text-xs opacity-80">{densityHint(level)}</div>
+                  </button>
+                )
+              })}
+            </div>
+            <div className="mt-1.5 flex w-full justify-between px-1 text-[10px] text-text/40">
+              <span>글 적음</span>
+              <span>글 많음</span>
             </div>
           </div>
 

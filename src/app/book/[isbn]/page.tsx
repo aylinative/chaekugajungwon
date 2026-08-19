@@ -10,6 +10,7 @@ import PeriodDistribution from '@/components/book/PeriodDistribution'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton from '@/components/RecommendButton'
 import ShareButton from '@/components/ShareButton'
+import TextDensityMeter from '@/components/TextDensityMeter'
 import BottomTabBar from '@/components/BottomTabBar'
 
 // 책 단위 페이지 (CLAUDE.md 19.2) — 같은 책의 모든 기록이 한 URL에 누적된다.
@@ -116,16 +117,6 @@ export async function generateMetadata({
       images: image ? [image] : undefined,
     },
   }
-}
-
-function DensityStars({ value }: { value: number }) {
-  const filled = Math.max(0, Math.min(5, value))
-  return (
-    <span className="text-xs text-point">
-      {'★'.repeat(filled)}
-      <span className="text-text/20">{'☆'.repeat(5 - filled)}</span>
-    </span>
-  )
 }
 
 // 글밥량 대표값(최빈) — 글밥량은 책의 객관 정보라 기록 카드가 아닌 책 정보 영역에 표시
@@ -239,10 +230,10 @@ export default async function BookPage({
               {pubInfo && <p className="mt-0.5 text-xs text-text/50">{pubInfo}</p>}
               {/* 글밥량 대표값 — 책의 객관 정보이므로 책 정보 영역에 표시 */}
               {densityMode !== null && (
-                <p className="mt-1.5 flex items-center gap-1.5">
-                  <span className="text-xs text-text/50">글밥량</span>
-                  <DensityStars value={densityMode} />
-                </p>
+                <div className="mt-1.5 flex items-start gap-1.5">
+                  <span className="text-xs leading-5 text-text/50">글밥량</span>
+                  <TextDensityMeter value={densityMode} />
+                </div>
               )}
               {book.is_out_of_print && (
                 <span className="mt-2 inline-block rounded-full bg-red-50 px-2 py-0.5 text-[11px] text-red-500">
