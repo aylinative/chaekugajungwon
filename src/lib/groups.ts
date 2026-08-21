@@ -1,10 +1,10 @@
 export const RECOMMEND_GROUPS = [
   {
     value: 'seed',
-    ageLabel: '0~12M',
+    ageLabel: '0~11M',
     label: '씨앗',
     emoji: '🫘',
-    ageRange: '0~12M',
+    ageRange: '0~11M',
     selectedClass: 'bg-group-seed text-white',
   },
   {
@@ -61,7 +61,7 @@ export const GROUP_LABELS_ORDERED: string[] = RECOMMEND_GROUPS.map((g) => g.labe
 
 // SEO(타이틀·검색어)용 한글 풀 연령 표기 — 화면 표기는 M/Y(ageLabel), 메타데이터는 한글
 export const AGE_LABEL_FULL: Record<string, string> = {
-  씨앗: '0~12개월',
+  씨앗: '0~11개월',
   새싹: '12~18개월',
   꽃잎: '19~30개월',
   열매: '31~48개월',
