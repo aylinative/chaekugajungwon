@@ -4,13 +4,13 @@ import { notFound } from 'next/navigation'
 import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge, AGE_LABEL_FULL } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
+import { formatDate } from '@/lib/date'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton from '@/components/RecommendButton'
-import ShareButton from '@/components/ShareButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostReactions, { type CommentItem } from '@/components/post/PostReactions'
-import HidePostButton from '@/components/post/HidePostButton'
+import PostActionsMenu from '@/components/post/PostActionsMenu'
 
 const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.selectedClass])
@@ -204,25 +204,20 @@ export default async function PostDetailPage({
           ‹ 홈
         </Link>
         <span className="flex-1 text-base font-semibold text-text">책육아 기록</span>
-        {/* 작성자: 수정 + 삭제(소프트) / 운영자(타인 글): 숨김 */}
-        {isOwner && (
-          <Link href={`/recommend/create?edit=${post.id}`} className="text-xs text-text/40">
-            수정
-          </Link>
-        )}
-        {isOwner ? (
-          <HidePostButton
-            postId={post.id}
-            label="삭제"
-            confirmText="이 기록을 삭제할까요? 목록에서 보이지 않게 됩니다."
-          />
-        ) : (
-          isOperator && <HidePostButton postId={post.id} />
-        )}
-        <ShareButton
-          path={`/posts/${id}`}
-          title={`${book?.title ?? '그림책'} | 책육아정원`}
-          text={`${book?.title ?? '그림책'} — 아이와 함께 읽은 기록`}
+        {/* 수정/공유/삭제(숨김)를 ⋯ 메뉴로 통합. 작성자='삭제', 운영자 타인글='숨김' */}
+        <PostActionsMenu
+          postId={post.id}
+          sharePath={`/posts/${id}`}
+          shareTitle={`${book?.title ?? '그림책'} | 책육아정원`}
+          shareText={`${book?.title ?? '그림책'} — 아이와 함께 읽은 기록`}
+          canEdit={isOwner}
+          canModerate={canModeratePost}
+          moderateLabel={isOwner ? '삭제' : '숨김'}
+          moderateConfirm={
+            isOwner
+              ? '이 기록을 삭제할까요? 목록에서 보이지 않게 됩니다.'
+              : '이 기록을 숨길까요? 목록에서 보이지 않게 됩니다.'
+          }
         />
       </header>
 
@@ -277,6 +272,9 @@ export default async function PostDetailPage({
             </span>
             <span className="text-sm font-medium text-text">
               {post.author?.nickname ?? '익명'}
+            </span>
+            <span className="ml-auto text-xs text-text/40">
+              {formatDate(post.created_at)}
             </span>
           </div>
 

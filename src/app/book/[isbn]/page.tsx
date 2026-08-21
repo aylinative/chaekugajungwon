@@ -5,6 +5,7 @@ import { createServerSupabase } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, AGE_LABEL_FULL, sortGroupLabelsByAge } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import { getBookDistribution } from '@/lib/distribution'
+import { formatDate } from '@/lib/date'
 import { getDistributionSummary } from '@/components/book/PeriodDistribution'
 import PeriodDistribution from '@/components/book/PeriodDistribution'
 import BookmarkButton from '@/components/BookmarkButton'
@@ -321,6 +322,9 @@ export default async function BookPage({
                             🌿
                           </span>
                           {p.author?.nickname ?? '익명'}
+                        </span>
+                        <span className="ml-auto text-xs text-text/40">
+                          {formatDate(p.created_at)}
                         </span>
                       </div>
 

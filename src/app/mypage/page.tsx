@@ -2,35 +2,20 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
-import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge } from '@/lib/groups'
 import BottomTabBar from '@/components/BottomTabBar'
-import BookmarkList from '@/components/mypage/BookmarkList'
+import Bookshelf, { type ShelfItem } from '@/components/mypage/Bookshelf'
 import ProfileEditor from '@/components/mypage/ProfileEditor'
-import HidePostButton from '@/components/post/HidePostButton'
 
 export const metadata: Metadata = { title: '마이페이지 | 책육아정원' }
 
-const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
-  RECOMMEND_GROUPS.map((g) => [g.label, g.selectedClass])
-)
-
 interface MyPostRow {
   id: string
-  created_at: string
   book_id: string
-  book: { title: string | null; cover_image_url: string | null } | null
-  post_groups: { group_name: string }[] | null
+  book: { aladin_item_id: string | null; title: string | null; cover_image_url: string | null } | null
 }
 
 interface MyBookmarkRow {
-  created_at: string
-  book: {
-    id: string
-    title: string | null
-    author: string | null
-    cover_image_url: string | null
-    bookmark_count: number
-  } | null
+  book: { aladin_item_id: string | null; title: string | null; cover_image_url: string | null } | null
 }
 
 export default async function MyPage() {
@@ -51,49 +36,46 @@ export default async function MyPage() {
       .order('birth_date', { ascending: true }),
     supabase
       .from('posts')
-      .select(
-        `id, created_at, book_id,
-         book:books ( title, cover_image_url ),
-         post_groups ( group_name )`
-      )
+      .select(`id, book_id, book:books ( aladin_item_id, title, cover_image_url )`)
       .eq('user_id', user.id)
       .is('hidden_at', null)
       .order('created_at', { ascending: false }),
     supabase
       .from('bookmarks')
-      .select(
-        `created_at,
-         book:books ( id, title, author, cover_image_url, bookmark_count )`
-      )
+      .select(`book:books ( aladin_item_id, title, cover_image_url )`)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
   ])
 
-  // 진단용: 아이 조회가 실패하는지 / 몇 건 오는지 서버 콘솔에 남김
-  if (childRes.error) {
-    console.error('[mypage] children fetch error:', childRes.error)
-  } else {
-    console.log(
-      `[mypage] user=${user.id} children=${childRes.data?.length ?? 0}건`
-    )
-  }
-
   const me = meRes.data as { nickname: string | null; is_operator: boolean } | null
   const nickname = me?.nickname ?? ''
   const isOperator = Boolean(me?.is_operator)
-  const childRows = childRes.data
-  const postRows = postRes.data
-  const children = ((childRows as { birth_date: string }[] | null) ?? []).map((c) => ({
+  const children = ((childRes.data as { birth_date: string }[] | null) ?? []).map((c) => ({
     birth_date: c.birth_date,
   }))
-  const posts = (postRows as unknown as MyPostRow[] | null) ?? []
-  const bookmarks = (
-    (bookmarkRes.data as unknown as MyBookmarkRow[] | null) ?? []
-  ).filter((b) => b.book)
+  const posts = (postRes.data as unknown as MyPostRow[] | null) ?? []
+  const bookmarks = ((bookmarkRes.data as unknown as MyBookmarkRow[] | null) ?? []).filter(
+    (b) => b.book
+  )
 
-  // 독서 통계
-  const totalRecords = posts.length // 함께 읽은 기록(추천 게시물) 수
-  const distinctBooks = new Set(posts.map((p) => p.book_id)).size // 추천한 책(중복 제외) 수
+  // 우리집 책장 = 내가 읽은 '책'(재독 중복 제거, 최근순). 표지 클릭 → 책 페이지(거기서 기록 카드 수정/삭제).
+  const seen = new Set<string>()
+  const shelfItems: ShelfItem[] = []
+  for (const p of posts) {
+    if (!p.book || seen.has(p.book_id)) continue
+    seen.add(p.book_id)
+    shelfItems.push({
+      href: `/book/${encodeURIComponent(p.book.aladin_item_id ?? '')}`,
+      cover: p.book.cover_image_url,
+      title: p.book.title ?? '(제목 없음)',
+    })
+  }
+
+  const wishItems: ShelfItem[] = bookmarks.map((b) => ({
+    href: `/book/${encodeURIComponent(b.book!.aladin_item_id ?? '')}`,
+    cover: b.book!.cover_image_url,
+    title: b.book!.title ?? '(제목 없음)',
+  }))
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
@@ -104,7 +86,7 @@ export default async function MyPage() {
         </a>
       </header>
 
-      <main className="mx-auto w-full max-w-md flex-1 space-y-4 px-4 pb-24 pt-4">
+      <main className="mx-auto w-full max-w-md flex-1 space-y-5 px-4 pb-24 pt-4">
         {/* 프로필 (닉네임 + 아이 정보 편집) */}
         <ProfileEditor initialNickname={nickname} initialChildren={children} />
 
@@ -121,24 +103,15 @@ export default async function MyPage() {
           </Link>
         )}
 
-        {/* 독서 통계 */}
-        <section className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-surface p-5 text-center shadow-sm">
-            <p className="text-2xl font-bold text-main">{distinctBooks}</p>
-            <p className="mt-1 text-xs text-text/50">함께 읽은 책</p>
-          </div>
-          <div className="rounded-2xl bg-surface p-5 text-center shadow-sm">
-            <p className="text-2xl font-bold text-point">{totalRecords}</p>
-            <p className="mt-1 text-xs text-text/50">함께 읽은 기록</p>
-          </div>
-        </section>
-
-        {/* 책육아 기록 ① — 아이와 함께 읽은 책 */}
+        {/* ① 우리집 책장 (내가 읽은 책, 전면책장) */}
         <section>
           <h2 className="mb-2 px-1 text-sm font-semibold text-text">
-            아이와 함께 읽은 책
+            우리집 책장
+            {shelfItems.length > 0 && (
+              <span className="ml-1 font-normal text-text/40">· {shelfItems.length}권</span>
+            )}
           </h2>
-          {posts.length === 0 ? (
+          {shelfItems.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-2xl bg-surface px-6 py-12 text-center shadow-sm">
               <span className="text-3xl">🌱</span>
               <p className="text-sm text-text/50">아직 기록한 책이 없어요.</p>
@@ -150,83 +123,14 @@ export default async function MyPage() {
               </Link>
             </div>
           ) : (
-            <ul className="space-y-2">
-              {posts.map((p) => {
-                const groups = sortGroupLabelsByAge(
-                  (p.post_groups ?? []).map((g) => g.group_name)
-                )
-                const date = new Date(p.created_at).toLocaleDateString('ko-KR', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })
-                return (
-                  <li key={p.id} className="overflow-hidden rounded-2xl bg-surface shadow-sm">
-                    <Link
-                      href={`/posts/${p.id}`}
-                      className="flex gap-3 p-3"
-                    >
-                      <div className="h-20 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-surface-muted">
-                        {p.book?.cover_image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={p.book.cover_image_url}
-                            alt={p.book.title ?? ''}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-lg">
-                            📖
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex min-w-0 flex-1 flex-col">
-                        <p className="line-clamp-2 text-sm font-medium text-text">
-                          {p.book?.title ?? '(제목 없음)'}
-                        </p>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {groups.map((g) => (
-                            <span
-                              key={g}
-                              aria-label={g}
-                              className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
-                                LABEL_TO_BADGE[g] ?? 'bg-surface-muted'
-                              }`}
-                            >
-                              {LABEL_TO_EMOJI[g] ?? g}
-                            </span>
-                          ))}
-                        </div>
-                        <div className="mt-auto pt-1 text-xs text-text/40">
-                          <span>{date}</span>
-                        </div>
-                      </div>
-                    </Link>
-                    <div className="flex justify-end gap-3 border-t border-black/5 px-3 py-1.5">
-                      <Link
-                        href={`/recommend/create?edit=${p.id}`}
-                        className="text-xs text-text/40"
-                      >
-                        수정
-                      </Link>
-                      <HidePostButton
-                        postId={p.id}
-                        label="삭제"
-                        confirmText="이 기록을 삭제할까요? 목록에서 보이지 않게 됩니다."
-                        stay
-                      />
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+            <Bookshelf items={shelfItems} emptyText="아직 기록한 책이 없어요." />
           )}
         </section>
 
-        {/* 책육아 기록 ② — 아이와 함께 읽고 싶은 책 (저장 목록) */}
+        {/* ② 아이와 읽고 싶은 책 (저장, 전면책장) */}
         <section>
           <h2 className="mb-2 flex items-center gap-1.5 px-1 text-sm font-semibold text-text">
-            아이와 함께 읽고 싶은 책
+            아이와 읽고 싶은 책
             <svg
               width="14"
               height="14"
@@ -238,15 +142,7 @@ export default async function MyPage() {
               <path d="M19 21l-7-4.5L5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
             </svg>
           </h2>
-          <BookmarkList
-            items={bookmarks.map((b) => ({
-              bookId: b.book!.id,
-              title: b.book!.title ?? '(제목 없음)',
-              author: b.book!.author,
-              cover: b.book!.cover_image_url,
-              bookmarkCount: b.book!.bookmark_count ?? 0,
-            }))}
-          />
+          <Bookshelf items={wishItems} emptyText="아직 저장한 책이 없어요." />
         </section>
       </main>
 
