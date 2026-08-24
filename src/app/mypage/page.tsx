@@ -4,7 +4,9 @@ import { redirect } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
 import BottomTabBar from '@/components/BottomTabBar'
 import Bookshelf, { type ShelfItem } from '@/components/mypage/Bookshelf'
+import MyShelfView, { type ShelfBook } from '@/components/mypage/MyShelfView'
 import ProfileEditor from '@/components/mypage/ProfileEditor'
+import { FEEDBACK_FORM_URL } from '@/lib/feedback'
 
 export const metadata: Metadata = { title: '마이페이지 | 책육아정원' }
 
@@ -12,6 +14,9 @@ interface MyPostRow {
   id: string
   book_id: string
   book: { aladin_item_id: string | null; title: string | null; cover_image_url: string | null } | null
+  post_tags:
+    | { is_operator_tag: boolean; operator_tags: { name: string; tag_category: string | null } | null }[]
+    | null
 }
 
 interface MyBookmarkRow {
@@ -36,7 +41,10 @@ export default async function MyPage() {
       .order('birth_date', { ascending: true }),
     supabase
       .from('posts')
-      .select(`id, book_id, book:books ( aladin_item_id, title, cover_image_url )`)
+      .select(
+        `id, book_id, book:books ( aladin_item_id, title, cover_image_url ),
+         post_tags ( is_operator_tag, operator_tags ( name, tag_category ) )`
+      )
       .eq('user_id', user.id)
       .is('hidden_at', null)
       .order('created_at', { ascending: false }),
@@ -60,14 +68,22 @@ export default async function MyPage() {
 
   // 우리집 책장 = 내가 읽은 '책'(재독 중복 제거, 최근순). 표지 클릭 → 책 페이지(거기서 기록 카드 수정/삭제).
   const seen = new Set<string>()
-  const shelfItems: ShelfItem[] = []
+  const shelfBooks: ShelfBook[] = []
   for (const p of posts) {
     if (!p.book || seen.has(p.book_id)) continue
     seen.add(p.book_id)
-    shelfItems.push({
+    const categories = Array.from(
+      new Set(
+        (p.post_tags ?? [])
+          .map((t) => t.operator_tags?.tag_category)
+          .filter((c): c is string => Boolean(c))
+      )
+    )
+    shelfBooks.push({
       href: `/book/${encodeURIComponent(p.book.aladin_item_id ?? '')}`,
       cover: p.book.cover_image_url,
       title: p.book.title ?? '(제목 없음)',
+      categories,
     })
   }
 
@@ -107,11 +123,11 @@ export default async function MyPage() {
         <section>
           <h2 className="mb-2 px-1 text-sm font-semibold text-text">
             우리집 책장
-            {shelfItems.length > 0 && (
-              <span className="ml-1 font-normal text-text/40">· {shelfItems.length}권</span>
+            {shelfBooks.length > 0 && (
+              <span className="ml-1 font-normal text-text/40">· {shelfBooks.length}권</span>
             )}
           </h2>
-          {shelfItems.length === 0 ? (
+          {shelfBooks.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-2xl bg-surface px-6 py-12 text-center shadow-sm">
               <span className="text-3xl">🌱</span>
               <p className="text-sm text-text/50">아직 기록한 책이 없어요.</p>
@@ -123,7 +139,7 @@ export default async function MyPage() {
               </Link>
             </div>
           ) : (
-            <Bookshelf items={shelfItems} emptyText="아직 기록한 책이 없어요." />
+            <MyShelfView books={shelfBooks} />
           )}
         </section>
 
@@ -144,6 +160,18 @@ export default async function MyPage() {
           </h2>
           <Bookshelf items={wishItems} emptyText="아직 저장한 책이 없어요." />
         </section>
+
+        {/* 문의·건의 (구글폼, 일방향) */}
+        <footer className="pt-2 text-center">
+          <a
+            href={FEEDBACK_FORM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-text/40 underline underline-offset-2"
+          >
+            건의·제보
+          </a>
+        </footer>
       </main>
 
       <BottomTabBar />
