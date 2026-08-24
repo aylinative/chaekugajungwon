@@ -35,6 +35,8 @@ export interface GroupSectionData {
 export interface OperatorTag {
   id: string
   name: string
+  tag_category: string | null
+  sort_order: number
 }
 
 export interface FeedData {
@@ -96,9 +98,9 @@ function topicsOf(p: RawPost): string[] {
 async function fetchOperatorTags(supabase: SupabaseClient): Promise<OperatorTag[]> {
   const { data } = await supabase
     .from('operator_tags')
-    .select('id, name')
+    .select('id, name, tag_category, sort_order')
     .eq('is_active', true)
-    .order('created_at', { ascending: true })
+    .order('sort_order', { ascending: true })
   return (data as OperatorTag[] | null) ?? []
 }
 

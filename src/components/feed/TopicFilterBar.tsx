@@ -3,13 +3,11 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import type { OperatorTag } from '@/lib/feed'
+import { groupTagsByCategory } from '@/lib/tags'
 
-// 접힌 상태에서 '전체' 다음에 노출할 태그 개수
-const COLLAPSED_COUNT = 4
-
-// 운영자 태그 필터 바. 태그 클릭 시 ?tag= 로 이동해 서버에서 필터링(SSR 유지).
-// 태그가 많아 가로 스크롤로 찾기 어려우므로, 기본은 4개만 보이고
-// '더보기'를 누르면 전체 카테고리가 여러 줄로 펼쳐진다.
+// 주제 필터 — 대표 카테고리 칩(가로 스크롤). 카테고리를 누르면 그 아래 하위 태그가 펼쳐지고,
+// 하위 태그를 누르면 ?tag= 로 이동해 서버에서 필터링(SSR 유지). 카테고리 자체는 필터가 아니라
+// '펼치기' — 하위 태그가 실제 필터. (CLAUDE.md 8.1 드릴다운)
 export default function TopicFilterBar({
   tags,
   activeTag,
@@ -17,50 +15,68 @@ export default function TopicFilterBar({
   tags: OperatorTag[]
   activeTag?: string
 }) {
-  // 선택된 태그가 접힌 범위 밖에 있으면 처음부터 펼친 상태로 시작
-  const activeHidden =
-    Boolean(activeTag) &&
-    tags.findIndex((t) => t.name === activeTag) >= COLLAPSED_COUNT
-  const [expanded, setExpanded] = useState(activeHidden)
+  const groups = groupTagsByCategory(tags)
 
-  if (tags.length === 0) return null
+  // 현재 필터(activeTag)가 속한 카테고리를 찾아 초기에 펼쳐 둔다
+  const activeCategory =
+    activeTag != null
+      ? groups.find((g) => g.tags.includes(activeTag))?.category ?? null
+      : null
+  const [openCategory, setOpenCategory] = useState<string | null>(activeCategory)
 
-  const needsToggle = tags.length > COLLAPSED_COUNT
-  const visibleTags = expanded ? tags : tags.slice(0, COLLAPSED_COUNT)
+  if (groups.length === 0) return null
 
-  const chipClass = (active: boolean) =>
+  const catChip = (active: boolean) =>
     `flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
       active ? 'bg-main text-white' : 'bg-surface-muted text-text/70'
     }`
+  const tagChip = (active: boolean) =>
+    `flex-shrink-0 rounded-full px-3 py-1 text-xs ${
+      active ? 'bg-main text-white' : 'bg-surface-accent text-text/70'
+    }`
+
+  const openGroup = groups.find((g) => g.category === openCategory)
 
   return (
-    <div
-      className={`flex gap-2 px-4 py-3 ${
-        expanded ? 'flex-wrap' : 'overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
-      }`}
-    >
-      <Link href="/" className={chipClass(!activeTag)}>
-        전체
-      </Link>
-
-      {visibleTags.map((tag) => (
-        <Link
-          key={tag.id}
-          href={`/?tag=${encodeURIComponent(tag.name)}`}
-          className={chipClass(tag.name === activeTag)}
-        >
-          #{tag.name}
+    <div className="border-b border-black/5">
+      {/* 대표 카테고리 (가로 스크롤) */}
+      <div className="flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <Link href="/" className={catChip(!activeTag)}>
+          전체
         </Link>
-      ))}
+        {groups.map((g) => {
+          const isOpen = openCategory === g.category
+          const holdsActive = activeTag != null && g.category === activeCategory
+          return (
+            <button
+              key={g.category}
+              type="button"
+              onClick={() =>
+                setOpenCategory((c) => (c === g.category ? null : g.category))
+              }
+              aria-expanded={isOpen}
+              className={catChip(isOpen || holdsActive)}
+            >
+              {g.category}
+              <span className="ml-1 text-[10px] opacity-70">{isOpen ? '▲' : '▾'}</span>
+            </button>
+          )
+        })}
+      </div>
 
-      {needsToggle && (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="flex-shrink-0 rounded-full border border-main/30 px-3 py-1.5 text-xs font-medium text-main"
-        >
-          {expanded ? '접기 ▲' : '더보기 ▼'}
-        </button>
+      {/* 펼쳐진 카테고리의 하위 태그 */}
+      {openGroup && (
+        <div className="flex flex-wrap gap-2 px-4 pb-3">
+          {openGroup.tags.map((name) => (
+            <Link
+              key={name}
+              href={`/?tag=${encodeURIComponent(name)}`}
+              className={tagChip(name === activeTag)}
+            >
+              #{name}
+            </Link>
+          ))}
+        </div>
       )}
     </div>
   )
