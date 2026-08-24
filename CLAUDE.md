@@ -628,6 +628,8 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
   supabase/add_search_function.sql        — search_books 함수 + pg_trgm (책 제목·작가 유사 검색)
   supabase/add_post_images_storage.sql     — 기록 사진용 Storage 버킷 post-images + RLS
   supabase/add_moderation_hidden.sql       — posts·comments hidden_at(소프트 삭제) + 운영자 RLS 예외
+  supabase/reorg_topic_tags.sql            — 주제 태그 MECE 재정리(operator_tags.tag_category 6카테고리
+                                             +sort_order, 이름정리·신규·형태 비활성, books.is_board_book) 2026.08.25
   supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 
 
@@ -720,9 +722,10 @@ supabase/*.sql
   ※ 작업 방식: 새로 미루는 게 생기면 여기 추가하고, 끝내면 ✅ 표시. 세션 재개 시 이 리스트로 다음 할 일 판단.
   □ [마이페이지] 책육아 통계 박스('책육아 통계': 지금까지·이번달·이번주 읽은 책 3섹션)
       + 책육아 캘린더(완독 캘린더, 일자별 표지·대표+N). 리다 앱 완독 캘린더 참고. (2026.08.22)  ← 규모 큼
-  □ [주제 태그] MECE 재정리 — ★확정(2026.08.24), 스펙은 8.1 참조. **다음 세션 바로 구현.**
-      6 대표 카테고리(나·마음·몸·습관/가족/친구·사회/자연·생물/사물·개념/놀이·말) + 하위 태그 드릴다운,
-      형태 축 폐지→보드북 체크박스(books.is_board_book), 폼 DB연동. 구현 순서 (a)마이그레이션 (b)폼 (c)필터UI.
+  ✅ [주제 태그] MECE 재정리 — 완료(2026.08.25). (a)마이그레이션 reorg_topic_tags.sql(적용·검증)
+      (b)폼 DB연동+보드북 체크박스 (c)홈 필터 카테고리 드릴다운. 스펙 8.1. 커밋 9346b34·366a243.
+  □ [홈] 보드북 표현 — books.is_board_book는 저장되나 홈/책 페이지 노출 미구현.
+      예: 씨앗·새싹 카드에 작은 '보드북' 배지, 또는 씨앗·새싹 섹션에 '보드북만' 토글. (2026.08.25)
   □ [마이페이지] 주제별 보기 — 우리집 책장(내 posts) 재사용, 정렬 토글(최근순↔주제별) 전면책장.
       ↑ 태그 MECE 재정리 뒤에. (2026.08.22)
   □ [모더레이션] 운영자 무공지 삭제 투명화 — posts.hidden_by(작성자 self vs 운영자) 컬럼 추가,
