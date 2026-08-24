@@ -23,6 +23,7 @@ interface RecommendPayload {
   child_reaction?: number // 1~3 (3=자꾸 꺼내봐요, 2=재밌어했어요, 1=그냥 봤어요)
   reading_amount?: number
   topics?: string[]
+  is_board_book?: boolean // 보드북 여부(책 속성)
   memo?: string
   photo_urls?: string[] // Storage 업로드 후 public URL (폼에서 업로드 완료된 것만)
 }
@@ -129,6 +130,13 @@ export async function POST(request: Request) {
 
     if (existingBook) {
       bookId = existingBook.id
+      // 보드북 여부(책 속성)를 기록자의 선택으로 반영 (첫 기록 이후에도 수정 가능)
+      if (typeof payload.is_board_book === 'boolean') {
+        await supabase
+          .from('books')
+          .update({ is_board_book: payload.is_board_book })
+          .eq('id', bookId)
+      }
     } else {
       const { data: insertedBook, error: bookInsertError } = await supabase
         .from('books')
@@ -141,6 +149,7 @@ export async function POST(request: Request) {
           cover_image_url: payload.book_cover || null,
           aladin_url: payload.book_link || null,
           is_out_of_print: payload.book_is_out_of_print ?? false,
+          is_board_book: payload.is_board_book ?? false,
         })
         .select('id')
         .single()

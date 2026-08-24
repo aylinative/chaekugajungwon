@@ -13,6 +13,7 @@ interface EditPayload {
   child_reaction?: number
   reading_amount?: number
   topics?: string[]
+  is_board_book?: boolean
   memo?: string
 }
 
@@ -36,7 +37,7 @@ export async function PATCH(
   // 작성자 확인 (숨김 상태는 수정 대상 아님)
   const { data: post, error: lookupError } = await supabase
     .from('posts')
-    .select('id, user_id')
+    .select('id, user_id, book_id')
     .eq('id', postId)
     .is('hidden_at', null)
     .maybeSingle()
@@ -90,6 +91,14 @@ export async function PATCH(
   if (updateError) {
     console.error('Post update error:', updateError)
     return NextResponse.json({ error: '기록 수정에 실패했습니다.' }, { status: 500 })
+  }
+
+  // 보드북 여부(책 속성) 반영 — 이 기록의 책에 적용
+  if (typeof payload.is_board_book === 'boolean' && post.book_id) {
+    await supabase
+      .from('books')
+      .update({ is_board_book: payload.is_board_book })
+      .eq('id', post.book_id)
   }
 
   // 2) 시기(post_groups) 교체 — 전부 삭제 후 재삽입

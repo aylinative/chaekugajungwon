@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { RECOMMEND_GROUPS, getGroupValueByMonths } from '@/lib/groups'
 import { CHILD_REACTIONS } from '@/lib/reactions'
 import { densityHint } from '@/lib/density'
+import { groupTagsByCategory, type TagCategoryGroup, type OperatorTagRow } from '@/lib/tags'
 import { getMonths, getAgeDisplay, getZodiacEmoji } from '@/lib/age'
 
 interface BookItem {
@@ -25,31 +26,6 @@ const amountOptions = [1, 2, 3, 4, 5]
 const GROUP_LABEL_TO_VALUE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.value])
 )
-const topicOptions = [
-  '가족',
-  '친구',
-  '계절',
-  '명절/기념일',
-  '인성/감정/회복탄력성',
-  '다양성',
-  '공룡',
-  '동물',
-  '식물',
-  '곤충',
-  '음식',
-  '생활습관',
-  '색깔',
-  '잠자리독서',
-  '똥/방귀',
-  '말놀이/수놀이',
-  '몸/신체',
-  '기관',
-  '탈것',
-  '캐릭터',
-  '보드북',
-  '조작북',
-  '병풍/팝업책',
-]
 
 function RecommendCreateInner() {
   const router = useRouter()
@@ -75,6 +51,8 @@ function RecommendCreateInner() {
   const [selectedChildIdx, setSelectedChildIdx] = useState(0)
   const [readingTime, setReadingTime] = useState<'now' | 'past'>('now')
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
+  const [tagGroups, setTagGroups] = useState<TagCategoryGroup[]>([]) // 운영자 태그(DB) 카테고리별
+  const [isBoardBook, setIsBoardBook] = useState(false) // 보드북 여부(책 속성)
   const [memo, setMemo] = useState('')
   // 사진: 실제 File을 들고 있다가 제출 시 Storage 업로드. preview는 blob URL(표시 전용).
   const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([])
@@ -147,6 +125,19 @@ function RecommendCreateInner() {
     loadChildren()
   }, [])
 
+  // 주제 태그를 DB(operator_tags)에서 카테고리별로 로드 (하드코딩 제거 — DB가 단일 소스)
+  useEffect(() => {
+    async function loadTags() {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('operator_tags')
+        .select('name, tag_category, sort_order')
+        .eq('is_active', true)
+      setTagGroups(groupTagsByCategory((data as OperatorTagRow[] | null) ?? []))
+    }
+    loadTags()
+  }, [])
+
   // 시기 자동 체크 (9.2):
   // - '지금 읽고 있어요' → 선택된 아이의 현재 월령에 해당하는 칩 1개만 자동 체크
   // - '예전에 읽었어요' → 앵커 제거를 위해 전부 해제 (현재 월령은 틀린 앵커)
@@ -179,7 +170,7 @@ function RecommendCreateInner() {
         .from('posts')
         .select(
           `id, user_id, child_reaction, text_density, content,
-           book:books ( title, author, publisher, published_date, cover_image_url, aladin_url, aladin_item_id, is_out_of_print ),
+           book:books ( title, author, publisher, published_date, cover_image_url, aladin_url, aladin_item_id, is_out_of_print, is_board_book ),
            post_groups ( group_name ),
            post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) )`
         )
@@ -201,6 +192,7 @@ function RecommendCreateInner() {
           aladin_url: string | null
           aladin_item_id: string | null
           is_out_of_print: boolean | null
+          is_board_book: boolean | null
         } | null
         post_groups: { group_name: string }[] | null
         post_tags:
@@ -226,6 +218,7 @@ function RecommendCreateInner() {
           isOutOfPrint: Boolean(b.is_out_of_print),
         })
         setQuery(b.title ?? '')
+        setIsBoardBook(Boolean(b.is_board_book))
       }
       setSelectedGroups(
         (row.post_groups ?? [])
@@ -307,6 +300,7 @@ function RecommendCreateInner() {
             child_reaction: selectedReaction,
             reading_amount: selectedAmount,
             topics: selectedTopics,
+            is_board_book: isBoardBook,
             memo,
           }),
         })
@@ -359,6 +353,7 @@ function RecommendCreateInner() {
         child_reaction: selectedReaction,
         reading_amount: selectedAmount,
         topics: selectedTopics,
+        is_board_book: isBoardBook,
         memo,
         photo_urls: uploadedUrls,
       }
@@ -681,24 +676,45 @@ function RecommendCreateInner() {
           </div>
 
           <div>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={isBoardBook}
+                onChange={(e) => setIsBoardBook(e.target.checked)}
+                className="h-4 w-4 accent-main"
+              />
+              보드북이에요
+            </label>
+            <p className="mt-1 text-xs text-text/50">
+              두껍고 튼튼한 보드북(조작·팝업 포함)인가요? 씨앗·새싹 시기에 유용한 정보예요.
+            </p>
+          </div>
+
+          <div>
             <p className="mb-2 text-sm font-medium">주제 태그</p>
-            <div className="flex flex-wrap gap-2">
-              {topicOptions.map((topic) => (
-                <button
-                  key={topic}
-                  type="button"
-                  onClick={() => toggleTopic(topic)}
-                  className={`rounded-full px-3 py-1.5 text-sm ${
-                    selectedTopics.includes(topic)
-                      ? 'bg-group-sprout text-text'
-                      : 'bg-surface-muted text-text'
-                  }`}
-                >
-                  #{topic}
-                </button>
+            <div className="space-y-3">
+              {tagGroups.map((group) => (
+                <div key={group.category}>
+                  <p className="mb-1.5 text-xs font-medium text-text/50">{group.category}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {group.tags.map((topic) => (
+                      <button
+                        key={topic}
+                        type="button"
+                        onClick={() => toggleTopic(topic)}
+                        className={`rounded-full px-3 py-1.5 text-sm ${
+                          selectedTopics.includes(topic)
+                            ? 'bg-group-sprout text-text'
+                            : 'bg-surface-muted text-text'
+                        }`}
+                      >
+                        #{topic}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
-
           </div>
 
           <div>
