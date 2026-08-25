@@ -13,14 +13,14 @@ export const metadata: Metadata = { title: '마이페이지 | 책육아정원' }
 interface MyPostRow {
   id: string
   book_id: string
-  book: { aladin_item_id: string | null; title: string | null; cover_image_url: string | null } | null
+  book: { book_key: string | null; title: string | null; cover_image_url: string | null } | null
   post_tags:
     | { is_operator_tag: boolean; operator_tags: { name: string; tag_category: string | null } | null }[]
     | null
 }
 
 interface MyBookmarkRow {
-  book: { aladin_item_id: string | null; title: string | null; cover_image_url: string | null } | null
+  book: { book_key: string | null; title: string | null; cover_image_url: string | null } | null
 }
 
 export default async function MyPage() {
@@ -42,7 +42,7 @@ export default async function MyPage() {
     supabase
       .from('posts')
       .select(
-        `id, book_id, book:books ( aladin_item_id, title, cover_image_url ),
+        `id, book_id, book:books ( book_key, title, cover_image_url ),
          post_tags ( is_operator_tag, operator_tags ( name, tag_category ) )`
       )
       .eq('user_id', user.id)
@@ -50,7 +50,7 @@ export default async function MyPage() {
       .order('created_at', { ascending: false }),
     supabase
       .from('bookmarks')
-      .select(`book:books ( aladin_item_id, title, cover_image_url )`)
+      .select(`book:books ( book_key, title, cover_image_url )`)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
   ])
@@ -80,7 +80,7 @@ export default async function MyPage() {
       )
     )
     shelfBooks.push({
-      href: `/book/${encodeURIComponent(p.book.aladin_item_id ?? '')}`,
+      href: `/book/${encodeURIComponent(p.book.book_key ?? '')}`,
       cover: p.book.cover_image_url,
       title: p.book.title ?? '(제목 없음)',
       categories,
@@ -88,7 +88,7 @@ export default async function MyPage() {
   }
 
   const wishItems: ShelfItem[] = bookmarks.map((b) => ({
-    href: `/book/${encodeURIComponent(b.book!.aladin_item_id ?? '')}`,
+    href: `/book/${encodeURIComponent(b.book!.book_key ?? '')}`,
     cover: b.book!.cover_image_url,
     title: b.book!.title ?? '(제목 없음)',
   }))

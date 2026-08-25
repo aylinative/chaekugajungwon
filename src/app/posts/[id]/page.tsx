@@ -30,7 +30,7 @@ interface RawDetail {
     publisher: string | null
     published_date: string | null
     cover_image_url: string | null
-    aladin_url: string | null
+    source_url: string | null
     is_out_of_print: boolean | null
     bookmark_count: number
   } | null
@@ -43,7 +43,7 @@ interface RawDetail {
 }
 
 const DETAIL_SELECT = `id, text_density, child_reaction, content, created_at, user_id,
-  book:books ( id, title, author, publisher, published_date, cover_image_url, aladin_url, is_out_of_print, bookmark_count ),
+  book:books ( id, title, author, publisher, published_date, cover_image_url, source_url, is_out_of_print, bookmark_count ),
   author:users!posts_user_id_fkey ( nickname ),
   post_groups ( group_name ),
   post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) ),
@@ -210,7 +210,7 @@ export default async function PostDetailPage({
           sharePath={`/posts/${id}`}
           shareTitle={`${book?.title ?? '그림책'} | 책육아정원`}
           shareText={`${book?.title ?? '그림책'} — 아이와 함께 읽은 기록`}
-          canEdit={isOwner}
+          canEdit={false}
           canModerate={canModeratePost}
           moderateLabel={isOwner ? '삭제' : '숨김'}
           moderateConfirm={
@@ -251,14 +251,14 @@ export default async function PostDetailPage({
             )}
             {/* ⚠️ 아이 나이는 표시하지 않는다 — 기록 시점 기준이라 실제 읽은 시기와
                 다를 수 있어 잘못된 정보가 된다. 시기 배지(②)가 그 역할을 한다. (10.1) */}
-            {book?.aladin_url && (
+            {book?.source_url && (
               <a
-                href={book.aladin_url}
+                href={book.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 inline-block text-xs text-main underline"
               >
-                알라딘에서 보기 ›
+                책 정보 보기 ›
               </a>
             )}
           </div>
@@ -335,6 +335,18 @@ export default async function PostDetailPage({
                   className="h-24 w-full rounded-xl object-cover"
                 />
               ))}
+            </div>
+          )}
+
+          {/* 작성자 본인 — 이 기록 수정 (내용 바로 옆이라 직관적). 삭제/공유는 상단 ⋯ 메뉴. */}
+          {isOwner && (
+            <div className="flex justify-end pt-1">
+              <Link
+                href={`/recommend/create?edit=${post.id}`}
+                className="rounded-full bg-surface-muted px-4 py-1.5 text-xs font-medium text-text/70"
+              >
+                ✏️ 기록 수정
+              </Link>
             </div>
           )}
         </section>

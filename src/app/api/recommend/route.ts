@@ -95,7 +95,8 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
-    if (!payload.reading_amount) {
+    if (payload.reading_amount == null) {
+      // 0(글 없는 그림책)은 유효값 — falsy가 아니라 null/undefined만 거부
       return NextResponse.json({ error: '글밥량을 선택해주세요.' }, { status: 400 })
     }
     const reaction =
@@ -103,9 +104,9 @@ export async function POST(request: Request) {
         ? payload.child_reaction
         : 2 // 기본값: 재밌어했어요
 
-    // 책 식별자: ISBN13 우선, 없으면 알라딘 링크로 대체 (aladin_item_id는 NOT NULL)
-    const aladinItemId = payload.book_isbn13 || payload.book_link || payload.book_title
-    if (!aladinItemId) {
+    // 책 식별자(book_key): ISBN13 우선, 없으면 외부 링크·제목으로 대체 (NOT NULL)
+    const bookKey = payload.book_isbn13 || payload.book_link || payload.book_title
+    if (!bookKey) {
       return NextResponse.json({ error: '책 식별자가 없습니다.' }, { status: 400 })
     }
 
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
     const { data: existingBook, error: bookLookupError } = await supabase
       .from('books')
       .select('id')
-      .eq('aladin_item_id', aladinItemId)
+      .eq('book_key', bookKey)
       .maybeSingle()
 
     if (bookLookupError) {
@@ -141,13 +142,13 @@ export async function POST(request: Request) {
       const { data: insertedBook, error: bookInsertError } = await supabase
         .from('books')
         .insert({
-          aladin_item_id: aladinItemId,
+          book_key: bookKey,
           title: payload.book_title,
           author: payload.book_author || null,
           publisher: payload.book_publisher || null,
           published_date: publishedDate,
           cover_image_url: payload.book_cover || null,
-          aladin_url: payload.book_link || null,
+          source_url: payload.book_link || null,
           is_out_of_print: payload.book_is_out_of_print ?? false,
           is_board_book: payload.is_board_book ?? false,
         })

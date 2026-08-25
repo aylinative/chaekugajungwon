@@ -20,7 +20,7 @@ insert into users (id, kakao_id, nickname) values
 on conflict (id) do nothing;
 
 -- 샘플 책 5권
-insert into books (id, aladin_item_id, title, author, publisher) values
+insert into books (id, book_key, title, author, publisher) values
   ('bbbbbbbb-0000-0000-0000-000000000001','SAMPLE-0001','[샘플] 사랑해 사랑해 사랑해','버나뎃 로제티 슈스탁','보물창고'),
   ('bbbbbbbb-0000-0000-0000-000000000002','SAMPLE-0002','[샘플] 두드려 보아요','안나 클라라 티돌름','사계절'),
   ('bbbbbbbb-0000-0000-0000-000000000003','SAMPLE-0003','[샘플] 누가 내 머리에 똥 쌌어','베르너 홀츠바르트','사계절'),

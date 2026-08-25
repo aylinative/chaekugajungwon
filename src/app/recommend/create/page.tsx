@@ -8,6 +8,7 @@ import { CHILD_REACTIONS } from '@/lib/reactions'
 import { densityHint } from '@/lib/density'
 import { groupTagsByCategory, type TagCategoryGroup, type OperatorTagRow } from '@/lib/tags'
 import { getMonths, getAgeDisplay, getZodiacEmoji } from '@/lib/age'
+import BookCover from '@/components/BookCover'
 
 interface BookItem {
   title: string
@@ -21,7 +22,7 @@ interface BookItem {
 }
 
 // 글밥량 = 페이지당 글 양(중립 속성). 별점 연상을 피해 게이지+부연으로 표시.
-const amountOptions = [1, 2, 3, 4, 5]
+const amountOptions = [0, 1, 2, 3, 4, 5] // 0 = 글 없는 그림책(바 채움 없음)
 // 시기 라벨('씨앗')→폼 값('seed') 역매핑 — 편집 모드에서 기존 post_groups 프리필용
 const GROUP_LABEL_TO_VALUE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.value])
@@ -65,7 +66,7 @@ function RecommendCreateInner() {
     setError('')
     try {
       const response = await fetch(
-        `/api/aladin/search?query=${encodeURIComponent(keyword)}`
+        `/api/books/search?query=${encodeURIComponent(keyword)}`
       )
       const data = await response.json()
 
@@ -170,7 +171,7 @@ function RecommendCreateInner() {
         .from('posts')
         .select(
           `id, user_id, child_reaction, text_density, content,
-           book:books ( title, author, publisher, published_date, cover_image_url, aladin_url, aladin_item_id, is_out_of_print, is_board_book ),
+           book:books ( title, author, publisher, published_date, cover_image_url, source_url, book_key, is_out_of_print, is_board_book ),
            post_groups ( group_name ),
            post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) )`
         )
@@ -189,8 +190,8 @@ function RecommendCreateInner() {
           publisher: string | null
           published_date: string | null
           cover_image_url: string | null
-          aladin_url: string | null
-          aladin_item_id: string | null
+          source_url: string | null
+          book_key: string | null
           is_out_of_print: boolean | null
           is_board_book: boolean | null
         } | null
@@ -213,8 +214,8 @@ function RecommendCreateInner() {
           publisher: b.publisher ?? '',
           pubDate: b.published_date ?? '',
           cover: b.cover_image_url ?? '',
-          link: b.aladin_url ?? '',
-          isbn13: b.aladin_item_id ?? '',
+          link: b.source_url ?? '',
+          isbn13: b.book_key ?? '',
           isOutOfPrint: Boolean(b.is_out_of_print),
         })
         setQuery(b.title ?? '')
@@ -459,10 +460,11 @@ function RecommendCreateInner() {
                       onClick={() => selectBook(book)}
                       className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-surface-muted"
                     >
-                      <img
+                      <BookCover
                         src={book.cover}
-                        alt={book.title}
-                        className="h-14 w-10 flex-shrink-0 rounded object-cover"
+                        title={book.title}
+                        size="sm"
+                        className="h-14 w-10 flex-shrink-0 rounded"
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium text-text">
@@ -490,10 +492,11 @@ function RecommendCreateInner() {
           <section className="mt-4 rounded-2xl bg-surface p-4 shadow-sm">
             <p className="text-xs text-gray-500">선택한 책</p>
             <div className="mt-2 flex gap-3">
-              <img
+              <BookCover
                 src={selectedBook.cover}
-                alt={selectedBook.title}
-                className="h-24 w-16 rounded-md object-cover"
+                title={selectedBook.title}
+                size="md"
+                className="h-24 w-16 rounded-md"
               />
               <div>
                 <h2 className="font-semibold">{selectedBook.title}</h2>
@@ -632,10 +635,7 @@ function RecommendCreateInner() {
           </div>
 
           <div>
-            <p className="mb-1 text-sm font-medium">페이지당 글밥량</p>
-            <p className="mb-2 text-xs text-text/50">
-              글이 적은 책도 좋은 그림책이에요 — 좋고 나쁨이 아니라 글의 양이에요
-            </p>
+            <p className="mb-2 text-sm font-medium">페이지당 글밥량</p>
             <div className="grid grid-cols-2 gap-2">
               {amountOptions.map((level) => {
                 const selected = selectedAmount === level
@@ -668,10 +668,6 @@ function RecommendCreateInner() {
                   </button>
                 )
               })}
-            </div>
-            <div className="mt-1.5 flex w-full justify-between px-1 text-[10px] text-text/40">
-              <span>글 적음</span>
-              <span>글 많음</span>
             </div>
           </div>
 

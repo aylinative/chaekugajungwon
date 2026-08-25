@@ -61,7 +61,8 @@ export async function PATCH(
       { status: 400 }
     )
   }
-  if (!payload.reading_amount) {
+  if (payload.reading_amount == null) {
+    // 0(글 없는 그림책)은 유효값 — null/undefined만 거부
     return NextResponse.json({ error: '글밥량을 선택해주세요.' }, { status: 400 })
   }
   const reaction =

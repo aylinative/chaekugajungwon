@@ -8,7 +8,7 @@ create extension if not exists pg_trgm;
 create or replace function search_books(search_query text)
 returns table (
   id uuid,
-  aladin_item_id varchar,
+  book_key varchar,
   title varchar,
   author varchar,
   cover_image_url text,
@@ -23,7 +23,7 @@ as $$
     select replace(replace(replace(lower(trim(search_query)), '\', '\\'), '%', '\%'), '_', '\_') as esc,
            lower(trim(search_query)) as raw
   )
-  select b.id, b.aladin_item_id, b.title, b.author, b.cover_image_url,
+  select b.id, b.book_key, b.title, b.author, b.cover_image_url,
          (select count(*) from posts p where p.book_id = b.id and p.hidden_at is null) as record_count,
          (select count(*) from likes l where l.book_id = b.id) as recommend_count
     from books b, q

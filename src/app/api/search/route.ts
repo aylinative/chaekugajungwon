@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
   interface Row {
     id: string
-    aladin_item_id: string | null
+    book_key: string | null
     title: string | null
     author: string | null
     cover_image_url: string | null
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
   const items = ((data as Row[] | null) ?? []).map((b) => ({
     bookId: b.id,
-    isbn: b.aladin_item_id ?? '',
+    isbn: b.book_key ?? '',
     title: b.title ?? '(제목 없음)',
     author: b.author,
     cover: b.cover_image_url,

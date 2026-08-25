@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import BookCover from '@/components/BookCover'
+import { FEEDBACK_FORM_URL } from '@/lib/feedback'
 
 interface SearchItem {
   bookId: string
@@ -13,7 +15,7 @@ interface SearchItem {
   recommendCount: number
 }
 
-interface AladinItem {
+interface CatalogItem {
   title: string
   author: string
   cover: string
@@ -22,12 +24,12 @@ interface AladinItem {
 
 // 검색 화면 (12장): 두 섹션 구조.
 // ① 책육아 기록이 있는 책 (우리 DB) → /book/[isbn]
-// ② 아직 기록이 없는 책 (알라딘 검색) → '첫 기록 남기기'로 기록 유도.
+// ② 아직 기록이 없는 책 (카카오 검색) → '첫 기록 남기기'로 기록 유도.
 //    기록이 없으면 "없는 책"임이 명확히 인식되도록 섹션을 분리해 라벨링한다.
 export default function SearchClient() {
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<SearchItem[]>([])
-  const [aladinItems, setAladinItems] = useState<AladinItem[]>([])
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false) // 검색을 한 번이라도 수행했는지
   const inputRef = useRef<HTMLInputElement>(null)
@@ -40,28 +42,28 @@ export default function SearchClient() {
     const keyword = query.replace(/\s+/g, ' ').trim()
     if (!keyword) {
       setItems([])
-      setAladinItems([])
+      setCatalogItems([])
       setSearched(false)
       return
     }
     const timer = setTimeout(async () => {
       setLoading(true)
       try {
-        // 우리 기록 + 알라딘을 병렬 검색. 한쪽 실패해도 다른 쪽은 표시.
-        const [minePayload, aladinPayload] = await Promise.all([
+        // 우리 기록 + 카카오을 병렬 검색. 한쪽 실패해도 다른 쪽은 표시.
+        const [minePayload, catalogPayload] = await Promise.all([
           fetch(`/api/search?q=${encodeURIComponent(keyword)}`)
             .then((r) => r.json())
             .catch(() => ({ items: [] })),
-          fetch(`/api/aladin/search?query=${encodeURIComponent(keyword)}`)
+          fetch(`/api/books/search?query=${encodeURIComponent(keyword)}`)
             .then((r) => r.json())
             .catch(() => ({ items: [] })),
         ])
         const mine: SearchItem[] = minePayload.items ?? []
         setItems(mine)
-        // 이미 기록이 있는 책(isbn 일치)은 알라딘 섹션에서 제외
+        // 이미 기록이 있는 책(isbn 일치)은 카카오 섹션에서 제외
         const knownIsbns = new Set(mine.map((m) => m.isbn))
-        setAladinItems(
-          ((aladinPayload.items ?? []) as AladinItem[])
+        setCatalogItems(
+          ((catalogPayload.items ?? []) as CatalogItem[])
             .filter((a) => a.isbn13 && !knownIsbns.has(a.isbn13))
             .slice(0, 10)
         )
@@ -116,18 +118,7 @@ export default function SearchClient() {
                       className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-sm"
                     >
                       <div className="h-20 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-surface-muted">
-                        {b.cover ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={b.cover}
-                            alt={b.title}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-lg">
-                            📖
-                          </div>
-                        )}
+                        <BookCover src={b.cover} title={b.title} size="md" className="h-full w-full" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="line-clamp-2 text-sm font-medium text-text">
@@ -147,8 +138,8 @@ export default function SearchClient() {
             )}
           </section>
 
-          {/* ② 아직 기록이 없는 책 (알라딘) → 첫 기록 유도 */}
-          {aladinItems.length > 0 && (
+          {/* ② 아직 기록이 없는 책 (카카오) → 첫 기록 유도 */}
+          {catalogItems.length > 0 && (
             <section className="mt-6">
               <h2 className="mb-1 px-1 text-sm font-semibold text-text">
                 아직 기록이 없는 책
@@ -157,22 +148,11 @@ export default function SearchClient() {
                 이 책을 읽어보셨다면 첫 기록을 남겨주세요
               </p>
               <ul className="space-y-2">
-                {aladinItems.map((a) => (
+                {catalogItems.map((a) => (
                   <li key={a.isbn13}>
                     <div className="flex items-center gap-3 rounded-2xl border border-dashed border-text/15 bg-surface/60 p-3">
                       <div className="h-20 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-surface-muted opacity-80">
-                        {a.cover ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={a.cover}
-                            alt={a.title}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-lg">
-                            📖
-                          </div>
-                        )}
+                        <BookCover src={a.cover} title={a.title} size="md" className="h-full w-full" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="line-clamp-2 text-sm font-medium text-text/80">
@@ -197,7 +177,7 @@ export default function SearchClient() {
           )}
 
           {/* 양쪽 다 없을 때 */}
-          {items.length === 0 && aladinItems.length === 0 && (
+          {items.length === 0 && catalogItems.length === 0 && (
             <div className="mt-6 flex flex-col items-center gap-3 text-center">
               <span className="text-3xl">🌱</span>
               <p className="text-sm text-text/60">검색 결과가 없어요.</p>
@@ -209,6 +189,19 @@ export default function SearchClient() {
               </Link>
             </div>
           )}
+
+          {/* 못 찾은 책은 제보 유도 (구글폼) — 데드엔드 방지 + '없는 책' 데이터 수집 */}
+          <p className="mt-6 text-center text-xs text-text/40">
+            찾는 책이 없나요?{' '}
+            <a
+              href={FEEDBACK_FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-main underline underline-offset-2"
+            >
+              알려주기
+            </a>
+          </p>
         </>
       )}
     </div>

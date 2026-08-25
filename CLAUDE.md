@@ -15,7 +15,7 @@ Claude Code가 매 작업 시작 시 이 파일을 먼저 읽고 프로젝트 �
 핵심 기능 우선순위 (중요):
 
 아이와의 책 기록을 남기는 육아일기 기능 (가장 핵심)
-알라딘 Open API를 활용한 책 정보 연동
+카카오 Daum 책 검색 API를 활용한 책 정보 연동 (구 알라딘 Open API — 서비스 종료로 2026.08 전환)
 개인들의 책육아 기록이 쌓여 형성되는 그림책 추천 커뮤니티
 
 ⚠️ 이 서비스는 "커뮤니티"가 1차 목적이 아니라 "개인 기록(일기)"이 1차 목적이고, 그 기록들이 모여 커뮤니티가 되는 구조. UI/UX 결정 시 이 우선순위를 기준으로 판단할 것.
@@ -38,8 +38,8 @@ Vercel
 Tailwind CSS
 모바일 우선 반응형 필수
 책 정보
-알라딘 Open API
-제목·저자·출판사·링크·절판 여부
+카카오 Daum 책 검색 API
+제목·저자·출판사·링크·절판 여부 (구 알라딘 — 종료로 2026.08 전환)
 소셜 로그인
 카카오 로그인
 OAuth 2.0 (Supabase Auth 연동)
@@ -127,7 +127,7 @@ UI 레퍼런스: TripAdvisor 홈 피드 구조 참고
 정보 항목
 표시 방식
 책 표지 이미지
-알라딘 API 이미지 or 색상 플레이스홀더
+카카오 API 표지 이미지 or 제목 카드 플레이스홀더
 책 제목
 최대 2줄
 시기
@@ -238,7 +238,7 @@ Supabase에 시드 데이터로 이미 등록 완료
 타입
 설명
 책 정보
-알라딘 API 검색
+카카오 책 검색
 제목, 저자, 출판사, 링크, 절판 여부 자동 입력
 시기 (라벨: '이 시기 아이가 읽으면 좋아요')
 세그먼트 버튼 + 다중 선택 칩
@@ -354,7 +354,7 @@ Supabase에 시드 데이터로 이미 등록 완료
 ① 책 정보 영역
 
 책 표지 이미지 / 책 제목 / 저자 / 출판사·출간일
-더보기 버튼 → 알라딘 해당 상품 링크로 이동
+더보기 버튼 → 책 상세 링크로 이동
 ⚠️ "아이 나이(작성 시 태그된 아이 나이)" 항목은 표시하지 않는다.
    기록 시점 기준이라 실제 읽은 시기와 다를 수 있어 잘못된 정보다.
 
@@ -380,7 +380,7 @@ Supabase에 시드 데이터로 이미 등록 완료
 10.2 같은 책 다수 기록 처리 (/book/[isbn] 구현 완료, 2026.08 기준 확정)
 동일 책에 여러 사용자가 기록을 작성한 경우, 책 정보 영역은 하나로 공유하고 그 아래에 기록 카드를 작성순으로 누적 표시.
 ■ 정보 배치 기준 (2026.08 확정)
-  - 책 정보 영역 = 책의 객관 정보: 표지·제목·저자·출판·절판·알라딘 링크 + 글밥량 대표값(최빈) + 저장 버튼
+  - 책 정보 영역 = 책의 객관 정보: 표지·제목·저자·출판·절판·책 상세 링크 + 글밥량 대표값(최빈) + 저장 버튼
   - 기록 카드 = 양육자의 평가 전용: 닉네임·시기 배지·우리 아이 반응·책육아 일기(3줄)
     글밥량은 기록 카드에 표시하지 않는다(책 객관 정보이므로 위로 이동).
   - '나도 추천해요'(👍)는 책 정보 영역(저장 버튼 옆)에서 누른다(바텀시트) — 책·시기 판단이므로.
@@ -515,9 +515,9 @@ SNS 공유
 댓글
 감상평·후기 작성. 작성자는 본인 댓글만 삭제 가능
 검색
-책 제목 또는 작가명 입력 → 두 섹션 구조 (2026.08 확정. 작가 검색: 알라딘 QueryType=Keyword + search_books의 author 매칭).
+책 제목 또는 작가명 입력 → 두 섹션 구조 (2026.08 확정. 작가 검색: 카카오 통합검색(제목+저자) + search_books의 author 매칭).
   ① '책육아 기록이 있는 책' — 우리 DB. search_books 함수(supabase/add_search_function.sql): 띄어쓰기 무시 부분 일치('달님안녕'↔'달님 안녕') + pg_trgm 유사도. 기록 수→추천 수 정렬, 탭하면 /book/[isbn].
-  ② '아직 기록이 없는 책' — 알라딘 검색 결과 중 DB에 없는 책(최대 10). 정렬: 제목 정확 일치(공백 무시)→접두 일치→국내 우선→세일즈포인트. 점선 테두리+'책육아 기록 없음' 라벨로 기록 없는 책임을 명확히 구분. '첫 기록 남기기' 버튼 → 기록 폼에 책 제목 프리필(?query=)되어 즉시 자동 검색.
+  ② '아직 기록이 없는 책' — 카카오 검색 결과 중 DB에 없는 책(최대 10). 정렬: 제목 정확 일치(공백 무시)→접두 일치→그림책 출판사 부스트→개정판 대표(재정렬 lib/pictureBookRanking). 점선 테두리+'책육아 기록 없음' 라벨로 기록 없는 책임을 명확히 구분. '첫 기록 남기기' 버튼 → 기록 폼에 책 제목 프리필(?query=)되어 즉시 자동 검색.
   ①이 비어도 ②로 기록 유도 — 모든 검색이 발견 아니면 기록 유도로 끝난다(콜드스타트 전략).
   기록 폼 검색 최소 길이 1(한 글자 제목 '점' 대응). ※ 한 글자 오타 매칭은 한글 trigram 특성상 한계
 신고 기능
@@ -526,43 +526,45 @@ SNS 공유
 
 
 13. 외부 API 연동 스펙
-13.1 알라딘 Open API (2026.07.31 갱신)
-사용 API: 상품 검색 API (ItemSearch.aspx)만 사용
-공통 파라미터: QueryType=Keyword(제목+저자 통합, 작가명 검색 지원) / Cover=Mid / Output=JS / Version=20131101
+13.1 카카오 Daum 책 검색 API (2026.08.25 전환 — 알라딘 Open API 서비스 종료 대응)
+사용 API: GET https://dapi.kakao.com/v3/search/book
+인증: 헤더 Authorization: KakaoAK {KAKAO_CLIENT_ID}  (REST 키. .env.local에 이미 존재)
+파라미터: query(필수) / sort=accuracy / size=30 / target=isbn(바코드·ISBN 문자열일 때만)
+  ※ 카카오는 단일 호출. 이전 CID별+Foreign 4~5회 병렬 호출이 1회로 단순화됨.
 
-검색 대상은 국내도서 + 외국도서 두 갈래를 병렬 호출한다.
+■ 왜 바꿨나: 알라딘 Open API 종료 예정. 카카오로 실측 결과 속도(평균 76ms)·표지 채움률(100%)·
+  영어 원서 커버리지·판매상태 모두 합격. 유일 약점은 카테고리 필터 부재(아래 재정렬로 보완).
 
-[A] 국내도서 (SearchTarget=Book)
-  - CATEGORY_IDS = [1108, 13789, 2030]
-    (1108=유아>4~7세>그림책, 13789=유아>0~3세>그림책, 2030=추가 그림책 분류)
-  - ItemSearch는 CategoryId를 하나만 받으므로 CID별 병렬 호출(Promise.all). CID당 MaxResults=30.
-  - CID 추가는 배열에 숫자만 추가.
-  - ⚠️ 106165는 국내도서가 아니라 외국도서 트리의 CID다. 기존에 CATEGORY_IDS에 들어 있었으나
-    SearchTarget=Book으로는 도달할 수 없어 빈 응답을 받고 있었다. [B]로 이동했다.
-  - ※ 이전 문서의 "외국도서(번역 그림책) 제외" 표현은 부정확했다.
-    알라딘 기준 한국 출판사가 발행한 번역 그림책(달님 안녕, 배고픈 애벌레 등)은 '국내도서'다.
-    실제로 빠지던 것은 영어 원서이며, 그것은 [B]로 해결한다.
+■ 응답 documents[] → 내부 items[] 매핑 (⚠️ 라우트가 프론트에 주는 형태는 이전과 동일하게 유지 → 프론트·저장 무변경)
+  - title              ← title
+  - author             ← authors[] 를 join(', ')      (카카오는 배열)
+  - publisher          ← publisher
+  - pubDate            ← datetime.slice(0,10)          (ISO8601 → YYYY-MM-DD, published_date DATE 검증 통과)
+  - cover              ← thumbnail                     (이전 cover500 치환 로직은 삭제)
+  - link               ← url
+  - isbn13             ← isbn("ISBN10 ISBN13" 공백구분)에서 13자리 우선 추출
+  - isOutOfPrint       ← /절판|품절/.test(status)       (status: 정상판매/주문판매/품절/절판/"" 등)
 
-[B] 외국도서 / 영어 원서 (SearchTarget=Foreign)  ← 2026.07.31 추가
-  - 알라딘은 국내도서와 외국도서가 별도 카테고리 트리다.
-    국내도서 CID로는 원서에 도달할 수 없으므로 SearchTarget을 분리해야 한다.
-  - 목적: 영어책육아 수요(ORT, Karen Katz, Eric Carle 원서 등) 대응.
-  - FOREIGN_CATEGORY_IDS = [106165]   (외국도서 > 어린이)
-  - MaxResults=10 (국내도서보다 낮게 두어 노이즈 억제)
+■ 카테고리 노이즈 보완 — 재정렬 (src/lib/pictureBookRanking.ts)
+  카카오엔 그림책 카테고리 필터가 없어 일반 단어("동물"→동물농장 등) 검색에 성인/문제집이 섞인다.
+  부가기호 대신 라우트 내부 재정렬로 상위를 정리(추가 API 호출 0):
+    ① 제목 중복정리: 같은 제목은 출간일 최신(=개정판) 1개만 대표
+    ② 그림책 출판사 부스트(시드 목록) + ③ 문제집/세트/학년 제목 페널티
+    (정렬: 제목 정확일치 → 접두 → 출판사 부스트 → 최신 출간일)
+  ※ 시드 목록은 후속에 우리 books(기록 ≥2건 출판사) 자동 도출로 전환 예정(Deferred TODO).
+  ※ ISBN 정확검색(target=isbn)은 단건이라 재정렬 건너뜀.
 
-[C] 병합
-  - [A]+[B]를 Promise.all로 모아 isbn13(없으면 link) 기준 중복 제거.
-  - 정렬: 국내도서 우선, 그 뒤 외국도서. (주 수요가 국내도서)
-  - 한쪽 호출이 실패해도 다른 쪽 결과는 반환할 것.
+■ 커버리지: 카카오에 없는 책은 검색에 안 뜬다(상업 DB 한계). 데드엔드 방지책 =
+  검색 빈 상태의 구글폼 '알려주기'(수집→B안 근거). 완전 카탈로그(국중도 부가기호=77 대량수집)는 B안·후속.
+  수동입력(ISBN 게이트) 백스톱도 후속. (Deferred TODO)
 
-mallType 필터: 응답에서 BOOK(국내도서)·FOREIGN(외국도서)만 사용, EBOOK/DVD/음반/중고 제외.
-  ※ 기존에는 CID가 국내도서 트리 전용이라 FOREIGN이 결과에 등장할 수 없어 죽은 조건이었다.
-    [B] 추가로 비로소 실제 동작한다.
-절판 여부: stockstatus !== '' && stockstatus != null → isOutOfPrint: true
+■ 표지 폴백: 표지 없거나 로딩 실패 시 '제목 카드'(src/components/BookCover.tsx). 전 화면 공용.
+
 검색 UX: 기록 폼은 입력 300ms 디바운스 후 자동 검색 → 자동완성 드롭다운(표지+제목)으로 선택.
-  (예정 개편: 드롭다운 → 전체화면 검색 오버레이. 폼 상태 보존 위해 별도 라우트가 아닌 같은 페이지 오버레이 권장. 18.3-A)
-구현 위치: src/app/api/aladin/search/route.ts
-환경변수: .env.local의 ALADIN_TTB_KEY
+구현 위치: src/app/api/books/search/route.ts
+  ※ DB 컬럼도 카카오 전환에 맞춰 리네임(2026.08.26): aladin_item_id→book_key, aladin_url→source_url (supabase/rename_aladin_columns.sql). 라우트는 /api/books/search로 이동(구 /api/aladin/search 삭제).
+    → 코드·DB·문서 현재상태에 'aladin' 표기 없음. 남은 언급은 변경이력(역사)뿐.
+환경변수: .env.local의 KAKAO_CLIENT_ID (배포 시 Vercel 등록 필수). 구 ALADIN_TTB_KEY는 전환 후 제거.
 13.2 카카오 로그인 (Supabase Auth 연동)
 scope: profile_nickname profile_image만 명시 (account_email 제외)
 PKCE 쿠키는 NextResponse.redirect()에 수동으로 배열 수집 후 적용
@@ -576,8 +578,8 @@ Server Component의 setAll 쿠키 핸들러는 반드시 try/catch로 감쌀 것
 주요 테이블/컬럼:
   - users: id(uuid, auth.users와 동일), kakao_id(varchar NOT NULL), nickname, is_operator, created_at
   - children: id, user_id, label(기본 '아이'), birth_date, created_at
-  - books: id, aladin_item_id(varchar NOT NULL, 실제로는 ISBN13 저장), title, author, publisher,
-           published_date(date), cover_image_url, aladin_url, is_out_of_print, fetched_at,
+  - books: id, book_key(varchar NOT NULL UNIQUE, 보통 ISBN13·없으면 링크/제목 대체 / 구 aladin_item_id), title, author, publisher,
+           published_date(date), cover_image_url, source_url(구 aladin_url), is_out_of_print, fetched_at,
            bookmark_count(integer NOT NULL DEFAULT 0)  ← 2026.07.31 추가 (트리거 자동 동기화)
   - posts: id, user_id, book_id(→books), reread(bool), text_density(smallint 1~5), content(메모), created_at, updated_at
   - post_groups: post_id, group_name  ← CHECK 제약: 한글 라벨('씨앗'/'새싹'/'꽃잎'/'열매'/'나무'/'어른')만 허용
@@ -599,7 +601,7 @@ Server Component의 setAll 쿠키 핸들러는 반드시 try/catch로 감쌀 것
            ※ 저장 단위는 책. UNIQUE(user_id, book_id). 19.2의 /book/[isbn] 구조와 일관.
   - comments: id, post_id, user_id, content, created_at
 기록 저장 순서(src/app/api/recommend/route.ts):
-  books(aladin_item_id=ISBN13로 있으면 재사용/없으면 insert) → users self-heal(upsert) → posts
+  books(book_key=ISBN13로 있으면 재사용/없으면 insert) → users self-heal(upsert) → posts
   → post_groups(시기 value를 한글 label로 변환) → post_tags(운영자태그는 id 연결). 중간 실패 시 posts 롤백.
 시기 저장 방식: post_groups에는 한글 라벨 저장. 폼의 value('seed' 등)는 lib/groups.ts 매핑으로 변환.
 사진: post_images에 저장(2026.08 구현). 폼에서 File을 Storage 버킷 post-images/{user_id}/{uuid}.{ext}에 업로드(public URL) → recommend API가 post_images에 sort_order와 함께 insert. 상세 페이지에서 표시. 버킷·RLS: supabase/add_post_images_storage.sql(본인 폴더만 업로드/삭제, 누구나 읽기). 아이 태그(post_children)는 아이 선택 UI 구현 시 연결 예정(현재 미저장).
@@ -668,8 +670,8 @@ src/app/api/auth/*, src/app/auth/callback
 온보딩(닉네임·아이정보) + 프로필 저장 API
 src/app/onboarding, src/app/api/auth/profile
 ✅
-알라딘 검색 API(국내 CID + 외국도서 Foreign 병렬, mallType 필터)
-src/app/api/aladin/search/route.ts
+카카오 책 검색 API(단일 호출 + 재정렬)
+src/app/api/books/search/route.ts
 ✅ (영어 원서 검색 실측 확인)
 기록하기 폼(검색 자동완성, 반응 3단계+ⓘ, 시기 아이콘 칩+연령범위, 아이칩ㅣ예전에 자동 체크)
 src/app/recommend/create/page.tsx
@@ -918,7 +920,7 @@ B. 저장(북마크) 구현 — 추천과 별개 장치.
 C. 기록 폼 '우리 아이 반응' ⓘ — "솔직한 반응이 다른 양육자들에게 도움이 돼요"
    (피드 노출 조건 미표기)
 D. '좋아요' → '나도 추천해요' — 👍 + 바텀시트(10.3) + group_names 저장.
-E. 알라딘 외국도서 병렬 호출 (13.1 [B]) + 106165를 FOREIGN_CATEGORY_IDS로 재배치.
+E. 알라딘 외국도서 병렬 호출 (13.1 [B]) + 106165를 FOREIGN_CATEGORY_IDS로 재배치. (※ 2026.08 카카오 전환으로 무효 — 카카오가 원서를 커버. 13.1 참조)
 F. 기록 폼 세그먼트 버튼(지금 읽고 있어요 / 예전에 읽었어요) + 시기 자동 체크 (9.2).
 G. 책 단위 통합 — 홈 피드 책 단위 묶기 + /book/[isbn] + 시기별 정렬 전환 로직.
    ⚠️ 셋을 한 작업으로 처리할 것. 카드 단위가 바뀌면 집계 기준도 바뀐다.
@@ -997,3 +999,6 @@ CLAUDE.md v1.5
 CLAUDE.md v1.6
 2026.08
 7단계 대부분 완료(완료율 ~85%). 첫 기록 게이트(11.4): 가입→온보딩→첫 기록→홈. 검색 완성: 두 섹션(우리 DB search_books 제목+작가 유사 검색 / 알라딘 기록 없는 책→첫 기록 유도), 정렬 정확일치→세일즈포인트. 시기 경계 조정(열매 31~48M, 나무 49M~). 그룹 전체보기 /group/[value](2열 그리드). 시기 배지 연령 오름차순 통일. 사진 실제 업로드(Storage post-images 버킷+RLS). 추천 시기 분포에 기록자(post_groups) 포함(유저별 합집합), 모수<5 멘트 개선. 카드 '기록 N'→아이콘. SNS 공유(ShareButton: Web Share+링크복사) + OG/트위터 태그(표지 미리보기).
+CLAUDE.md v1.7
+2026.08.25
+도서 검색 API 전환: 알라딘 Open API 종료 대응 → 카카오 Daum 책 검색 API(13.1). 어댑터 방식(라우트 응답 형태 유지)이라 프론트·저장 로직 무변경. 이후 '알라딘 표기 삭제' 정리(2026.08.26): 라우트 /api/aladin/search→/api/books/search 이동(구 경로 삭제), 내부 명칭(AladinItem→CatalogItem 등)·UI 라벨('알라딘에서 보기'→'책 정보 보기')·문서 현재상태 표기를 카카오/중립으로 교체. DB 컬럼도 배포 전이라 리네임: aladin_item_id→book_key, aladin_url→source_url (supabase/rename_aladin_columns.sql — RENAME COLUMN 메타데이터 연산, search_books 함수 재정의 포함). 코드 34곳 tsc 검증. 검증 스파이크로 카카오 실측(속도 76ms·표지 100%·영어원서·판매상태 OK, 유일 약점=카테고리 노이즈) 후 결정. 카테고리 노이즈는 라우트 내부 재정렬로 보완(src/lib/pictureBookRanking.ts: 제목 중복정리→개정판 대표 + 그림책 출판사 부스트 + 문제집/세트 페널티, 추가 호출 0). 바코드 target=isbn 분기 신규. 표지 폴백 공용 컴포넌트 '제목 카드'(BookCover.tsx, onError 포함) → 기록폼·검색에 배선. 국립중앙도서관(부가기호=77) 완전 카탈로그는 개인 접근 문턱·영어원서/판매상태 손실로 A안(카카오) 채택, B안(대량수집)·출판사 자동도출·수동입력 백스톱은 Deferred TODO. 문의·건의 채널=구글폼(일방향, 회신 선택) 마이페이지 하단+검색 빈 상태 배선(src/lib/feedback.ts). 환경변수 KAKAO_CLIENT_ID(배포 시 Vercel 등록), ALADIN_TTB_KEY 제거 예정. ⚠️ 스파이크 파일 spike_book_search.mjs·spike_rank_test.mjs는 검증용(배포 전 정리).

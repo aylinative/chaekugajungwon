@@ -11,7 +11,7 @@ const MAX_CARDS_PER_GROUP = 12
 
 export interface BookCard {
   bookId: string
-  isbn: string // books.aladin_item_id — /book/[isbn] slug
+  isbn: string // books.book_key — /book/[isbn] slug
   title: string
   cover: string | null
   recordCount: number // 이 책의 기록 수(반응 무관 전체)
@@ -60,7 +60,7 @@ interface RawPost {
     id: string
     title: string | null
     cover_image_url: string | null
-    aladin_item_id: string | null
+    book_key: string | null
     bookmark_count: number
     likes: { count: number }[] | null // 책 단위 추천자 수 (likes.book_id, user당 1행)
   } | null
@@ -115,7 +115,7 @@ async function aggregateBookCards(
       .from('posts')
       .select(
         `id, text_density, child_reaction, created_at,
-         book:books ( id, title, cover_image_url, aladin_item_id, bookmark_count, likes ( count ) ),
+         book:books ( id, title, cover_image_url, book_key, bookmark_count, likes ( count ) ),
          post_groups ( group_name ),
          post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) )`
       )
@@ -157,7 +157,7 @@ async function aggregateBookCards(
     const book = list[0].book!
     cards.push({
       bookId,
-      isbn: book.aladin_item_id ?? '',
+      isbn: book.book_key ?? '',
       title: book.title ?? '(제목 없음)',
       cover: book.cover_image_url,
       recordCount: list.length,

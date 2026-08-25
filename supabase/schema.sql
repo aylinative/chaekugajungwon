@@ -40,16 +40,17 @@ create table if not exists public.children (
 create index if not exists idx_children_user on public.children (user_id);
 
 -- ---------- books (공용 책 카탈로그) ----------
--- aladin_item_id: 실제로는 ISBN13 저장. 같은 책 재사용을 위해 UNIQUE.
+-- book_key: 책 식별 키(보통 ISBN13, 없으면 링크/제목 대체). 같은 책 재사용을 위해 UNIQUE.
+--   (구 aladin_item_id — 2026.08 카카오 전환 시 리네임. supabase/rename_aladin_columns.sql)
 create table if not exists public.books (
   id              uuid primary key default gen_random_uuid(),
-  aladin_item_id  varchar not null unique,
+  book_key        varchar not null unique,
   title           text,
   author          text,
   publisher       text,
   published_date  date,
   cover_image_url text,
-  aladin_url      text,
+  source_url      text,
   is_out_of_print boolean not null default false,
   fetched_at      timestamptz not null default now()
 );

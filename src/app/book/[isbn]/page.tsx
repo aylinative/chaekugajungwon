@@ -16,7 +16,7 @@ import HidePostButton from '@/components/post/HidePostButton'
 import BottomTabBar from '@/components/BottomTabBar'
 
 // 책 단위 페이지 (CLAUDE.md 19.2) — 같은 책의 모든 기록이 한 URL에 누적된다.
-// Server Component SSR 필수 (크롤러가 내용을 읽어야 함). slug는 ISBN13(books.aladin_item_id).
+// Server Component SSR 필수 (크롤러가 내용을 읽어야 함). slug는 ISBN13(books.book_key).
 // 추천 시기 분포는 상시 노출 (바텀시트와 달리 이 페이지는 정보를 보러 온 사람용 — 19.2-4).
 // 댓글은 기록별(comments.post_id) 유지 — 이 페이지에는 댓글 없음 (17장 결정 (가)).
 
@@ -34,7 +34,7 @@ interface BookRow {
   publisher: string | null
   published_date: string | null
   cover_image_url: string | null
-  aladin_url: string | null
+  source_url: string | null
   is_out_of_print: boolean | null
   bookmark_count: number
 }
@@ -60,9 +60,9 @@ async function getBookData(isbnParam: string) {
   const { data: bookRow } = await supabase
     .from('books')
     .select(
-      'id, title, author, publisher, published_date, cover_image_url, aladin_url, is_out_of_print, bookmark_count'
+      'id, title, author, publisher, published_date, cover_image_url, source_url, is_out_of_print, bookmark_count'
     )
-    .eq('aladin_item_id', isbn)
+    .eq('book_key', isbn)
     .maybeSingle()
   return { supabase, book: bookRow as BookRow | null }
 }
@@ -243,14 +243,14 @@ export default async function BookPage({
                   절판/품절
                 </span>
               )}
-              {book.aladin_url && (
+              {book.source_url && (
                 <a
-                  href={book.aladin_url}
+                  href={book.source_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-2 inline-block text-xs text-main underline"
                 >
-                  알라딘에서 보기 ›
+                  책 정보 보기 ›
                 </a>
               )}
             </div>

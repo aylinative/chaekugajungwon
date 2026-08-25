@@ -9,7 +9,7 @@ export const revalidate = 3600
 
 interface PostIsbnRow {
   created_at: string
-  book: { aladin_item_id: string | null } | null
+  book: { book_key: string | null } | null
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -26,14 +26,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createClient(supabaseUrl, anonKey)
   const { data } = await supabase
     .from('posts')
-    .select('created_at, book:books ( aladin_item_id )')
+    .select('created_at, book:books ( book_key )')
     .is('hidden_at', null)
     .order('created_at', { ascending: false })
 
   // isbn별 최신 기록일을 lastModified로 (같은 책의 첫 등장 = 최신)
   const latestByIsbn = new Map<string, string>()
   for (const row of (data ?? []) as unknown as PostIsbnRow[]) {
-    const isbn = row.book?.aladin_item_id
+    const isbn = row.book?.book_key
     if (isbn && !latestByIsbn.has(isbn)) latestByIsbn.set(isbn, row.created_at)
   }
 
