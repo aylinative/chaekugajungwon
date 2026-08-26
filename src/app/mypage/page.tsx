@@ -95,11 +95,8 @@ export default async function MyPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/5 bg-bg/90 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-30 flex items-center border-b border-black/5 bg-bg/90 px-4 py-3 backdrop-blur">
         <span className="text-base font-semibold text-text">마이페이지</span>
-        <a href="/api/auth/logout" className="text-xs text-text/40">
-          로그아웃
-        </a>
       </header>
 
       <main className="mx-auto w-full max-w-md flex-1 space-y-5 px-4 pb-24 pt-4">
@@ -161,8 +158,8 @@ export default async function MyPage() {
           <Bookshelf items={wishItems} emptyText="아직 저장한 책이 없어요." />
         </section>
 
-        {/* 문의·건의 (구글폼, 일방향) */}
-        <footer className="pt-2 text-center">
+        {/* 문의·건의 + 로그아웃 */}
+        <footer className="flex flex-col items-center gap-3 pt-2">
           <a
             href={FEEDBACK_FORM_URL}
             target="_blank"
@@ -170,6 +167,12 @@ export default async function MyPage() {
             className="text-xs text-text/40 underline underline-offset-2"
           >
             건의·제보
+          </a>
+          <a
+            href="/api/auth/logout"
+            className="rounded-xl border border-black/10 px-5 py-2 text-sm text-text/70"
+          >
+            로그아웃
           </a>
         </footer>
       </main>
