@@ -95,6 +95,7 @@ export default async function GroupPage({
                   card={card}
                   isLoggedIn={Boolean(user)}
                   fullWidth
+                  showBoardBook={data.value === 'seed' || data.value === 'sprout'}
                 />
               ))}
             </div>

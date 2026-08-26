@@ -23,6 +23,7 @@ export interface BookCard {
   latestCreatedAt: string
   bookmarkCount: number // books.bookmark_count (트리거 동기화 값)
   bookmarkedByMe: boolean
+  isBoardBook: boolean // 보드북 여부(씨앗·새싹 배지용)
 }
 
 export interface GroupSectionData {
@@ -62,6 +63,7 @@ interface RawPost {
     cover_image_url: string | null
     book_key: string | null
     bookmark_count: number
+    is_board_book: boolean | null
     likes: { count: number }[] | null // 책 단위 추천자 수 (likes.book_id, user당 1행)
   } | null
   post_groups: { group_name: string }[] | null
@@ -115,7 +117,7 @@ async function aggregateBookCards(
       .from('posts')
       .select(
         `id, text_density, child_reaction, created_at,
-         book:books ( id, title, cover_image_url, book_key, bookmark_count, likes ( count ) ),
+         book:books ( id, title, cover_image_url, book_key, bookmark_count, is_board_book, likes ( count ) ),
          post_groups ( group_name ),
          post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) )`
       )
@@ -176,6 +178,7 @@ async function aggregateBookCards(
         .at(-1)!,
       bookmarkCount: book.bookmark_count ?? 0,
       bookmarkedByMe: bookmarkedBookIds.has(bookId),
+      isBoardBook: book.is_board_book ?? false,
     })
   }
 

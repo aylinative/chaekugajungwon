@@ -55,7 +55,12 @@ export default function GroupSection({
       ) : (
         <div className="flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {section.cards.map((card) => (
-            <BookCardItem key={card.bookId} card={card} isLoggedIn={isLoggedIn} />
+            <BookCardItem
+              key={card.bookId}
+              card={card}
+              isLoggedIn={isLoggedIn}
+              showBoardBook={section.value === 'seed' || section.value === 'sprout'}
+            />
           ))}
         </div>
       )}

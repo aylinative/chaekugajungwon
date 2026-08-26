@@ -38,10 +38,12 @@ export default function BookCardItem({
   card,
   isLoggedIn,
   fullWidth = false,
+  showBoardBook = false,
 }: {
   card: BookCard
   isLoggedIn: boolean
   fullWidth?: boolean // true=그리드 셀 꽉 채움(전체보기) / false=가로 스크롤 고정폭(홈)
+  showBoardBook?: boolean // 씨앗·새싹 섹션에서만 보드북 배지 노출(0~18M에 유용한 물성)
 }) {
   return (
     <Link
@@ -61,6 +63,12 @@ export default function BookCardItem({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-2xl">📖</div>
+        )}
+        {/* 보드북 배지 — 씨앗·새싹 섹션에서만(0~18M 물성 정보). 표지 위 오버레이 */}
+        {showBoardBook && card.isBoardBook && (
+          <span className="absolute left-1.5 top-1.5 rounded-full bg-main/90 px-1.5 py-0.5 text-[10px] font-medium text-white shadow-sm">
+            보드북
+          </span>
         )}
       </div>
 
