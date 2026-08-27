@@ -44,7 +44,12 @@ export default function RootLayout({
       lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-bg text-text">{children}</body>
+      <body className="min-h-full bg-bg text-text">
+        {/* 모바일 웹 — 콘텐츠 영역을 430px로 제한하고 가운데 정렬(넓은 화면에서 폰 폭 유지) */}
+        <div className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }
