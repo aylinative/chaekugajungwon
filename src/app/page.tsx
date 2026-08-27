@@ -1,10 +1,13 @@
 import { redirect } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { getFeedData } from '@/lib/feed'
+import { getMonths } from '@/lib/age'
+import { getGroupValueByMonths } from '@/lib/groups'
 import FeedHeader from '@/components/FeedHeader'
 import BottomTabBar from '@/components/BottomTabBar'
 import TopicFilterBar from '@/components/feed/TopicFilterBar'
 import GroupSection from '@/components/feed/GroupSection'
+import FeedSections from '@/components/feed/FeedSections'
 
 export default async function Home({
   searchParams,
@@ -53,12 +56,31 @@ export default async function Home({
   const { operatorTags, sections } = await getFeedData(supabase, tag, user.id)
   const hasAnyPost = sections.some((s) => s.cards.length > 0)
 
+  // '우리 아이 기준' 정렬용: 아이들 현재 시기 value (첫째=생일 오름차순 첫 아이, 중복 제거)
+  const { data: childRows } = await supabase
+    .from('children')
+    .select('birth_date')
+    .eq('user_id', user.id)
+    .order('birth_date', { ascending: true })
+  const childGroups = [
+    ...new Set(
+      ((childRows as { birth_date: string }[] | null) ?? []).map((c) =>
+        getGroupValueByMonths(getMonths(c.birth_date))
+      )
+    ),
+  ]
+
+  const sectionNodes = sections.map((section) => ({
+    value: section.value,
+    node: <GroupSection key={section.value} section={section} isLoggedIn />,
+  }))
+
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       <FeedHeader />
       <TopicFilterBar tags={operatorTags} activeTag={tag} />
 
-      <main className="flex-1 divide-y divide-black/5 pb-4">
+      <main className="flex-1 pb-4">
         {!hasAnyPost ? (
           <div className="flex flex-col items-center gap-3 px-6 py-20 text-center">
             <span className="text-3xl">🌱</span>
@@ -75,9 +97,7 @@ export default async function Home({
             </a>
           </div>
         ) : (
-          sections.map((section) => (
-            <GroupSection key={section.value} section={section} isLoggedIn />
-          ))
+          <FeedSections sections={sectionNodes} childGroups={childGroups} />
         )}
       </main>
 
