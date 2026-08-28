@@ -24,19 +24,19 @@ export default async function Home({
   // 로그인 전: 랜딩/로그인 화면
   if (!user) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-bg">
-        <div className="flex flex-col items-center gap-8 px-6">
-          <div className="flex flex-col items-center gap-2">
+      <main className="flex min-h-screen flex-col items-center justify-center bg-bg px-6">
+        <div className="flex w-full max-w-[260px] flex-col items-center gap-10">
+          <div className="flex flex-col items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon-192.png" alt="책육아정원 로고" width={88} height={88} className="h-[88px] w-[88px]" />
+            <img src="/icon-512.png" alt="책육아정원 로고" width={160} height={160} className="h-40 w-40" />
             <h1 className="text-2xl font-bold text-main">책육아정원</h1>
             <p className="text-sm text-text/60">그림책 추천 커뮤니티</p>
           </div>
           <a
             href="/api/auth/kakao"
-            className="flex items-center gap-3 rounded-xl bg-[#FEE500] px-6 py-3 font-medium text-[#191919] transition-colors hover:bg-[#F5DC00]"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] py-3 font-medium text-[#191919] transition-colors hover:bg-[#F5DC00]"
           >
-            <span>카카오로 시작하기</span>
+            카카오로 시작하기
           </a>
         </div>
       </main>
