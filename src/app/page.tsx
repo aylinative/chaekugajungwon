@@ -27,7 +27,8 @@ export default async function Home({
       <main className="flex min-h-screen flex-col items-center justify-center bg-bg">
         <div className="flex flex-col items-center gap-8 px-6">
           <div className="flex flex-col items-center gap-2">
-            <span className="text-4xl">🌿</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icon-192.png" alt="책육아정원 로고" width={88} height={88} className="h-[88px] w-[88px]" />
             <h1 className="text-2xl font-bold text-main">책육아정원</h1>
             <p className="text-sm text-text/60">그림책 추천 커뮤니티</p>
           </div>
