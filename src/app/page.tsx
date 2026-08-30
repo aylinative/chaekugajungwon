@@ -7,6 +7,7 @@ import FeedHeader from '@/components/FeedHeader'
 import BottomTabBar from '@/components/BottomTabBar'
 import TopicFilterBar from '@/components/feed/TopicFilterBar'
 import GroupSection from '@/components/feed/GroupSection'
+import OnboardingModal from '@/components/onboarding/OnboardingModal'
 import FeedSections from '@/components/feed/FeedSections'
 
 export default async function Home({
@@ -78,6 +79,8 @@ export default async function Home({
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
+      {/* 신규 가입자 온보딩 — 홈 첫 진입 1회(localStorage). 로그인 유저 홈에만 노출 */}
+      <OnboardingModal />
       <FeedHeader />
       <TopicFilterBar tags={operatorTags} activeTag={tag} />
 
