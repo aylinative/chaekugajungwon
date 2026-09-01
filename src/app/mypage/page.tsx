@@ -6,7 +6,7 @@ import BottomTabBar from '@/components/BottomTabBar'
 import Bookshelf, { type ShelfItem } from '@/components/mypage/Bookshelf'
 import MyShelfView, { type ShelfBook } from '@/components/mypage/MyShelfView'
 import ProfileEditor from '@/components/mypage/ProfileEditor'
-import StatsBox from '@/components/mypage/StatsBox'
+import ReadingCalendar, { type CalendarRecord } from '@/components/mypage/ReadingCalendar'
 import { FEEDBACK_FORM_URL } from '@/lib/feedback'
 
 export const metadata: Metadata = { title: '마이페이지 | 책육아정원' }
@@ -73,16 +73,26 @@ export default async function MyPage() {
   const nowKst = new Date(Date.now() + KST_MS)
   const curY = nowKst.getUTCFullYear()
   const curM = nowKst.getUTCMonth()
-  const dow = (nowKst.getUTCDay() + 6) % 7 // 월요일=0 … 일요일=6
-  const weekStart = Date.UTC(curY, curM, nowKst.getUTCDate() - dow) // 이번 주 월요일 KST 00:00
-  let statMonth = 0
-  let statWeek = 0
+  // 하단 요약: 총 누적(고정) · 올해(고정). '이번 달'은 보는 달 기준이라 캘린더가 계산.
+  // 매일 기록 여부는 캘린더로 시각화되므로 '주'는 제외.
+  let statYear = 0
   for (const p of posts) {
     const k = new Date(new Date(p.created_at).getTime() + KST_MS)
-    if (k.getUTCFullYear() === curY && k.getUTCMonth() === curM) statMonth++
-    if (Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate()) >= weekStart) statWeek++
+    if (k.getUTCFullYear() === curY) statYear++
   }
   const statTotal = posts.length
+
+  // 기록 달력용 — 각 기록을 KST 날짜 문자열로 (재독 포함, created_at desc 순서 유지)
+  const todayStr = `${curY}-${String(curM + 1).padStart(2, '0')}-${String(nowKst.getUTCDate()).padStart(2, '0')}`
+  const calendarRecords: CalendarRecord[] = posts.map((p) => {
+    const k = new Date(new Date(p.created_at).getTime() + KST_MS)
+    return {
+      id: p.id,
+      date: `${k.getUTCFullYear()}-${String(k.getUTCMonth() + 1).padStart(2, '0')}-${String(k.getUTCDate()).padStart(2, '0')}`,
+      cover: p.book?.cover_image_url ?? null,
+      title: p.book?.title ?? '(제목 없음)',
+    }
+  })
 
   // 우리집 책장 = 내가 읽은 '책'(재독 중복 제거, 최근순). 표지 클릭 → 책 페이지(거기서 기록 카드 수정/삭제).
   const seen = new Set<string>()
@@ -121,21 +131,15 @@ export default async function MyPage() {
         {/* 프로필 (닉네임 + 아이 정보 편집) */}
         <ProfileEditor initialNickname={nickname} initialChildren={children} />
 
-        {/* 책육아 기록 통계 (기록 수 — 재독 포함) */}
-        <StatsBox total={statTotal} thisMonth={statMonth} thisWeek={statWeek} />
-
-        {/* 운영자 전용 — 숨긴 기록 관리(복구) */}
-        {isOperator && (
-          <Link
-            href="/moderation"
-            className="flex items-center justify-between rounded-2xl bg-surface p-4 shadow-sm"
-          >
-            <span className="flex items-center gap-2 text-sm font-medium text-text">
-              🗂️ 숨긴 기록 관리
-            </span>
-            <span className="text-xs text-text/40">운영자 ›</span>
-          </Link>
-        )}
+        {/* 책육아 기록 달력 — 날짜별 표지 + 탭 시 그날 기록. 통계(월 수·총·이번주) 통합 */}
+        <ReadingCalendar
+          records={calendarRecords}
+          initialYear={curY}
+          initialMonth={curM}
+          todayStr={todayStr}
+          totalCount={statTotal}
+          yearCount={statYear}
+        />
 
         {/* ① 우리집 책장 (내가 읽은 책, 전면책장) */}
         <section>
@@ -161,6 +165,9 @@ export default async function MyPage() {
           )}
         </section>
 
+        {/* 두 책장 영역 사이 여백 확대 — 서로 다른 영역으로 구분되게 */}
+        <div aria-hidden className="h-5" />
+
         {/* ② 아이와 읽고 싶은 책 (저장, 전면책장) */}
         <section>
           <h2 className="mb-2 flex items-center gap-1.5 px-1 text-sm font-semibold text-text">
@@ -179,16 +186,26 @@ export default async function MyPage() {
           <Bookshelf items={wishItems} emptyText="아직 저장한 책이 없어요." />
         </section>
 
-        {/* 문의·건의 + 로그아웃 */}
+        {/* 문의·건의 + (운영자) 숨긴 기록 관리 + 로그아웃 */}
         <footer className="flex flex-col items-center gap-3 pt-2">
-          <a
-            href={FEEDBACK_FORM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-text/40 underline underline-offset-2"
-          >
-            건의·제보
-          </a>
+          <div className="flex items-center gap-3 text-xs text-text/40">
+            <a
+              href={FEEDBACK_FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2"
+            >
+              건의·제보
+            </a>
+            {isOperator && (
+              <>
+                <span aria-hidden>·</span>
+                <Link href="/moderation" className="underline underline-offset-2">
+                  🗂️ 숨긴 기록 관리
+                </Link>
+              </>
+            )}
+          </div>
           <a
             href="/api/auth/logout"
             className="rounded-xl border border-black/10 px-5 py-2 text-sm text-text/70"

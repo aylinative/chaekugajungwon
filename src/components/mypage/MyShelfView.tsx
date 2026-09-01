@@ -49,8 +49,8 @@ export default function MyShelfView({ books }: { books: ShelfBook[] }) {
         <div className="space-y-5">
           {sections.map((s) => (
             <div key={s.category}>
-              <p className="mb-2 text-xs font-medium text-text/50">
-                {s.category} <span className="text-text/30">· {s.items.length}</span>
+              <p className="mb-2 text-sm font-bold text-text/80">
+                {s.category} <span className="font-normal text-text/40">· {s.items.length}</span>
               </p>
               <Bookshelf items={s.items} emptyText="" />
             </div>
