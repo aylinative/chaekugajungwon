@@ -107,7 +107,12 @@ export default function OnboardingModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6">
-      <div className="w-full max-w-[380px] overflow-hidden rounded-2xl bg-white shadow-xl">
+      {/* 스와이프를 배너 전체에 적용 — 이미지·글 영역 어디서든 좌우로 넘김 (버튼 탭은 delta≈0이라 정상 동작) */}
+      <div
+        className="w-full max-w-[380px] overflow-hidden rounded-2xl bg-white shadow-xl"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
         {/* 이미지 영역 (캐러셀 트랙) + 닫기 */}
         <div className="relative">
           <button
@@ -118,11 +123,7 @@ export default function OnboardingModal() {
           >
             ✕
           </button>
-          <div
-            className="overflow-hidden"
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-          >
+          <div className="overflow-hidden">
             <div
               className="flex transition-transform duration-300 ease-out"
               style={{ transform: `translateX(-${index * 100}%)` }}

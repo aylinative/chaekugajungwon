@@ -48,6 +48,8 @@ function RecommendCreateInner() {
   const [selectedAmount, setSelectedAmount] = useState(3)
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const [tagGroups, setTagGroups] = useState<TagCategoryGroup[]>([]) // 운영자 태그(DB) 카테고리별
+  const [activeCat, setActiveCat] = useState(0) // 주제: 카테고리 탭(드릴다운)
+  const [showTopicInfo, setShowTopicInfo] = useState(false)
   const [isBoardBook, setIsBoardBook] = useState(false) // 보드북 여부(책 속성)
   const [memo, setMemo] = useState('')
   // 사진: 실제 File을 들고 있다가 제출 시 Storage 업로드. preview는 blob URL(표시 전용).
@@ -602,28 +604,59 @@ function RecommendCreateInner() {
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-medium">주제 태그</p>
-            <div className="space-y-3">
-              {tagGroups.map((group) => (
-                <div key={group.category}>
-                  <p className="mb-1.5 text-xs font-medium text-text/50">{group.category}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {group.tags.map((topic) => (
-                      <button
-                        key={topic}
-                        type="button"
-                        onClick={() => toggleTopic(topic)}
-                        className={`rounded-full px-3 py-1.5 text-sm ${
-                          selectedTopics.includes(topic)
-                            ? 'bg-group-sprout text-text'
-                            : 'bg-surface-muted text-text'
-                        }`}
-                      >
-                        #{topic}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            <p className="mb-1 flex items-center gap-1.5 text-sm font-medium">
+              주제 태그
+              <button
+                type="button"
+                onClick={() => setShowTopicInfo((v) => !v)}
+                aria-label="주제 태그 안내"
+                aria-expanded={showTopicInfo}
+                className="flex h-4 w-4 items-center justify-center rounded-full border border-text/30 text-[10px] text-text/50"
+              >
+                i
+              </button>
+            </p>
+            {showTopicInfo && (
+              <p className="mb-2 rounded-xl bg-surface-muted px-3 py-2 text-xs text-text/60">
+                주제를 선택하면 같은 주제의 책을 찾는 양육자들에게 더 잘 보여요.
+              </p>
+            )}
+
+            {/* 카테고리 탭 → 하위 태그 드릴다운 (8.1) — 태그가 많아 한 카테고리씩 노출 */}
+            <div className="-mx-1 mb-2 flex gap-1.5 overflow-x-auto px-1 pb-1">
+              {tagGroups.map((group, i) => {
+                const cnt = group.tags.filter((t) => selectedTopics.includes(t)).length
+                return (
+                  <button
+                    key={group.category}
+                    type="button"
+                    onClick={() => setActiveCat(i)}
+                    className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
+                      i === activeCat ? 'bg-main text-white' : 'bg-surface-muted text-text/60'
+                    }`}
+                  >
+                    {group.category}
+                    {cnt > 0 && <span className="ml-1 opacity-90">· {cnt}</span>}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* 선택된 카테고리의 하위 태그 */}
+            <div className="flex flex-wrap gap-2">
+              {tagGroups[activeCat]?.tags.map((topic) => (
+                <button
+                  key={topic}
+                  type="button"
+                  onClick={() => toggleTopic(topic)}
+                  className={`rounded-full px-3 py-1.5 text-sm ${
+                    selectedTopics.includes(topic)
+                      ? 'bg-group-sprout text-text'
+                      : 'bg-surface-muted text-text'
+                  }`}
+                >
+                  #{topic}
+                </button>
               ))}
             </div>
           </div>
