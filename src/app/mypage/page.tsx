@@ -6,6 +6,7 @@ import BottomTabBar from '@/components/BottomTabBar'
 import Bookshelf, { type ShelfItem } from '@/components/mypage/Bookshelf'
 import MyShelfView, { type ShelfBook } from '@/components/mypage/MyShelfView'
 import ProfileEditor from '@/components/mypage/ProfileEditor'
+import StatsBox from '@/components/mypage/StatsBox'
 import { FEEDBACK_FORM_URL } from '@/lib/feedback'
 
 export const metadata: Metadata = { title: '마이페이지 | 책육아정원' }
@@ -13,6 +14,7 @@ export const metadata: Metadata = { title: '마이페이지 | 책육아정원' }
 interface MyPostRow {
   id: string
   book_id: string
+  created_at: string
   book: { book_key: string | null; title: string | null; cover_image_url: string | null } | null
   post_tags:
     | { is_operator_tag: boolean; operator_tags: { name: string; tag_category: string | null } | null }[]
@@ -42,7 +44,7 @@ export default async function MyPage() {
     supabase
       .from('posts')
       .select(
-        `id, book_id, book:books ( book_key, title, cover_image_url ),
+        `id, book_id, created_at, book:books ( book_key, title, cover_image_url ),
          post_tags ( is_operator_tag, operator_tags ( name, tag_category ) )`
       )
       .eq('user_id', user.id)
@@ -65,6 +67,22 @@ export default async function MyPage() {
   const bookmarks = ((bookmarkRes.data as unknown as MyBookmarkRow[] | null) ?? []).filter(
     (b) => b.book
   )
+
+  // 책육아 기록 통계 = 기록 수(재독 포함). created_at은 UTC라 KST(+9) 벽시계로 변환해 월/주 판정.
+  const KST_MS = 9 * 60 * 60 * 1000
+  const nowKst = new Date(Date.now() + KST_MS)
+  const curY = nowKst.getUTCFullYear()
+  const curM = nowKst.getUTCMonth()
+  const dow = (nowKst.getUTCDay() + 6) % 7 // 월요일=0 … 일요일=6
+  const weekStart = Date.UTC(curY, curM, nowKst.getUTCDate() - dow) // 이번 주 월요일 KST 00:00
+  let statMonth = 0
+  let statWeek = 0
+  for (const p of posts) {
+    const k = new Date(new Date(p.created_at).getTime() + KST_MS)
+    if (k.getUTCFullYear() === curY && k.getUTCMonth() === curM) statMonth++
+    if (Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate()) >= weekStart) statWeek++
+  }
+  const statTotal = posts.length
 
   // 우리집 책장 = 내가 읽은 '책'(재독 중복 제거, 최근순). 표지 클릭 → 책 페이지(거기서 기록 카드 수정/삭제).
   const seen = new Set<string>()
@@ -102,6 +120,9 @@ export default async function MyPage() {
       <main className="mx-auto w-full max-w-md flex-1 space-y-5 px-4 pb-24 pt-4">
         {/* 프로필 (닉네임 + 아이 정보 편집) */}
         <ProfileEditor initialNickname={nickname} initialChildren={children} />
+
+        {/* 책육아 기록 통계 (기록 수 — 재독 포함) */}
+        <StatsBox total={statTotal} thisMonth={statMonth} thisWeek={statWeek} />
 
         {/* 운영자 전용 — 숨긴 기록 관리(복구) */}
         {isOperator && (
