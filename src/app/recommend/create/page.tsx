@@ -3,11 +3,10 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { RECOMMEND_GROUPS, getGroupValueByMonths } from '@/lib/groups'
+import { RECOMMEND_GROUPS } from '@/lib/groups'
 import { CHILD_REACTIONS } from '@/lib/reactions'
 import { densityHint } from '@/lib/density'
 import { groupTagsByCategory, type TagCategoryGroup, type OperatorTagRow } from '@/lib/tags'
-import { getMonths, getAgeDisplay, getZodiacEmoji } from '@/lib/age'
 import BookCover from '@/components/BookCover'
 
 interface BookItem {
@@ -47,10 +46,6 @@ function RecommendCreateInner() {
   const [selectedReaction, setSelectedReaction] = useState<number>(2)
   const [showReactionInfo, setShowReactionInfo] = useState(false)
   const [selectedAmount, setSelectedAmount] = useState(3)
-  // 시기 자동 체크용: 프로필 아이 정보 + '지금/예전' 세그먼트 (읽은 시점은 저장하지 않음 — 입력 보조 전용)
-  const [children, setChildren] = useState<{ birth_date: string }[]>([])
-  const [selectedChildIdx, setSelectedChildIdx] = useState(0)
-  const [readingTime, setReadingTime] = useState<'now' | 'past'>('now')
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const [tagGroups, setTagGroups] = useState<TagCategoryGroup[]>([]) // 운영자 태그(DB) 카테고리별
   const [isBoardBook, setIsBoardBook] = useState(false) // 보드북 여부(책 속성)
@@ -108,24 +103,6 @@ function RecommendCreateInner() {
     setBooks([])
   }
 
-  // 프로필 아이 정보 로드 (시기 자동 체크용)
-  useEffect(() => {
-    async function loadChildren() {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
-      const { data } = await supabase
-        .from('children')
-        .select('birth_date')
-        .eq('user_id', user.id)
-        .order('birth_date', { ascending: true })
-      setChildren((data as { birth_date: string }[] | null) ?? [])
-    }
-    loadChildren()
-  }, [])
-
   // 주제 태그를 DB(operator_tags)에서 카테고리별로 로드 (하드코딩 제거 — DB가 단일 소스)
   useEffect(() => {
     async function loadTags() {
@@ -138,22 +115,6 @@ function RecommendCreateInner() {
     }
     loadTags()
   }, [])
-
-  // 시기 자동 체크 (9.2):
-  // - '지금 읽고 있어요' → 선택된 아이의 현재 월령에 해당하는 칩 1개만 자동 체크
-  // - '예전에 읽었어요' → 앵커 제거를 위해 전부 해제 (현재 월령은 틀린 앵커)
-  // 이후 칩은 세그먼트와 무관하게 자유롭게 다중 선택·해제 가능.
-  useEffect(() => {
-    if (isEdit) return // 편집 모드는 기존 시기를 프리필 — 자동 체크로 덮어쓰지 않음
-    if (children.length === 0) return
-    if (readingTime === 'past') {
-      setSelectedGroups([])
-      return
-    }
-    const child = children[selectedChildIdx] ?? children[0]
-    const autoValue = getGroupValueByMonths(getMonths(child.birth_date))
-    setSelectedGroups([autoValue])
-  }, [children, selectedChildIdx, readingTime])
 
   // 편집 모드: 기존 기록을 불러와 프리필 (작성자 아니면 홈으로)
   useEffect(() => {
@@ -511,54 +472,13 @@ function RecommendCreateInner() {
 
         <section className="mt-4 space-y-4 rounded-2xl bg-surface p-4 shadow-sm">
           <div>
-            <p className="mb-2 text-sm font-medium">이 시기 아이가 읽으면 좋아요</p>
+            <p className="mb-1 text-sm font-medium">이 시기 아이가 읽으면 좋아요</p>
+            <p className="mb-3 text-xs text-text/50">
+              읽어주면 좋은 시기를 직접 골라주세요. 여러 개 선택할 수 있어요.
+            </p>
 
-            {/* 아이 칩들 ㅣ '예전에 읽었어요' — 한 줄로 두 갈래 구분.
-                아이 칩 = 그 아이의 현재 월령 기준 자동 체크(기본) / 예전에 = 자동 체크 해제 */}
-            {children.length > 0 && (
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                {children.map((child, idx) => {
-                  const year = new Date(child.birth_date).getFullYear()
-                  const active = readingTime === 'now' && selectedChildIdx === idx
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setSelectedChildIdx(idx)
-                        setReadingTime('now')
-                      }}
-                      className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${
-                        active
-                          ? 'bg-main font-medium text-white'
-                          : 'bg-surface-muted text-text/60'
-                      }`}
-                    >
-                      <span>{getZodiacEmoji(year)}</span>
-                      {getAgeDisplay(child.birth_date)}
-                    </button>
-                  )
-                })}
-                <span className="h-4 w-px bg-text/15" aria-hidden />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setReadingTime((t) => (t === 'past' ? 'now' : 'past'))
-                  }
-                  aria-pressed={readingTime === 'past'}
-                  className={`rounded-full px-2.5 py-1 text-xs ${
-                    readingTime === 'past'
-                      ? 'bg-main font-medium text-white'
-                      : 'bg-surface-muted text-text/60'
-                  }`}
-                >
-                  예전에 읽었어요
-                </button>
-              </div>
-            )}
-
-            {/* 시기 아이콘 칩 — 원형 이모지 + 연령 범위, 한 줄 6개 */}
-            <div className="flex justify-between">
+            {/* 시기 아이콘 칩 — 6등분 그리드로 간격 균일(라벨 겹침 방지). 씨앗→어른 순서형 유지 */}
+            <div className="grid grid-cols-6 gap-1">
               {RECOMMEND_GROUPS.map((group) => {
                 const selected = selectedGroups.includes(group.value)
                 return (
@@ -570,7 +490,7 @@ function RecommendCreateInner() {
                     className="flex flex-col items-center gap-1"
                   >
                     <span
-                      className={`flex h-11 w-11 items-center justify-center rounded-full text-xl transition-shadow ${
+                      className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-shadow ${
                         selected
                           ? `${group.selectedClass} ring-2 ring-main/60 ring-offset-1`
                           : 'bg-surface-muted'
@@ -578,9 +498,9 @@ function RecommendCreateInner() {
                     >
                       {group.emoji}
                     </span>
-                    {/* 시기명 대신 연령 범위 표기(개월=M, 살=Y) — 사용자는 시기 이름의 기준을 모른다 */}
+                    {/* 연령 범위(개월=M, 살=Y). 그리드 등분이라 라벨이 균일하게 배치됨 */}
                     <span
-                      className={`text-[11px] leading-tight ${
+                      className={`text-center text-[10px] leading-tight ${
                         selected ? 'font-semibold text-text' : 'text-text/50'
                       }`}
                     >
@@ -590,11 +510,6 @@ function RecommendCreateInner() {
                 )
               })}
             </div>
-
-            {/* '예전에 읽었어요'일 때만 노출되는 힌트 */}
-            {children.length > 0 && readingTime === 'past' && (
-              <p className="mt-1.5 text-xs text-text/50">그때 시기를 골라주세요</p>
-            )}
           </div>
 
           <div>

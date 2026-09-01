@@ -48,7 +48,7 @@ export default function BookCardItem({
   return (
     <Link
       href={`/book/${encodeURIComponent(card.isbn)}`}
-      className={`flex flex-col gap-2 ${fullWidth ? 'w-full' : 'w-36 flex-shrink-0'}`}
+      className={`flex flex-col gap-2 ${fullWidth ? 'w-full' : 'w-32 flex-shrink-0'}`}
     >
       {/* 표지 */}
       <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-surface-muted shadow-sm">
