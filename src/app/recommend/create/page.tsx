@@ -633,7 +633,7 @@ function RecommendCreateInner() {
             )}
 
             {/* 카테고리 탭 → 하위 태그 드릴다운 (8.1) — 태그가 많아 한 카테고리씩 노출 */}
-            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {tagGroups.map((group, i) => {
                 const cnt = group.tags.filter((t) => selectedTopics.includes(t)).length
                 return (
@@ -652,8 +652,8 @@ function RecommendCreateInner() {
               })}
             </div>
 
-            {/* 상위 카테고리 ↔ 하위 태그 구분 바 (위·아래 여백 균형) */}
-            <div className="my-3 h-px bg-black/10" />
+            {/* 상위 카테고리 ↔ 하위 태그 구분 바 (스크롤바 숨김 + 위·아래 여백 균형) */}
+            <div className="my-4 h-px bg-black/10" />
 
             {/* 선택된 카테고리의 하위 태그 */}
             <div className="flex flex-wrap gap-2">
