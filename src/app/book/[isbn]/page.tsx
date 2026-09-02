@@ -9,7 +9,7 @@ import { formatDate } from '@/lib/date'
 import { getDistributionSummary } from '@/components/book/PeriodDistribution'
 import PeriodDistribution from '@/components/book/PeriodDistribution'
 import BookmarkButton from '@/components/BookmarkButton'
-import RecommendButton from '@/components/RecommendButton'
+import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import ShareButton from '@/components/ShareButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
 import HidePostButton from '@/components/post/HidePostButton'
@@ -257,14 +257,22 @@ export default async function BookPage({
           </div>
           {/* 나도 추천해요(책·시기 판단) + 저장 — 둘 다 책 레벨이므로 책 정보 영역에 (2026.08) */}
           <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/5 pt-3">
-            <RecommendButton
-              bookId={book.id}
-              initialLiked={likedByMe}
-              initialCount={distribution.totalVoters}
-              initialGroups={myGroups}
-              isLoggedIn={Boolean(user)}
-              variant="detail"
-            />
+            {hasMyRecord ? (
+              // 내가 기록한 책은 이미 추천한 것 — self-like 대신 비활성 표시(중복·해제 혼란 방지)
+              <span className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-surface-muted px-2.5 py-1.5 text-xs text-text/40">
+                <ThumbIcon filled size={14} />
+                내가 추천한 책
+              </span>
+            ) : (
+              <RecommendButton
+                bookId={book.id}
+                initialLiked={likedByMe}
+                initialCount={distribution.totalVoters}
+                initialGroups={myGroups}
+                isLoggedIn={Boolean(user)}
+                variant="detail"
+              />
+            )}
             <div className="flex items-center gap-2">
               <BookmarkButton
                 bookId={book.id}
