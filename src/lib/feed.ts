@@ -54,7 +54,7 @@ export interface GroupCardsData {
 
 interface RawPost {
   id: string
-  text_density: number
+  text_density: number | null
   child_reaction: number
   created_at: string
   book: {
@@ -166,7 +166,7 @@ async function aggregateBookCards(
       // 추천은 책 단위 저장(user당 1행)이라 행 수 = 추천한 사람 수
       recommendUserCount: book.likes?.[0]?.count ?? 0,
       reaction: modeOf(qualifying.map((p) => p.child_reaction)),
-      density: modeOf(list.map((p) => p.text_density)),
+      density: modeOf(list.map((p) => p.text_density).filter((x): x is number => x != null)),
       // 시기는 순서형 — 항상 연령 오름차순으로 노출
       groups: sortGroupLabelsByAge([
         ...new Set(qualifying.flatMap((p) => (p.post_groups ?? []).map((g) => g.group_name))),

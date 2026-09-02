@@ -18,7 +18,7 @@ const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
 
 interface RawDetail {
   id: string
-  text_density: number
+  text_density: number | null
   child_reaction: number
   content: string | null
   created_at: string
@@ -302,12 +302,14 @@ export default async function PostDetailPage({
             </p>
           )}
 
-          {/* 글밥량 + 우리 아이 반응 */}
+          {/* 글밥량 + 우리 아이 반응 (글밥량은 정보 없으면 숨김 — 임포트 도서 등) */}
           <div className="flex items-center gap-4 text-sm">
-            <span className="flex items-center gap-1.5">
-              <span className="text-xs text-text/50">글밥량</span>
-              <TextDensityMeter value={post.text_density} />
-            </span>
+            {post.text_density != null && (
+              <span className="flex items-center gap-1.5">
+                <span className="text-xs text-text/50">글밥량</span>
+                <TextDensityMeter value={post.text_density} />
+              </span>
+            )}
             {REACTION_BY_VALUE[post.child_reaction] && (
               <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs text-text/70">
                 {REACTION_BY_VALUE[post.child_reaction].emoji}{' '}

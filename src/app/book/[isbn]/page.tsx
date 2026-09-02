@@ -42,7 +42,7 @@ interface BookRow {
 interface BookPostRow {
   id: string
   user_id: string
-  text_density: number
+  text_density: number | null
   child_reaction: number
   content: string | null
   created_at: string
@@ -123,10 +123,12 @@ export async function generateMetadata({
 }
 
 // 글밥량 대표값(최빈) — 글밥량은 책의 객관 정보라 기록 카드가 아닌 책 정보 영역에 표시
-function modeOf(nums: number[]): number {
+function modeOf(nums: (number | null)[]): number | null {
+  const vals = nums.filter((n): n is number => n != null)
+  if (vals.length === 0) return null
   const freq = new Map<number, number>()
-  nums.forEach((n) => freq.set(n, (freq.get(n) ?? 0) + 1))
-  let best = nums[0] ?? 0
+  vals.forEach((n) => freq.set(n, (freq.get(n) ?? 0) + 1))
+  let best = vals[0]
   let bestCount = 0
   for (const [n, c] of freq) {
     if (c > bestCount || (c === bestCount && n > best)) {
