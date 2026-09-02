@@ -43,11 +43,11 @@ export default function ShareButton({ path, title, text }: Props) {
       type="button"
       onClick={handleShare}
       aria-label="공유"
-      className="flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1.5 text-sm text-text/60"
+      className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-surface-muted px-2.5 py-1.5 text-xs text-text/60"
     >
       <svg
-        width="16"
-        height="16"
+        width="14"
+        height="14"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

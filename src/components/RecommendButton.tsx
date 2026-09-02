@@ -106,22 +106,21 @@ export default function RecommendButton({
     )
   }
 
+  // 독립 추천자 수는 표시하지 않음 — 바로 아래 '추천 시기 분포'(아직 N명이라…)와 중복이라 제거,
+  // 그만큼 폭을 확보해 저장·공유가 한 줄에 유지된다.
   return (
     <>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={openSheet}
-          aria-pressed={liked}
-          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm ${
-            liked ? 'bg-main/10 font-medium text-main' : 'bg-surface-muted text-text/60'
-          }`}
-        >
-          <ThumbIcon filled={liked} size={16} />
-          {detailLabel}
-        </button>
-        <span className="text-sm text-text/50">{count}</span>
-      </div>
+      <button
+        type="button"
+        onClick={openSheet}
+        aria-pressed={liked}
+        className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs ${
+          liked ? 'bg-main/10 font-medium text-main' : 'bg-surface-muted text-text/60'
+        }`}
+      >
+        <ThumbIcon filled={liked} size={14} />
+        {detailLabel}
+      </button>
       {sheet}
     </>
   )

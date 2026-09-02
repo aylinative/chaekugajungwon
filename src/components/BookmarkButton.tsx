@@ -67,8 +67,8 @@ export default function BookmarkButton({
 
   const icon = (
     <svg
-      width={variant === 'card' ? 16 : 20}
-      height={variant === 'card' ? 16 : 20}
+      width={16}
+      height={16}
       viewBox="0 0 24 24"
       fill={bookmarked ? 'currentColor' : 'none'}
       stroke="currentColor"
@@ -109,7 +109,7 @@ export default function BookmarkButton({
         type="button"
         onClick={toggle}
         aria-pressed={bookmarked}
-        className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm ${
+        className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs ${
           bookmarked ? 'bg-main/10 text-main' : 'bg-surface-muted text-text/60'
         }`}
       >
