@@ -43,9 +43,9 @@ function RecommendCreateInner() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
-  const [selectedReaction, setSelectedReaction] = useState<number>(2)
+  const [selectedReaction, setSelectedReaction] = useState<number | null>(null)
   const [showReactionInfo, setShowReactionInfo] = useState(false)
-  const [selectedAmount, setSelectedAmount] = useState(3)
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(null)
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const [tagGroups, setTagGroups] = useState<TagCategoryGroup[]>([]) // 운영자 태그(DB) 카테고리별
   const [activeCat, setActiveCat] = useState(0) // 주제: 카테고리 탭(드릴다운)
@@ -189,8 +189,8 @@ function RecommendCreateInner() {
           .map((g) => GROUP_LABEL_TO_VALUE[g.group_name])
           .filter((v): v is string => Boolean(v))
       )
-      if (row.child_reaction) setSelectedReaction(row.child_reaction)
-      if (row.text_density) setSelectedAmount(row.text_density)
+      if (row.child_reaction != null) setSelectedReaction(row.child_reaction)
+      if (row.text_density != null) setSelectedAmount(row.text_density) // 0(글 없는 그림책)도 프리필
       setSelectedTopics(
         (row.post_tags ?? [])
           .map((t) => (t.is_operator_tag ? t.operator_tags?.name : t.custom_tag))
@@ -241,6 +241,16 @@ function RecommendCreateInner() {
 
     if (selectedGroups.length === 0) {
       setSubmitError('읽어주면 좋은 시기를 하나 이상 골라주세요.')
+      return
+    }
+
+    if (selectedReaction === null) {
+      setSubmitError('우리 아이 반응을 선택해주세요.')
+      return
+    }
+
+    if (selectedAmount === null) {
+      setSubmitError('페이지당 글밥량을 선택해주세요.')
       return
     }
 
@@ -502,7 +512,7 @@ function RecommendCreateInner() {
                     </span>
                     {/* 연령 범위(개월=M, 살=Y). 그리드 등분이라 라벨이 균일하게 배치됨 */}
                     <span
-                      className={`text-center text-[10px] leading-tight ${
+                      className={`text-center text-[9px] leading-tight tracking-tight ${
                         selected ? 'font-semibold text-text' : 'text-text/50'
                       }`}
                     >
@@ -617,13 +627,13 @@ function RecommendCreateInner() {
               </button>
             </p>
             {showTopicInfo && (
-              <p className="mb-2 rounded-xl bg-surface-muted px-3 py-2 text-xs text-text/60">
-                주제를 선택하면 같은 주제의 책을 찾는 양육자들에게 더 잘 보여요.
+              <p className="mb-2 rounded-xl bg-surface-muted px-3 py-2 text-xs leading-relaxed text-text/60">
+                책에 해당하는 주제를 선택하면 같은 주제의 책을 찾는 양육자들에게 더 잘 보여요. 여러 주제를 선택할 수 있어요.
               </p>
             )}
 
             {/* 카테고리 탭 → 하위 태그 드릴다운 (8.1) — 태그가 많아 한 카테고리씩 노출 */}
-            <div className="-mx-1 mb-2 flex gap-1.5 overflow-x-auto px-1 pb-1">
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
               {tagGroups.map((group, i) => {
                 const cnt = group.tags.filter((t) => selectedTopics.includes(t)).length
                 return (
@@ -631,7 +641,7 @@ function RecommendCreateInner() {
                     key={group.category}
                     type="button"
                     onClick={() => setActiveCat(i)}
-                    className={`flex-shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold ${
+                    className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[13px] font-bold ${
                       i === activeCat ? 'bg-main text-white' : 'bg-surface-muted text-text/60'
                     }`}
                   >
@@ -641,6 +651,9 @@ function RecommendCreateInner() {
                 )
               })}
             </div>
+
+            {/* 상위 카테고리 ↔ 하위 태그 구분 바 (위·아래 여백 균형) */}
+            <div className="my-3 h-px bg-black/10" />
 
             {/* 선택된 카테고리의 하위 태그 */}
             <div className="flex flex-wrap gap-2">
