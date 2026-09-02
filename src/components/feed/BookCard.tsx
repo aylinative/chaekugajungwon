@@ -88,9 +88,9 @@ export default function BookCardItem({
         )}
       </div>
 
-      {/* 시기 배지 (합집합, 최대 2) */}
-      <div className="flex flex-wrap gap-1">
-        {card.groups.slice(0, 2).map((g) => (
+      {/* 시기 배지 (합집합) — 카드 높이 유지 위해 한 줄(최대 3개) + 나머지는 +N */}
+      <div className="flex flex-wrap items-center gap-1">
+        {card.groups.slice(0, 3).map((g) => (
           <span
             key={g}
             aria-label={g}
@@ -101,6 +101,9 @@ export default function BookCardItem({
             {LABEL_TO_EMOJI[g] ?? g}
           </span>
         ))}
+        {card.groups.length > 3 && (
+          <span className="text-[10px] text-text/40">+{card.groups.length - 3}</span>
+        )}
       </div>
 
       {/* 주제 태그 (최대 2) — 없어도 자리 예약(주제 유무로 정렬이 어긋나지 않게) */}
