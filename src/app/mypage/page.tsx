@@ -189,6 +189,10 @@ export default async function MyPage() {
         {/* 문의·건의 + (운영자) 숨긴 기록 관리 + 로그아웃 */}
         <footer className="flex flex-col items-center gap-3 pt-2">
           <div className="flex items-center gap-3 text-xs text-text/40">
+            <Link href="/guide" className="underline underline-offset-2">
+              이용 가이드
+            </Link>
+            <span aria-hidden>·</span>
             <a
               href={FEEDBACK_FORM_URL}
               target="_blank"
