@@ -631,7 +631,7 @@ function RecommendCreateInner() {
                     key={group.category}
                     type="button"
                     onClick={() => setActiveCat(i)}
-                    className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
+                    className={`flex-shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold ${
                       i === activeCat ? 'bg-main text-white' : 'bg-surface-muted text-text/60'
                     }`}
                   >
@@ -649,10 +649,10 @@ function RecommendCreateInner() {
                   key={topic}
                   type="button"
                   onClick={() => toggleTopic(topic)}
-                  className={`rounded-full px-3 py-1.5 text-sm ${
+                  className={`rounded-full px-3 py-1.5 text-[13px] ${
                     selectedTopics.includes(topic)
-                      ? 'bg-group-sprout text-text'
-                      : 'bg-surface-muted text-text'
+                      ? 'bg-group-sprout font-medium text-text'
+                      : 'bg-surface-muted text-text/70'
                   }`}
                 >
                   #{topic}
