@@ -37,3 +37,24 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+/* iOS PWA/Safari — 터치 시 페이지 고무줄 스크롤·가로 드리프트 방지, 화면 꽉 채움 */
+html,
+body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+body {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* iOS 입력 포커스 시 자동 줌업 방지 — 폼 컨트롤 16px 이상 강제(iOS 한정, Tailwind text-sm 위에 적용) */
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

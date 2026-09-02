@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -32,6 +32,25 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
   },
+  // iOS 홈 화면 앱(standalone) — 상태바 스타일·앱 이름, 전화번호 자동링크 비활성
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "책육아정원",
+  },
+  formatDetection: { telephone: false },
+  // manifest는 app/manifest.ts가 자동으로 <link rel="manifest"> 주입 (중복 방지 위해 수동 추가 안 함)
+};
+
+// 뷰포트 — iOS 입력 포커스 줌 방지(maximumScale=1) + 핀치줌/페이지 밀림 방지(userScalable=false),
+// 노치까지 꽉 채움(viewportFit=cover), 브라우저 테마색(포인트 컬러).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#E08F5B",
 };
 
 export default function RootLayout({
