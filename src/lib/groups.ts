@@ -43,7 +43,7 @@ export const RECOMMEND_GROUPS = [
     value: 'adult',
     ageLabel: '어른도 함께',
     label: '어른',
-    emoji: '👩‍👦',
+    emoji: '☕', // 어른의 여유로운 독서 — 단일 코드포인트라 iOS/Android 일관(구 👩‍👦는 ZWJ라 렌더 상이)
     ageRange: '',
     selectedClass: 'bg-group-adult text-white',
   },

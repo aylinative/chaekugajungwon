@@ -256,7 +256,7 @@ export default async function BookPage({
             </div>
           </div>
           {/* 나도 추천해요(책·시기 판단) + 저장 — 둘 다 책 레벨이므로 책 정보 영역에 (2026.08) */}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-black/5 pt-3">
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/5 pt-3">
             <RecommendButton
               bookId={book.id}
               initialLiked={likedByMe}

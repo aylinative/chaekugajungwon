@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
-import { BOOKMARK_COUNT_MIN_DISPLAY } from '@/lib/constants'
 import BookmarkButton from '@/components/BookmarkButton'
 import { ThumbIcon } from '@/components/RecommendButton'
 import type { BookCard } from '@/lib/feed'
@@ -131,11 +130,6 @@ export default function BookCardItem({
           variant="card"
         />
       </div>
-
-      {/* 저장 수 — 임계치 미만이면 영역 자체를 렌더링하지 않음(0도 표시 금지) */}
-      {card.bookmarkCount >= BOOKMARK_COUNT_MIN_DISPLAY && (
-        <p className="text-[11px] text-text/40">{card.bookmarkCount}명이 담았어요</p>
-      )}
     </Link>
   )
 }

@@ -81,8 +81,9 @@ export default function BookmarkButton({
   )
 
   if (variant === 'card') {
+    // 엄지(추천) 옆 숫자와 동일 패턴 — 아이콘 + 저장 수(임계치 이상일 때만, 명단 비공개 규칙 유지)
     return (
-      <span className="relative inline-flex">
+      <span className="relative inline-flex items-center gap-0.5">
         <button
           type="button"
           onClick={toggle}
@@ -92,6 +93,7 @@ export default function BookmarkButton({
         >
           {icon}
         </button>
+        {count >= BOOKMARK_COUNT_MIN_DISPLAY && <span className="text-text/40">{count}</span>}
         {message && (
           <span className="absolute bottom-full right-0 z-10 mb-1 whitespace-nowrap rounded-lg bg-text/80 px-2 py-1 text-[10px] text-white">
             {message}
