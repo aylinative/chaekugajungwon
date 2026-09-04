@@ -71,7 +71,7 @@ interface RawPost {
     | {
         custom_tag: string | null
         is_operator_tag: boolean
-        operator_tags: { name: string } | null
+        operator_tags: { name: string; tag_category: string | null } | null
       }[]
     | null
 }
@@ -91,10 +91,25 @@ function modeOf(nums: number[]): number {
   return best
 }
 
-function topicsOf(p: RawPost): string[] {
-  return (p.post_tags ?? [])
-    .map((t) => (t.is_operator_tag ? t.operator_tags?.name : t.custom_tag))
-    .filter((t): t is string => Boolean(t))
+// 책 카드용 주제 = 운영자 하위 태그 + 커스텀 태그. 단, 커스텀 태그가 운영자 태그의 '카테고리명'과
+// 겹치면 드롭(예: 커스텀 '가족' + 운영자 '엄마'(카테고리 가족) → '가족'은 중복이라 제거).
+function topicsFor(posts: RawPost[]): string[] {
+  const opNames = new Set<string>()
+  const categories = new Set<string>()
+  const customs = new Set<string>()
+  for (const p of posts) {
+    for (const t of p.post_tags ?? []) {
+      if (t.is_operator_tag && t.operator_tags?.name) {
+        opNames.add(t.operator_tags.name)
+        if (t.operator_tags.tag_category) categories.add(t.operator_tags.tag_category)
+      } else if (t.custom_tag) {
+        customs.add(t.custom_tag)
+      }
+    }
+  }
+  const result = [...opNames]
+  for (const c of customs) if (!categories.has(c) && !opNames.has(c)) result.push(c)
+  return result
 }
 
 async function fetchOperatorTags(supabase: SupabaseClient): Promise<OperatorTag[]> {
@@ -119,7 +134,7 @@ async function aggregateBookCards(
         `id, text_density, child_reaction, created_at,
          book:books ( id, title, cover_image_url, book_key, bookmark_count, is_board_book, likes ( count ) ),
          post_groups ( group_name ),
-         post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) )`
+         post_tags ( custom_tag, is_operator_tag, operator_tags ( name, tag_category ) )`
       )
       .is('hidden_at', null)
       .order('created_at', { ascending: false }),
@@ -171,7 +186,7 @@ async function aggregateBookCards(
       groups: sortGroupLabelsByAge([
         ...new Set(qualifying.flatMap((p) => (p.post_groups ?? []).map((g) => g.group_name))),
       ]),
-      topics: [...new Set(qualifying.flatMap(topicsOf))],
+      topics: topicsFor(qualifying),
       latestCreatedAt: qualifying
         .map((p) => p.created_at)
         .sort()

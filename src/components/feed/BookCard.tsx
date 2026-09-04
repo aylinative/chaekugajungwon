@@ -106,11 +106,14 @@ export default function BookCardItem({
         )}
       </div>
 
-      {/* 주제 태그 (최대 2) — 없어도 자리 예약(주제 유무로 정렬이 어긋나지 않게) */}
+      {/* 주제 태그 (최대 2 + 나머지 +N) — 없어도 자리 예약(주제 유무로 정렬이 어긋나지 않게) */}
       <div className="min-h-[1rem]">
         {card.topics.length > 0 && (
           <p className="line-clamp-1 text-[11px] text-text/50">
             {card.topics.slice(0, 2).map((t) => `#${t}`).join(' ')}
+            {card.topics.length > 2 && (
+              <span className="text-text/40"> +{card.topics.length - 2}</span>
+            )}
           </p>
         )}
       </div>
