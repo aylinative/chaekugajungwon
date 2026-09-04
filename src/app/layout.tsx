@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Splash from "@/components/Splash";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -64,6 +65,8 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-bg text-text">
+        {/* 인앱 스플래시 — 최초 로드 1회 로고+서비스명 노출 후 페이드아웃 */}
+        <Splash />
         {/* 모바일 웹 — 콘텐츠 영역을 430px로 제한하고 가운데 정렬(넓은 화면에서 폰 폭 유지) */}
         <div className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col">
           {children}
