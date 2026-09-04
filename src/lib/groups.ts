@@ -25,18 +25,18 @@ export const RECOMMEND_GROUPS = [
   },
   {
     value: 'apple',
-    ageLabel: '31~48M(4Y)',
+    ageLabel: '31~47M',
     label: '열매',
     emoji: '🍎',
-    ageRange: '31M~4Y',
+    ageRange: '31~47M',
     selectedClass: 'bg-group-apple text-white',
   },
   {
     value: 'tree',
-    ageLabel: '5Y(49M)~',
+    ageLabel: '48M(5Y)~',
     label: '나무',
     emoji: '🌳',
-    ageRange: '5Y~',
+    ageRange: '48M~',
     selectedClass: 'bg-group-tree text-white',
   },
   {
@@ -64,8 +64,8 @@ export const AGE_LABEL_FULL: Record<string, string> = {
   씨앗: '0~11개월',
   새싹: '12~18개월',
   꽃잎: '19~30개월',
-  열매: '31~48개월',
-  나무: '49개월 이상',
+  열매: '31~47개월',
+  나무: '48개월 이상',
   어른: '어른도 함께',
 }
 
@@ -77,13 +77,13 @@ export function sortGroupLabelsByAge(labels: string[]): string[] {
 }
 
 // 아이의 현재 월령 → 해당하는 시기 value (7장 연령 기준, 2026.08 경계 조정)
-// 씨앗 <12M / 새싹 12~18M / 꽃잎 19~30M / 열매 31~48M(만 4살까지) / 나무 49M(5살)~
-// ※ 만 4살(48M)이면 한국 나이로 5살이라 헷갈림 → 나무를 49M부터로 확정
+// 씨앗 <12M / 새싹 12~18M / 꽃잎 19~30M / 열매 31~47M / 나무 48M(5살)~
+// ※ 나무 시작을 48M(한국 나이 5살)로 조정 (2026.09)
 // '어른'은 연령 매핑 대상이 아님(자동 체크에 쓰지 않음)
 export function getGroupValueByMonths(months: number): RecommendGroupValue {
   if (months < 12) return 'seed'
   if (months <= 18) return 'sprout'
   if (months <= 30) return 'springflower'
-  if (months <= 48) return 'apple'
+  if (months <= 47) return 'apple'
   return 'tree'
 }
