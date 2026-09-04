@@ -8,6 +8,7 @@ import { getBookDistribution } from '@/lib/distribution'
 import { formatDate } from '@/lib/date'
 import { getDistributionSummary } from '@/components/book/PeriodDistribution'
 import PeriodDistribution from '@/components/book/PeriodDistribution'
+import BookTopics from '@/components/book/BookTopics'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import ShareButton from '@/components/ShareButton'
@@ -48,11 +49,19 @@ interface BookPostRow {
   created_at: string
   author: { nickname: string | null } | null
   post_groups: { group_name: string }[] | null
+  post_tags:
+    | {
+        custom_tag: string | null
+        is_operator_tag: boolean
+        operator_tags: { name: string; tag_category: string | null } | null
+      }[]
+    | null
 }
 
 const POSTS_SELECT = `id, user_id, text_density, child_reaction, content, created_at,
   author:users!posts_user_id_fkey ( nickname ),
-  post_groups ( group_name )`
+  post_groups ( group_name ),
+  post_tags ( custom_tag, is_operator_tag, operator_tags ( name, tag_category ) )`
 
 async function getBookData(isbnParam: string) {
   const isbn = decodeURIComponent(isbnParam)
@@ -139,6 +148,36 @@ function modeOf(nums: (number | null)[]): number | null {
   return best
 }
 
+// 책의 모든 기록에서 사용된 주제 태그 합산 → 사용 빈도 많은 순 정렬.
+// 홈피드 카드(feed.ts topicsFor)와 동일하게, 커스텀 태그가 운영자 하위태그의 카테고리명
+// (또는 운영자 태그명)과 겹치면 드롭한다(예: 커스텀 '가족' + 하위 '엄마'(가족) → '엄마'만).
+function aggregateTopics(posts: BookPostRow[]): string[] {
+  const opFreq = new Map<string, number>()
+  const categories = new Set<string>()
+  const customFreq = new Map<string, number>()
+  for (const p of posts) {
+    for (const t of p.post_tags ?? []) {
+      if (t.is_operator_tag && t.operator_tags?.name) {
+        const name = t.operator_tags.name
+        opFreq.set(name, (opFreq.get(name) ?? 0) + 1)
+        if (t.operator_tags.tag_category) categories.add(t.operator_tags.tag_category)
+      } else if (t.custom_tag) {
+        customFreq.set(t.custom_tag, (customFreq.get(t.custom_tag) ?? 0) + 1)
+      }
+    }
+  }
+  const merged: { name: string; count: number }[] = [...opFreq].map(([name, count]) => ({
+    name,
+    count,
+  }))
+  for (const [name, count] of customFreq) {
+    if (!categories.has(name) && !opFreq.has(name)) merged.push({ name, count })
+  }
+  return merged
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .map((x) => x.name)
+}
+
 export default async function BookPage({
   params,
 }: {
@@ -176,6 +215,7 @@ export default async function BookPage({
   )
   const pubInfo = [book.publisher, book.published_date].filter(Boolean).join(' · ')
   const densityMode = posts.length > 0 ? modeOf(posts.map((p) => p.text_density)) : null
+  const topics = aggregateTopics(posts)
 
   // 내 추천 여부 (책 단위 — 책 정보 카드의 추천 버튼 상태용) + 내가 이 책을 기록했는지(넛지용)
   let myGroups: string[] = []
@@ -291,6 +331,9 @@ export default async function BookPage({
             </div>
           </div>
         </section>
+
+        {/* 주제 — 이 책의 모든 기록에서 합산(빈도순). 없으면 렌더 안 함. 칩 클릭 시 홈 필터(?tag=) */}
+        <BookTopics topics={topics} />
 
         {/* 추천 시기 분포 — 상시 노출 (19.2-4) */}
         <section className="mt-4 rounded-2xl bg-surface p-4 shadow-sm">
