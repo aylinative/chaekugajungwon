@@ -5,8 +5,8 @@ import { useEffect, useState } from 'react'
 // 인앱 스플래시 — 앱(하드 로드/ PWA 실행) 첫 진입 시 잠깐 뜨는 로고 + 서비스명 화면.
 // layout에 마운트되므로 클라이언트 라우팅(soft navigation)에는 다시 뜨지 않고 최초 1회만 뜬다.
 // 크림 배경(bg-bg) 위 로고 + '책육아정원'(포인트 컬러). 짧게 보여주고 페이드아웃.
-const VISIBLE_MS = 900 // 로고 노출 시간
-const FADE_MS = 400 // 페이드아웃 시간
+const VISIBLE_MS = 1600 // 로고 노출 시간 (네이티브 스플래시에 이어 브랜드 화면을 충분히 노출)
+const FADE_MS = 450 // 페이드아웃 시간
 
 export default function Splash() {
   const [hidden, setHidden] = useState(false) // 페이드 시작
