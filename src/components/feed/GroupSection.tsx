@@ -28,9 +28,9 @@ export default function GroupSection({
   isLoggedIn: boolean
 }) {
   return (
-    <section className="py-4">
+    <section className="pt-3 pb-2">
       {/* 섹션 헤더 */}
-      <div className="mb-3 flex items-end justify-between px-4">
+      <div className="mb-2 flex items-end justify-between px-4">
         <div className="flex items-center gap-2">
           <span
             aria-label={LABEL_BY_VALUE[section.value] ?? section.label}

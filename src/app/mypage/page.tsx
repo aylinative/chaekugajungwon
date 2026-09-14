@@ -207,6 +207,10 @@ export default async function MyPage() {
                 <Link href="/moderation" className="underline underline-offset-2">
                   🗂️ 숨긴 기록 관리
                 </Link>
+                <span aria-hidden>·</span>
+                <Link href="/admin/tags" className="underline underline-offset-2">
+                  🏷️ 주제 태그 관리
+                </Link>
               </>
             )}
           </div>
