@@ -9,6 +9,14 @@ const GROUP_VALUE_TO_LABEL: Record<string, string> = Object.fromEntries(
 )
 
 interface EditPayload {
+  book_title?: string
+  book_author?: string
+  book_publisher?: string
+  book_pub_date?: string
+  book_cover?: string
+  book_link?: string
+  book_isbn13?: string
+  book_is_out_of_print?: boolean
   groups?: string[]
   child_reaction?: number
   reading_amount?: number
@@ -17,8 +25,10 @@ interface EditPayload {
   memo?: string
 }
 
-// 내 기록 수정 — 작성자 본인만. 책·사진은 건드리지 않고
-// 시기(post_groups)·반응·글밥량·일기(posts)·주제(post_tags)만 갱신한다.
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+// 내 기록 수정 — 작성자 본인만. 선택한 책(교체 가능)·시기(post_groups)·반응·
+// 글밥량·일기(posts)·주제(post_tags)를 갱신한다. 사진은 건드리지 않는다.
 // RLS: posts_update_own, post_groups/tags_write_own(ALL)로 작성자 UPDATE/DELETE 허용됨.
 export async function PATCH(
   request: Request,
@@ -78,6 +88,70 @@ export async function PATCH(
     return NextResponse.json({ error: '유효한 시기가 없습니다.' }, { status: 400 })
   }
 
+  // 0) 선택한 책 해석 — 책을 바꿨을 수 있으므로 book_key(ISBN13 우선)로 찾거나 새로 만든다.
+  //    기존 DB에 있는 책이면 그 책에 연결되어, 수정된 기록이 해당 책 페이지에 누적 반영된다.
+  //    책 정보가 없으면(구버전 폼 등) 기존 book_id를 그대로 유지한다.
+  let effectiveBookId = post.book_id as string | null
+  if (payload.book_title) {
+    const bookKey = payload.book_isbn13 || payload.book_link || payload.book_title
+    const { data: existingBook, error: bookLookupError } = await supabase
+      .from('books')
+      .select('id')
+      .eq('book_key', bookKey)
+      .maybeSingle()
+    if (bookLookupError) {
+      console.error('Book lookup error:', bookLookupError)
+      return NextResponse.json({ error: '책 정보 조회에 실패했습니다.' }, { status: 500 })
+    }
+    if (existingBook) {
+      effectiveBookId = existingBook.id
+    } else {
+      const publishedDate =
+        payload.book_pub_date && DATE_RE.test(payload.book_pub_date)
+          ? payload.book_pub_date
+          : null
+      const { data: insertedBook, error: bookInsertError } = await supabase
+        .from('books')
+        .insert({
+          book_key: bookKey,
+          title: payload.book_title,
+          author: payload.book_author || null,
+          publisher: payload.book_publisher || null,
+          published_date: publishedDate,
+          cover_image_url: payload.book_cover || null,
+          source_url: payload.book_link || null,
+          is_out_of_print: payload.book_is_out_of_print ?? false,
+          is_board_book: payload.is_board_book ?? false,
+        })
+        .select('id')
+        .single()
+      if (bookInsertError || !insertedBook) {
+        console.error('Book insert error:', bookInsertError)
+        return NextResponse.json({ error: '책 정보 저장에 실패했습니다.' }, { status: 500 })
+      }
+      effectiveBookId = insertedBook.id
+    }
+
+    // 책이 바뀌었으면 posts.book_id 갱신
+    if (effectiveBookId && effectiveBookId !== post.book_id) {
+      const { error: bookIdError } = await supabase
+        .from('posts')
+        .update({ book_id: effectiveBookId })
+        .eq('id', postId)
+      if (bookIdError) {
+        console.error('Post book_id update error:', bookIdError)
+        return NextResponse.json({ error: '책 변경에 실패했습니다.' }, { status: 500 })
+      }
+      // 새로 연결된 책이 '저장(북마크)' 목록에 있으면 해제 — 기록했으면 위시리스트에서 빠진다.
+      const { error: unbookmarkError } = await supabase
+        .from('bookmarks')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('book_id', effectiveBookId)
+      if (unbookmarkError) console.error('Auto-unbookmark error:', unbookmarkError)
+    }
+  }
+
   // 1) posts 본문 갱신
   const { error: updateError } = await supabase
     .from('posts')
@@ -94,12 +168,12 @@ export async function PATCH(
     return NextResponse.json({ error: '기록 수정에 실패했습니다.' }, { status: 500 })
   }
 
-  // 보드북 여부(책 속성) 반영 — 이 기록의 책에 적용
-  if (typeof payload.is_board_book === 'boolean' && post.book_id) {
+  // 보드북 여부(책 속성) 반영 — 교체됐을 수 있으므로 현재 연결된 책에 적용
+  if (typeof payload.is_board_book === 'boolean' && effectiveBookId) {
     await supabase
       .from('books')
       .update({ is_board_book: payload.is_board_book })
-      .eq('id', post.book_id)
+      .eq('id', effectiveBookId)
   }
 
   // 2) 시기(post_groups) 교체 — 전부 삭제 후 재삽입

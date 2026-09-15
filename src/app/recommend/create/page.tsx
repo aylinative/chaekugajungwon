@@ -39,6 +39,9 @@ function RecommendCreateInner() {
   const [query, setQuery] = useState(() => searchParams.get('query') ?? '')
   const [books, setBooks] = useState<BookItem[]>([])
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null)
+  // 편집 모드에서 책을 다시 검색·교체할 수 있게 하는 토글. '취소' 시 initialBook으로 복원.
+  const [changingBook, setChangingBook] = useState(false)
+  const [initialBook, setInitialBook] = useState<BookItem | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -83,7 +86,8 @@ function RecommendCreateInner() {
 
   // 입력 시 300ms 디바운스 후 자동 검색 (자동완성 드롭다운)
   useEffect(() => {
-    if (isEdit) return // 편집 모드는 책 고정 — 검색하지 않음
+    // 편집 모드에서는 기본적으로 책 고정. '책 변경'을 눌러 changingBook=true일 때만 검색.
+    if (isEdit && !changingBook) return
     const keyword = query.replace(/\s+/g, ' ').trim()
     // 책을 막 선택해 제목이 채워진 경우엔 재검색하지 않음
     if (selectedBook && keyword === selectedBook.title) return
@@ -103,6 +107,7 @@ function RecommendCreateInner() {
     setQuery(book.title)
     setShowDropdown(false)
     setBooks([])
+    setChangingBook(false) // 새 책을 골랐으면 변경 모드 종료(편집 모드에서만 의미 있음)
   }
 
   // 주제 태그를 DB(operator_tags)에서 카테고리별로 로드 (하드코딩 제거 — DB가 단일 소스)
@@ -171,7 +176,7 @@ function RecommendCreateInner() {
 
       const b = row.book
       if (b) {
-        setSelectedBook({
+        const book: BookItem = {
           title: b.title ?? '',
           author: b.author ?? '',
           publisher: b.publisher ?? '',
@@ -180,7 +185,9 @@ function RecommendCreateInner() {
           link: b.source_url ?? '',
           isbn13: b.book_key ?? '',
           isOutOfPrint: Boolean(b.is_out_of_print),
-        })
+        }
+        setSelectedBook(book)
+        setInitialBook(book) // '취소' 시 복원용 원본
         setQuery(b.title ?? '')
         setIsBoardBook(Boolean(b.is_board_book))
       }
@@ -264,12 +271,21 @@ function RecommendCreateInner() {
     setSubmitSuccess('')
 
     try {
-      // 편집 모드: 책·사진은 그대로 두고 속성(시기·반응·글밥량·주제·일기)만 PATCH
+      // 편집 모드: 속성(시기·반응·글밥량·주제·일기) + 선택한 책을 PATCH.
+      // 책을 바꾸면 백엔드가 book을 찾거나 새로 만들어 posts.book_id를 갱신한다. 사진은 그대로.
       if (isEdit && editId) {
         const res = await fetch(`/api/posts/${editId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            book_title: selectedBook.title,
+            book_author: selectedBook.author,
+            book_publisher: selectedBook.publisher,
+            book_pub_date: selectedBook.pubDate,
+            book_cover: selectedBook.cover,
+            book_link: selectedBook.link,
+            book_isbn13: selectedBook.isbn13,
+            book_is_out_of_print: selectedBook.isOutOfPrint,
             groups: selectedGroups,
             child_reaction: selectedReaction,
             reading_amount: selectedAmount,
@@ -395,11 +411,29 @@ function RecommendCreateInner() {
           </section>
         )}
 
-        {!isEdit && (
-        <section className="rounded-2xl bg-surface p-4 shadow-sm">
-          <label htmlFor="book-search" className="mb-2 block text-sm font-medium">
-            책 제목으로 검색
-          </label>
+        {(!isEdit || changingBook) && (
+        <section className={`rounded-2xl bg-surface p-4 shadow-sm ${isEdit ? 'mt-4' : ''}`}>
+          <div className="mb-2 flex items-center justify-between">
+            <label htmlFor="book-search" className="block text-sm font-medium">
+              {changingBook ? '다른 책으로 바꾸기' : '책 제목으로 검색'}
+            </label>
+            {/* 변경 취소 → 원래 고른 책으로 복원 */}
+            {changingBook && initialBook && (
+              <button
+                type="button"
+                onClick={() => {
+                  setChangingBook(false)
+                  setSelectedBook(initialBook)
+                  setQuery(initialBook.title)
+                  setBooks([])
+                  setShowDropdown(false)
+                }}
+                className="text-xs font-medium text-text/50"
+              >
+                취소
+              </button>
+            )}
+          </div>
           <div className="relative">
             <input
               id="book-search"
@@ -461,9 +495,25 @@ function RecommendCreateInner() {
         </section>
         )}
 
-        {selectedBook && (
+        {selectedBook && !changingBook && (
           <section className="mt-4 rounded-2xl bg-surface p-4 shadow-sm">
-            <p className="text-xs text-gray-500">선택한 책</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">선택한 책</p>
+              {/* 편집 모드: 잘못 고른 책을 다른 책으로 교체할 수 있게 한다 */}
+              {isEdit && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChangingBook(true)
+                    setQuery('')
+                    setBooks([])
+                  }}
+                  className="text-xs font-medium text-main"
+                >
+                  책 변경
+                </button>
+              )}
+            </div>
             <div className="mt-2 flex gap-3">
               <BookCover
                 src={selectedBook.cover}
