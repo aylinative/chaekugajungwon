@@ -993,9 +993,29 @@ G. 책 단위 통합 — 홈 피드 책 단위 묶기 + /book/[isbn] + 시기별
    - 분포 컴포넌트는 바텀시트와 공유한다 (src/components/book/PeriodDistribution.tsx).
 
 19.3 배포 단계에 추가 (additive — 나중에 덧붙여도 됨)
-- app/sitemap.ts, app/robots.ts (배포 직전)
+- app/sitemap.ts, app/robots.ts ✅ 구현됨. SITE_URL=env NEXT_PUBLIC_SITE_URL(없으면 localhost).
 - OG 태그 ✅ 구현됨(2026.08): layout.tsx 기본 OG + metadataBase(env NEXT_PUBLIC_SITE_URL), book·posts generateMetadata에 openGraph/twitter(표지 이미지). ⚠️ 배포 시 NEXT_PUBLIC_SITE_URL을 실제 도메인으로 설정해야 og:url이 정확해진다.
 - JSON-LD 구조화 데이터 (Book 스키마, 출시 후 고도화)
+
+19.4 두 도메인 동시 운영 전략 (2026.09.15 확정) — 베타 vercel.app + 실서비스 bookgardening.co.kr
+  ■ 문제: 같은 콘텐츠가 두 도메인에 동시 노출되면 (1) 구글 중복 콘텐츠 (2) 지금 vercel.app을 색인시키면
+    나중에 커스텀 도메인 이전 시 색인·권위 손실 + 301 재작업.
+  ■ 결정: 실서비스 도메인(bookgardening.co.kr)만 색인. 베타(chaekugajungwon.vercel.app)·프리뷰는 검색 제외.
+    베타는 검색 노출이 불필요하고, 처음부터 최종 도메인만 색인하면 이전 비용 0.
+  ■ 구현(코드):
+    · src/middleware.ts — 호스트가 NEXT_PUBLIC_SITE_URL(=커스텀 도메인, www 포함)이 아니면
+      X-Robots-Tag: noindex,nofollow 헤더 주입. vercel.app·프리뷰 자동 제외.
+    · canonical을 실서비스 도메인 기준 상대경로로 고정: home(/) · book(/book/[isbn]) · posts(/posts/[id])의
+      alternates.canonical. metadataBase(NEXT_PUBLIC_SITE_URL)가 절대 URL로 해석 → 어느 호스트에서 크롤링돼도
+      신호가 커스텀 도메인으로 통합. (noindex와 canonical 동시 = 구글은 noindex 우선, 무해)
+  ■ 필수 운영 작업(대시보드/DNS — 코드 아님):
+    (1) Vercel 프로젝트에 bookgardening.co.kr 도메인 추가 + .co.kr DNS 레코드 설정(Vercel 안내값).
+    (2) Vercel 환경변수 NEXT_PUBLIC_SITE_URL=https://bookgardening.co.kr 설정 후 재배포
+        (NEXT_PUBLIC_*는 빌드타임 인라인이라 값 바꾸면 재배포 필요).
+    (3) Google Search Console에 bookgardening.co.kr 등록(도메인 속성=DNS TXT 권장) + sitemap.xml 제출.
+    (4) 베타 종료 후: Vercel에서 vercel.app→bookgardening.co.kr 301 리다이렉트로 전환(그때 noindex 불필요해짐).
+  ⚠️ 현재 상태에선 커스텀 도메인 연결 전까지 vercel.app이 noindex라 아무 것도 색인 안 됨(의도된 것 —
+    베타를 색인하지 않기 위함). 색인은 (1)(2)(3) 완료 후 수일~수주 소요.
 
 
 20. 변경 이력

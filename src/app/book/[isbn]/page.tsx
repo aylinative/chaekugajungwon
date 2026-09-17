@@ -115,6 +115,9 @@ export async function generateMetadata({
   return {
     title,
     description,
+    // canonical을 실서비스 도메인 기준 상대경로로 고정(metadataBase가 절대 URL로 해석) →
+    // 베타 도메인에서 크롤링돼도 검색 신호가 커스텀 도메인으로 통합됨 (중복 방지)
+    alternates: { canonical: `/book/${encodeURIComponent(isbn)}` },
     openGraph: {
       title,
       description,

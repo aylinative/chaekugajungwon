@@ -9,6 +9,12 @@ import TopicFilterBar from '@/components/feed/TopicFilterBar'
 import GroupSection from '@/components/feed/GroupSection'
 import OnboardingModal from '@/components/onboarding/OnboardingModal'
 import FeedSections from '@/components/feed/FeedSections'
+import type { Metadata } from 'next'
+
+// 홈 canonical을 실서비스 도메인 루트로 고정 (베타 도메인 중복 색인 방지, 브랜드 검색 대응)
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+}
 
 export default async function Home({
   searchParams,
