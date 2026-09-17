@@ -119,7 +119,7 @@ export default function OnboardingModal({ show }: { show: boolean }) {
                 onClick={goCta}
                 className="w-full rounded-xl bg-point py-3 text-sm font-semibold text-white"
               >
-                기록하러 가기
+                첫 기록 남기러 가기
               </button>
             ) : (
               <div className="flex justify-end">
