@@ -110,6 +110,26 @@ function RecommendCreateInner() {
     setChangingBook(false) // 새 책을 골랐으면 변경 모드 종료(편집 모드에서만 의미 있음)
   }
 
+  // 로그인 가드: 이 페이지는 클라이언트 컴포넌트라 서버 인증을 거치지 않는다.
+  // 세션 없는 브라우저에서 URL로 직접 진입하면(예: 링크 공유) 폼이 그대로 떠서
+  // 저장 시점에야 '로그인이 필요합니다'만 뜨고 로그인 수단이 없었다 → 홈(로그인 화면)으로 보낸다.
+  const [authChecked, setAuthChecked] = useState(false)
+  useEffect(() => {
+    async function checkAuth() {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        router.replace('/') // 홈은 비로그인 시 카카오 로그인 화면을 노출
+        return
+      }
+      setAuthChecked(true)
+    }
+    checkAuth()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // 주제 태그를 DB(operator_tags)에서 카테고리별로 로드 (하드코딩 제거 — DB가 단일 소스)
   useEffect(() => {
     async function loadTags() {
@@ -378,6 +398,11 @@ function RecommendCreateInner() {
       )
       setIsSubmitting(false)
     }
+  }
+
+  // 로그인 확인 전에는 폼을 그리지 않는다 (비로그인 진입 시 폼 깜빡임·오작동 방지)
+  if (!authChecked) {
+    return <main className="min-h-screen bg-bg" />
   }
 
   return (

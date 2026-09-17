@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServerSupabase } from '@/lib/supabase-server'
 
 // 저장(북마크) 토글 API. 단위는 book_id (post_id 아님 — CLAUDE.md 12장).
@@ -60,6 +61,8 @@ export async function POST(
     return NextResponse.json({ error: '저장에 실패했습니다.' }, { status: 500 })
   }
 
+  // 홈 피드·책 페이지·마이페이지의 저장 상태 캐시 무효화 (다른 화면에서 눌러도 서로 반영)
+  revalidatePath('/', 'layout')
   return NextResponse.json({
     bookmarked: true,
     count: await getBookmarkCount(supabase, bookId),
@@ -92,6 +95,7 @@ export async function DELETE(
     return NextResponse.json({ error: '저장 해제에 실패했습니다.' }, { status: 500 })
   }
 
+  revalidatePath('/', 'layout')
   return NextResponse.json({
     bookmarked: false,
     count: await getBookmarkCount(supabase, bookId),
