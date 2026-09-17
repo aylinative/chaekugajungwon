@@ -60,6 +60,17 @@ export default async function Home({
     redirect('/recommend/create?first=1')
   }
 
+  // 온보딩 노출 판단은 계정 단위(users.onboarded_at)로 — localStorage(기기별)로만 하면
+  // 기존 유저가 새 기기로 접속할 때 신규 온보딩이 다시 뜬다. NULL이면 아직 안 봄 → 노출.
+  // (컬럼 미생성 등 조회 실패 시 error가 세팅되므로 안전하게 미노출 처리 → 마이그레이션 후 정상 동작)
+  const { data: me, error: meError } = await supabase
+    .from('users')
+    .select('onboarded_at')
+    .eq('id', user.id)
+    .maybeSingle()
+  const showOnboarding =
+    !meError && !(me as { onboarded_at: string | null } | null)?.onboarded_at
+
   // 로그인 후: 홈 피드
   const { operatorTags, sections } = await getFeedData(supabase, tag, user.id)
   const hasAnyPost = sections.some((s) => s.cards.length > 0)
@@ -85,8 +96,8 @@ export default async function Home({
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
-      {/* 신규 가입자 온보딩 — 홈 첫 진입 1회(localStorage). 로그인 유저 홈에만 노출 */}
-      <OnboardingModal />
+      {/* 신규 가입자 온보딩 — 계정당 1회(users.onboarded_at). 새 기기에서도 재노출 안 됨 */}
+      <OnboardingModal show={showOnboarding} />
       <FeedHeader />
       <TopicFilterBar tags={operatorTags} activeTag={tag} />
 

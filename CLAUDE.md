@@ -647,6 +647,7 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
   supabase/add_moderation_hidden.sql       — posts·comments hidden_at(소프트 삭제) + 운영자 RLS 예외
   supabase/reorg_topic_tags.sql            — 주제 태그 MECE 재정리(operator_tags.tag_category 6카테고리
                                              +sort_order, 이름정리·신규·형태 비활성, books.is_board_book) 2026.08.25
+  supabase/add_onboarded_at.sql            — users.onboarded_at(온보딩 계정 단위 1회 노출) 2026.09.18 ⚠️미적용시 온보딩 미노출
   supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 
 
@@ -763,8 +764,13 @@ supabase/*.sql
          삭제 불가(FK 위반). 태그 삭제 시 post_tags 연결부터 제거해야 함. DELETE API는 연결>0이면 409로 막는다.
   □ [공유] 카카오 전용 공유 버튼(JS SDK 키 확보 시)
   □ [신호] '도움돼요'(기록 공감) — 기록 정렬 필요해지면 출시 후
-  ✅ [온보딩] 신규 가입자 5장 캐러셀 모달 — 완료(2026.08.31, 커밋 d408d7b). OnboardingModal(취지 2+사용법 3),
-      홈 첫 진입 1회(localStorage 'chaekugajungwon_onboarding_v1'), CTA→/recommend/create. 이미지 placeholder 폴백.
+  ✅ [온보딩] 신규 가입자 5장 캐러셀 모달 — 완료(2026.08.31, 커밋 d408d7b). OnboardingModal(취지 2+사용법 3), CTA→/recommend/create. 이미지 placeholder 폴백.
+      ※ 노출 판단 계정 단위 전환(2026.09.18): 기존 localStorage-only는 기기별이라 기존 유저가 새 기기(아이패드 등)에서
+        신규 온보딩을 다시 봤다. → users.onboarded_at(add_onboarded_at.sql, NULL=미노출) 서버 판단 + show prop.
+        닫을 때 /api/onboarding POST로 계정에 기록(기기 무관 1회). localStorage는 같은 기기 즉시 재노출 방지 보조 가드.
+        page.tsx는 컬럼 조회 실패 시 미노출(마이그레이션 전 안전). CTA '첫 기록 남기러 가기'→'기록하러 가기'
+        (홈 진입자는 이미 기록 1건 보유 — 첫 기록 게이트 통과했으므로 '첫 기록' 문구는 부정확).
+      ⚠️ 배포 전/직후 supabase/add_onboarded_at.sql 실행 필요(미실행 시 온보딩이 아무에게도 안 뜸 — 안전측 폴백).
       □ 스크린샷 5장(public/onboarding/01~05)은 샘플 삭제 후 촬영·교체 — STEP 5에 반영.
   □ [온보딩] 사용법 상설 페이지 /guide — 모달과 같은 내용 다시보기용(모달 못 본 사람 대비) + 마이페이지 진입 링크.
       모달 작업지시서엔 없어 이번 제외. 취지+사용법 전체를 넉넉히(스크롤). (2026.08.31)

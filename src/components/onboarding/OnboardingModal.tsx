@@ -5,30 +5,35 @@ import { useRouter } from 'next/navigation'
 import { ONBOARDING_SLIDES as SLIDES } from '@/lib/onboardingSlides'
 import SlideImage from '@/components/onboarding/SlideImage'
 
-// 신규 가입자 온보딩 5장 캐러셀. 홈 첫 진입 1회 노출(localStorage).
+// 신규 가입자 온보딩 5장 캐러셀. 노출 여부는 계정 단위(users.onboarded_at)로 서버가 판단해
+// show prop으로 내려준다 — localStorage만으로 판단하면 기존 유저가 새 기기에서 다시 보게 된다.
+// localStorage는 같은 기기에서의 즉시 재노출을 막는 보조 가드로만 유지.
 // 슬라이드 콘텐츠·이미지는 /guide(이용 가이드)와 공용 — lib/onboardingSlides 단일 소스.
 const STORAGE_KEY = 'chaekugajungwon_onboarding_v1'
 const SWIPE_THRESHOLD = 50
 
-export default function OnboardingModal() {
+export default function OnboardingModal({ show }: { show: boolean }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(0)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
 
-  // localStorage는 클라이언트에서만 — 마운트 후 판정(하이드레이션 안전)
+  // 서버가 노출 대상(show)이라 판단했고, 같은 기기에서 이미 닫지 않았을 때만 연다.
   useEffect(() => {
+    if (!show) return
     try {
       if (!localStorage.getItem(STORAGE_KEY)) setOpen(true)
     } catch {
-      // localStorage 접근 불가 환경이면 조용히 무시
+      setOpen(true) // localStorage 접근 불가 환경이면 서버 판단만 따른다
     }
-  }, [])
+  }, [show])
 
   const dismiss = () => {
     try {
       localStorage.setItem(STORAGE_KEY, '1')
     } catch {}
+    // 계정 단위로 '봤음' 기록 — 다른 기기에서도 재노출 안 됨(best-effort)
+    fetch('/api/onboarding', { method: 'POST' }).catch(() => {})
     setOpen(false)
   }
 
@@ -114,7 +119,7 @@ export default function OnboardingModal() {
                 onClick={goCta}
                 className="w-full rounded-xl bg-point py-3 text-sm font-semibold text-white"
               >
-                첫 기록 남기러 가기
+                기록하러 가기
               </button>
             ) : (
               <div className="flex justify-end">
