@@ -8,6 +8,12 @@ export interface OnboardingSlide {
 
 export const ONBOARDING_SLIDES: OnboardingSlide[] = [
   {
+    image: '/onboarding/00-intro.png',
+    imageAlt: '단행본 그림책 책육아',
+    title: '전집 말고 단행본 한 권도\n충분한 책육아!',
+    body: '책육아정원은 아이와 함께 읽은 그림책을 기록하고, 그 기록이 모여 다른 양육자에게 추천이 되는 커뮤니티예요. 아이가 좋아할만한 단행본 그림책 정보를 함께 나눌 수 있어요.',
+  },
+  {
     image: '/onboarding/01-home.png',
     imageAlt: '책육아정원 홈 피드',
     title: '당신의 기록이\n다른 아이의 좋은 책이 돼요',

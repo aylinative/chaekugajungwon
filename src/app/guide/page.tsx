@@ -20,8 +20,9 @@ export default function GuidePage() {
 
       <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-4 pb-24 pt-5">
         <p className="text-sm leading-relaxed text-text/60">
-          책육아정원은 아이와 함께 읽은 그림책을 기록하고, 그 기록이 모여 다른 양육자에게
-          추천이 되는 커뮤니티예요. 아래에서 사용법을 확인하세요.
+          &lsquo;전집 말고 단행본 한 권도 충분한 책육아!&rsquo; 책육아정원은 아이와 함께 읽은
+          그림책을 기록하고, 그 기록이 모여 다른 양육자에게 추천이 되는 커뮤니티예요. 아이가
+          좋아할만한 단행본 그림책 정보를 함께 나눌 수 있어요. 아래에서 사용법을 확인하세요.
         </p>
 
         {ONBOARDING_SLIDES.map((s) => (

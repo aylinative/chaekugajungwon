@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { GROUP_LABELS_ORDERED } from '@/lib/groups'
 import { getBookDistribution } from '@/lib/distribution'
@@ -61,6 +62,10 @@ export async function POST(
     supabase.from('likes').select('*', { count: 'exact', head: true }).eq('book_id', bookId),
     getBookDistribution(supabase, bookId),
   ])
+
+  // 홈 피드·책 페이지·그룹 전체보기의 추천 수·정렬·추천 여부 캐시 무효화
+  // (책 페이지에서 눌러도 홈 피드에 집계·반영되게 — 저장(bookmark) 라우트와 동일 처리)
+  revalidatePath('/', 'layout')
 
   return NextResponse.json({
     liked,

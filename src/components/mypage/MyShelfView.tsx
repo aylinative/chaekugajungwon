@@ -13,7 +13,13 @@ export interface ShelfBook extends ShelfItem {
 const UNTAGGED = '주제 없음'
 
 export default function MyShelfView({ books }: { books: ShelfBook[] }) {
-  const [view, setView] = useState<'recent' | 'topic'>('recent')
+  const [view, setView] = useState<'recent' | 'topic' | 'title'>('recent')
+
+  // 제목 오름차순(한글 우선 로케일). 원본 불변 유지 위해 복사 후 정렬.
+  const byTitle =
+    view === 'title'
+      ? [...books].sort((a, b) => a.title.localeCompare(b.title, 'ko'))
+      : books
 
   const chip = (active: boolean) =>
     `rounded-full px-3 py-1 text-xs font-medium ${
@@ -41,10 +47,15 @@ export default function MyShelfView({ books }: { books: ShelfBook[] }) {
         <button type="button" onClick={() => setView('topic')} className={chip(view === 'topic')}>
           주제별
         </button>
+        <button type="button" onClick={() => setView('title')} className={chip(view === 'title')}>
+          제목순
+        </button>
       </div>
 
       {view === 'recent' ? (
         <Bookshelf items={books} emptyText="아직 기록한 책이 없어요." />
+      ) : view === 'title' ? (
+        <Bookshelf items={byTitle} emptyText="아직 기록한 책이 없어요." />
       ) : (
         <div className="space-y-5">
           {sections.map((s) => (
