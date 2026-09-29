@@ -3,7 +3,7 @@
 //   (초기에는 추천 수가 대부분 0이라 0끼리 정렬하면 무작위가 되고 새 기록이 묻힌다)
 // - 임계값 이상 → 추천 수 → 대표 반응 → 최신순
 // 6개 섹션이 서로 다른 정렬 상태일 수 있다. 통일하려 하지 말 것.
-export const RANKING_SWITCH_THRESHOLD = 10
+export const RANKING_SWITCH_THRESHOLD = 5
 
 interface Rankable {
   recommendUserCount: number

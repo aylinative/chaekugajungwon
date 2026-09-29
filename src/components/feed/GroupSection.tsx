@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
 import BookCardItem from './BookCard'

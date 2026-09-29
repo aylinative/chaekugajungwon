@@ -6,7 +6,6 @@ import { getGroupValueByMonths } from '@/lib/groups'
 import FeedHeader from '@/components/FeedHeader'
 import BottomTabBar from '@/components/BottomTabBar'
 import TopicFilterBar from '@/components/feed/TopicFilterBar'
-import GroupSection from '@/components/feed/GroupSection'
 import OnboardingModal from '@/components/onboarding/OnboardingModal'
 import FeedSections from '@/components/feed/FeedSections'
 import type { Metadata } from 'next'
@@ -89,11 +88,6 @@ export default async function Home({
     ),
   ]
 
-  const sectionNodes = sections.map((section) => ({
-    value: section.value,
-    node: <GroupSection key={section.value} section={section} isLoggedIn />,
-  }))
-
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       {/* 신규 가입자 온보딩 — 계정당 1회(users.onboarded_at). 새 기기에서도 재노출 안 됨 */}
@@ -118,7 +112,7 @@ export default async function Home({
             </a>
           </div>
         ) : (
-          <FeedSections sections={sectionNodes} childGroups={childGroups} />
+          <FeedSections sections={sections} childGroups={childGroups} isLoggedIn />
         )}
       </main>
 

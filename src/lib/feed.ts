@@ -21,6 +21,7 @@ export interface BookCard {
   groups: string[] // 노출 자격 기록들의 시기 합집합 (여러 섹션 등장 가능, 섹션당 1번)
   topics: string[]
   latestCreatedAt: string
+  publishedDate: string | null // books.published_date — '출간순' 정렬용
   bookmarkCount: number // books.bookmark_count (트리거 동기화 값)
   bookmarkedByMe: boolean
   isBoardBook: boolean // 보드북 여부(씨앗·새싹 배지용)
@@ -62,6 +63,7 @@ interface RawPost {
     title: string | null
     cover_image_url: string | null
     book_key: string | null
+    published_date: string | null
     bookmark_count: number
     is_board_book: boolean | null
     likes: { count: number }[] | null // 책 단위 추천자 수 (likes.book_id, user당 1행)
@@ -132,7 +134,7 @@ async function aggregateBookCards(
       .from('posts')
       .select(
         `id, text_density, child_reaction, created_at,
-         book:books ( id, title, cover_image_url, book_key, bookmark_count, is_board_book, likes ( count ) ),
+         book:books ( id, title, cover_image_url, book_key, published_date, bookmark_count, is_board_book, likes ( count ) ),
          post_groups ( group_name ),
          post_tags ( custom_tag, is_operator_tag, operator_tags ( name, tag_category ) )`
       )
@@ -187,6 +189,7 @@ async function aggregateBookCards(
         ...new Set(qualifying.flatMap((p) => (p.post_groups ?? []).map((g) => g.group_name))),
       ]),
       topics: topicsFor(qualifying),
+      publishedDate: book.published_date ?? null,
       latestCreatedAt: qualifying
         .map((p) => p.created_at)
         .sort()
@@ -239,4 +242,31 @@ export async function getGroupCards(
   const sorted = sortByGroupRanking(inGroup, groupRecordCounts.get(group.label) ?? 0)
 
   return { value: group.value, label: group.label, ageLabel: group.ageLabel, cards: sorted }
+}
+
+// 카드 정렬 방식 (홈 섹션·그룹 더보기 공용 드롭다운).
+export type CardSort = 'recommend' | 'published' | 'title'
+
+export const CARD_SORT_LABELS: Record<CardSort, string> = {
+  recommend: '추천순',
+  published: '신간순',
+  title: '제목순',
+}
+
+// 'recommend'는 서버 랭킹(sortByGroupRanking) 순서를 그대로 유지한다(재정렬 안 함).
+// 'published'=출간일 최신 먼저(없는 값 맨 뒤), 'title'=제목 오름차순(한글 로케일).
+export function sortCardsBy(cards: BookCard[], sort: CardSort): BookCard[] {
+  if (sort === 'recommend') return cards
+  const copy = [...cards]
+  if (sort === 'published') {
+    copy.sort((a, b) => {
+      if (!a.publishedDate && !b.publishedDate) return 0
+      if (!a.publishedDate) return 1
+      if (!b.publishedDate) return -1
+      return b.publishedDate.localeCompare(a.publishedDate)
+    })
+  } else {
+    copy.sort((a, b) => a.title.localeCompare(b.title, 'ko'))
+  }
+  return copy
 }
