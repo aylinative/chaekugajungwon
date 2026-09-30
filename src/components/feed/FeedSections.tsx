@@ -42,20 +42,7 @@ export default function FeedSections({
   return (
     <>
       <div className="flex items-center justify-between gap-2 border-b border-black/5 px-4 py-2.5">
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as CardSort)}
-          aria-label="정렬 방식"
-          className="rounded-full border border-black/10 bg-surface px-3 py-1 text-xs font-medium text-text/70 outline-none focus:border-main"
-        >
-          {SORT_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {CARD_SORT_LABELS[s]}
-            </option>
-          ))}
-        </select>
-
-        {hasChild && (
+        {hasChild ? (
           <button
             type="button"
             role="switch"
@@ -78,7 +65,22 @@ export default function FeedSections({
               />
             </span>
           </button>
+        ) : (
+          <span />
         )}
+
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as CardSort)}
+          aria-label="정렬 방식"
+          className="rounded-full border border-black/10 bg-surface px-3 py-1 text-xs font-medium text-text/70 outline-none focus:border-main"
+        >
+          {SORT_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {CARD_SORT_LABELS[s]}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="divide-y divide-black/5">
