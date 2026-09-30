@@ -25,7 +25,8 @@ export default function GuidePage() {
           좋아할만한 단행본 그림책 정보를 함께 나눌 수 있어요. 아래에서 사용법을 확인하세요.
         </p>
 
-        {ONBOARDING_SLIDES.map((s) => (
+        {/* 취지 슬라이드(intro)는 위 인트로 문단과 동일하므로 가이드에선 건너뜀 (모달에는 노출) */}
+        {ONBOARDING_SLIDES.filter((s) => !s.intro).map((s) => (
           <section key={s.image} className="space-y-3">
             <div className="h-[200px] w-full overflow-hidden rounded-2xl bg-stone-100">
               <SlideImage src={s.image} alt={s.imageAlt} className="h-full w-full object-cover" />
