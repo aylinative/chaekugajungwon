@@ -17,18 +17,22 @@ const geistMono = Geist_Mono({
 // 배포 도메인 확정 전까지 env로 주입(없으면 localhost). OG 이미지의 절대 URL 기준.
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
+// 사이트 대표 설명 — meta description·OG·JSON-LD 공용(단일 소스).
+const siteDescription =
+  "우리 아이가 진짜 좋아한 그림책을 월령·연령별로 기록하고 아이가 좋아할 그림책을 추천받는 커뮤니티. 전집 말고 단행본 한 권도 충분한 책육아.";
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default: "책육아정원",
     template: "%s",
   },
-  description: "○○개월 아이가 실제로 좋아한 그림책. 월령별 추천 커뮤니티.",
+  description: siteDescription,
   openGraph: {
     type: "website",
     siteName: "책육아정원",
     title: "책육아정원",
-    description: "○○개월 아이가 실제로 좋아한 그림책. 월령별 추천 커뮤니티.",
+    description: siteDescription,
     locale: "ko_KR",
   },
   twitter: {
@@ -55,6 +59,30 @@ export const viewport: Viewport = {
   themeColor: "#E08F5B",
 };
 
+// 구조화 데이터(JSON-LD) — '책육아정원 = 이 웹서비스'임을 검색엔진·AI에 명시(엔티티 통합).
+// 신생 도메인이라 이름 검색 시 옛 SNS 모임 글로 요약되는 것을 새 서비스로 학습시키는 신호.
+// ※ sameAs(공식 SNS 프로필 URL)는 확보 시 Organization에 추가하면 엔티티 연결이 더 강해짐.
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "책육아정원",
+    url: siteUrl,
+    description: siteDescription,
+    inLanguage: "ko-KR",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "책육아정원",
+    url: siteUrl,
+    logo: `${siteUrl}/icon-512.png`,
+    description: siteDescription,
+    // 공식 SNS — '이 계정 = 책육아정원(서비스)' 엔티티 연결(옛 모임 글과 서비스 통합 신호)
+    sameAs: ["https://www.threads.com/@bookstore.workingmom"],
+  },
+];
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -66,6 +94,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-bg text-text">
+        {/* 검색엔진용 구조화 데이터 */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         {/* iOS PWA(설치형) 네이티브 실행 스플래시(로고+서비스명 이미지) — React가 <head>로 hoist */}
         <AppleSplashLinks />
         {/* 인앱 스플래시 — 브라우저 접속의 로딩 화면(설치형 PWA는 네이티브가 있어 Splash가 스스로 생략) */}
