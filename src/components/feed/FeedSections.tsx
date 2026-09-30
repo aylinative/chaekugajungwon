@@ -10,7 +10,7 @@ import {
 } from '@/lib/feed'
 
 // 홈 피드 섹션 정렬 컨트롤 (STEP 2 + 정렬 드롭다운).
-// - 섹션 순서: '우리 아이 추천부터' 토글 — OFF(기본) 연령 오름차순 고정(CLAUDE.md 7장),
+// - 섹션 순서: '우리 아이 시기 먼저' 토글 — OFF(기본) 연령 오름차순 고정(CLAUDE.md 7장),
 //   ON이면 아이 시기(첫째 순, 중복 제거) 먼저 → 나머지 오름차순. childGroups 비면 토글 숨김.
 // - 카드 정렬: 추천순(기본, 서버 랭킹 유지) / 신간순(출간일 최신) / 제목순. 각 섹션 카드에 적용.
 //   ※ 홈은 시기당 상위 12개 미리보기라 그 12개 안에서 재정렬된다(전체 정렬은 그룹 더보기).
@@ -51,7 +51,7 @@ export default function FeedSections({
             className="flex items-center gap-2"
           >
             <span className={`text-xs font-medium ${byChild ? 'text-main' : 'text-text/50'}`}>
-              우리 아이 추천부터
+              우리 아이 시기 먼저
             </span>
             <span
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
