@@ -3,8 +3,8 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, AGE_LABEL_FULL } from '@/lib/groups'
-import { getGroupCards } from '@/lib/feed'
-import BookCardItem from '@/components/feed/BookCard'
+import { getGroupCards, fetchOperatorTags } from '@/lib/feed'
+import GroupBrowser from '@/components/feed/GroupBrowser'
 import BottomTabBar from '@/components/BottomTabBar'
 
 const BADGE_BY_VALUE: Record<string, string> = Object.fromEntries(
@@ -53,6 +53,19 @@ export default async function GroupPage({
   const data = await getGroupCards(supabase, group, user?.id)
   if (!data) notFound()
 
+  // 주제 필터 탭용 운영자 태그 + '내 기록 제외' 토글용 내가 기록한 책 id
+  const [operatorTags, myPostRows] = await Promise.all([
+    fetchOperatorTags(supabase),
+    user
+      ? supabase.from('posts').select('book_id').eq('user_id', user.id).is('hidden_at', null)
+      : Promise.resolve({ data: null }),
+  ])
+  const myBookIds = [
+    ...new Set(
+      ((myPostRows.data as { book_id: string }[] | null) ?? []).map((r) => r.book_id)
+    ),
+  ]
+
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-black/5 bg-bg/90 px-4 py-3 backdrop-blur">
@@ -86,20 +99,13 @@ export default async function GroupPage({
             </Link>
           </div>
         ) : (
-          <>
-            <p className="mb-3 text-xs text-text/40">총 {data.cards.length}권</p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-6">
-              {data.cards.map((card) => (
-                <BookCardItem
-                  key={card.bookId}
-                  card={card}
-                  isLoggedIn={Boolean(user)}
-                  fullWidth
-                  showBoardBook={data.value === 'seed' || data.value === 'sprout'}
-                />
-              ))}
-            </div>
-          </>
+          <GroupBrowser
+            cards={data.cards}
+            operatorTags={operatorTags}
+            myBookIds={myBookIds}
+            isLoggedIn={Boolean(user)}
+            showBoardBook={data.value === 'seed' || data.value === 'sprout'}
+          />
         )}
       </main>
 

@@ -114,7 +114,7 @@ function topicsFor(posts: RawPost[]): string[] {
   return result
 }
 
-async function fetchOperatorTags(supabase: SupabaseClient): Promise<OperatorTag[]> {
+export async function fetchOperatorTags(supabase: SupabaseClient): Promise<OperatorTag[]> {
   const { data } = await supabase
     .from('operator_tags')
     .select('id, name, tag_category, sort_order')
