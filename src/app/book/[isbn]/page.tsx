@@ -1,10 +1,11 @@
 import type { Metadata } from 'next'
+import { cache } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, AGE_LABEL_FULL, sortGroupLabelsByAge } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
-import { getBookDistribution } from '@/lib/distribution'
+import { computeBookDistribution } from '@/lib/distribution'
 import { formatDate } from '@/lib/date'
 import { getDistributionSummary } from '@/components/book/PeriodDistribution'
 import PeriodDistribution from '@/components/book/PeriodDistribution'
@@ -63,18 +64,42 @@ const POSTS_SELECT = `id, user_id, text_density, child_reaction, content, create
   post_groups ( group_name ),
   post_tags ( custom_tag, is_operator_tag, operator_tags ( name, tag_category ) )`
 
-async function getBookData(isbnParam: string) {
+// React cache() — generateMetadata와 본문이 같은 요청 안에서 조회를 공유(중복 제거).
+// 캐시 키는 원시값(isbn/bookId)만 — supabase 클라이언트를 인자로 넘기면 매번 달라 중복제거가 안 됨.
+const getBook = cache(async (isbnParam: string): Promise<BookRow | null> => {
   const isbn = decodeURIComponent(isbnParam)
   const supabase = await createServerSupabase()
-  const { data: bookRow } = await supabase
+  const { data } = await supabase
     .from('books')
     .select(
       'id, title, author, publisher, published_date, cover_image_url, source_url, is_out_of_print, bookmark_count'
     )
     .eq('book_key', isbn)
     .maybeSingle()
-  return { supabase, book: bookRow as BookRow | null }
-}
+  return data as BookRow | null
+})
+
+const getBookPosts = cache(async (bookId: string): Promise<BookPostRow[]> => {
+  const supabase = await createServerSupabase()
+  const { data } = await supabase
+    .from('posts')
+    .select(POSTS_SELECT)
+    .eq('book_id', bookId)
+    .is('hidden_at', null)
+    .order('created_at', { ascending: true }) // 기록은 작성순으로 누적
+  return (data as unknown as BookPostRow[] | null) ?? []
+})
+
+const getBookLikes = cache(
+  async (bookId: string): Promise<{ user_id: string; group_names: string[] | null }[]> => {
+    const supabase = await createServerSupabase()
+    const { data } = await supabase
+      .from('likes')
+      .select('user_id, group_names')
+      .eq('book_id', bookId)
+    return (data as { user_id: string; group_names: string[] | null }[] | null) ?? []
+  }
+)
 
 export async function generateMetadata({
   params,
@@ -82,17 +107,11 @@ export async function generateMetadata({
   params: Promise<{ isbn: string }>
 }): Promise<Metadata> {
   const { isbn } = await params
-  const { supabase, book } = await getBookData(isbn)
+  const book = await getBook(isbn)
   if (!book?.title) return { title: '그림책 | 책육아정원' }
 
-  const [distribution, { data: postRows }] = await Promise.all([
-    getBookDistribution(supabase, book.id),
-    supabase
-      .from('posts')
-      .select('post_groups ( group_name )')
-      .eq('book_id', book.id)
-      .is('hidden_at', null),
-  ])
+  const [posts, likes] = await Promise.all([getBookPosts(book.id), getBookLikes(book.id)])
+  const distribution = computeBookDistribution(likes, posts)
 
   // 타이틀의 {시기}: 표 5개 이상이면 분포의 최빈 시기, 미만이면 작성자가 고른 시기 중 가장 어린 것 (19.2-4)
   let label: string | null = null
@@ -100,13 +119,11 @@ export async function generateMetadata({
     label = getDistributionSummary(distribution.votes, distribution.totalVoters).topLabel
   }
   if (!label) {
-    const authorGroups = (
-      (postRows as unknown as { post_groups: { group_name: string }[] | null }[] | null) ?? []
-    ).flatMap((p) => (p.post_groups ?? []).map((g) => g.group_name))
+    const authorGroups = posts.flatMap((p) => (p.post_groups ?? []).map((g) => g.group_name))
     label = sortGroupLabelsByAge([...new Set(authorGroups)])[0] ?? null
   }
 
-  const recordCount = (postRows as unknown[] | null)?.length ?? 0
+  const recordCount = posts.length
   const periodPart = label ? ` - ${label}(${AGE_LABEL_FULL[label] ?? ''})` : ''
   const title = `${book.title}${periodPart} 그림책 추천 | 책육아정원`
   const description = `${book.title} — ${recordCount}개의 책육아 기록과 추천 시기를 확인해보세요.`
@@ -187,21 +204,17 @@ export default async function BookPage({
   params: Promise<{ isbn: string }>
 }) {
   const { isbn } = await params
-  const { supabase, book } = await getBookData(isbn)
+  const book = await getBook(isbn)
   if (!book) notFound()
 
+  const supabase = await createServerSupabase()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [{ data: postRows }, distribution, bookmarkRes] = await Promise.all([
-    supabase
-      .from('posts')
-      .select(POSTS_SELECT)
-      .eq('book_id', book.id)
-      .is('hidden_at', null)
-      .order('created_at', { ascending: true }), // 기록은 작성순으로 누적
-    getBookDistribution(supabase, book.id),
+  const [posts, likes, bookmarkRes] = await Promise.all([
+    getBookPosts(book.id), // generateMetadata와 공유(React cache) — 중복 조회 없음
+    getBookLikes(book.id),
     user
       ? supabase
           .from('bookmarks')
@@ -212,7 +225,7 @@ export default async function BookPage({
       : Promise.resolve({ data: null }),
   ])
 
-  const posts = (postRows as unknown as BookPostRow[] | null) ?? []
+  const distribution = computeBookDistribution(likes, posts)
   const bookmarkedByMe = Boolean(
     (bookmarkRes.data as { book_id: string } | null)?.book_id
   )

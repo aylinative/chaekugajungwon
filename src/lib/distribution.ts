@@ -22,6 +22,35 @@ interface PostRow {
   post_groups: { group_name: string }[] | null
 }
 
+// 순수 집계 — 이미 조회한 likes·posts 행에서 분포를 계산(추가 쿼리 없음).
+// 책 페이지는 본문에서 이미 가져온 posts를 재사용해 중복 조회를 피한다.
+export function computeBookDistribution(
+  likeRows: LikeRow[],
+  postRows: PostRow[]
+): BookDistribution {
+  // 유저별 시기 집합(합집합). 추천·기록·다중 기록의 중복을 모두 제거한다.
+  const byUser = new Map<string, Set<string>>()
+  const addGroups = (userId: string, groups: string[]) => {
+    const valid = groups.filter((g) => GROUP_LABELS_ORDERED.includes(g))
+    if (valid.length === 0) return
+    const set = byUser.get(userId) ?? new Set<string>()
+    valid.forEach((g) => set.add(g))
+    byUser.set(userId, set)
+  }
+
+  for (const l of likeRows) addGroups(l.user_id, l.group_names ?? [])
+  for (const p of postRows) {
+    addGroups(p.user_id, (p.post_groups ?? []).map((g) => g.group_name))
+  }
+
+  const votes: Record<string, number> = {}
+  for (const set of byUser.values()) {
+    for (const g of set) votes[g] = (votes[g] ?? 0) + 1
+  }
+  return { votes, totalVoters: byUser.size }
+}
+
+// 조회 + 집계 (recommend API 등 posts를 따로 안 가진 호출부용).
 export async function getBookDistribution(
   supabase: SupabaseClient,
   bookId: string
@@ -34,27 +63,8 @@ export async function getBookDistribution(
       .eq('book_id', bookId)
       .is('hidden_at', null),
   ])
-
-  // 유저별 시기 집합(합집합). 추천·기록·다중 기록의 중복을 모두 제거한다.
-  const byUser = new Map<string, Set<string>>()
-  const addGroups = (userId: string, groups: string[]) => {
-    const valid = groups.filter((g) => GROUP_LABELS_ORDERED.includes(g))
-    if (valid.length === 0) return
-    const set = byUser.get(userId) ?? new Set<string>()
-    valid.forEach((g) => set.add(g))
-    byUser.set(userId, set)
-  }
-
-  for (const l of (likeRows as LikeRow[] | null) ?? []) {
-    addGroups(l.user_id, l.group_names ?? [])
-  }
-  for (const p of (postRows as unknown as PostRow[] | null) ?? []) {
-    addGroups(p.user_id, (p.post_groups ?? []).map((g) => g.group_name))
-  }
-
-  const votes: Record<string, number> = {}
-  for (const set of byUser.values()) {
-    for (const g of set) votes[g] = (votes[g] ?? 0) + 1
-  }
-  return { votes, totalVoters: byUser.size }
+  return computeBookDistribution(
+    (likeRows as LikeRow[] | null) ?? [],
+    (postRows as unknown as PostRow[] | null) ?? []
+  )
 }
