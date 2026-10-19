@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
+import { revalidateFeed } from '@/lib/cacheTags'
 import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 import { isTagCategory } from '@/lib/tagCategories'
 
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
   }
 
   revalidatePath('/', 'layout')
+  revalidateFeed()
   return NextResponse.json({ tag: data })
 }
 
@@ -108,6 +110,7 @@ export async function DELETE(request: Request) {
   }
 
   revalidatePath('/', 'layout')
+  revalidateFeed()
   return NextResponse.json({ success: true })
 }
 
@@ -157,5 +160,6 @@ export async function PATCH(request: Request) {
   }
 
   revalidatePath('/', 'layout')
+  revalidateFeed()
   return NextResponse.json({ tag: data })
 }

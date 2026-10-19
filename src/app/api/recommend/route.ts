@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
+import { revalidateFeed } from '@/lib/cacheTags'
 
 // post_groups.group_name CHECK 제약은 한글 라벨('씨앗' 등)만 허용.
 // 폼에서 넘어오는 그룹 값('seed' 등)을 한글 라벨로 변환.
@@ -263,6 +264,8 @@ export async function POST(request: Request) {
       console.error('Auto-unbookmark error:', unbookmarkError)
     }
 
+    // 홈 피드·그룹 더보기 캐시 즉시 만료 — 새 기록이 바로 보이게
+    revalidateFeed()
     return NextResponse.json({ success: true, postId })
   } catch (error) {
     console.error('Recommendation submit error:', error)

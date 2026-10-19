@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
+import { revalidateFeed } from '@/lib/cacheTags'
 import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 
 // 게시물 숨김(소프트 삭제) — 작성자 본인 또는 운영자.
@@ -44,5 +45,6 @@ export async function POST(
   }
   // 숨김이 홈·책 페이지 등 여러 진입 경로에 즉시 반영되도록 캐시 재검증
   revalidatePath('/', 'layout')
+  revalidateFeed()
   return NextResponse.json({ success: true })
 }

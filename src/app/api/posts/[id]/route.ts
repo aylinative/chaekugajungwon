@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
+import { revalidateFeed } from '@/lib/cacheTags'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
 
@@ -227,5 +228,6 @@ export async function PATCH(
 
   // 홈·책 페이지·상세·마이페이지 캐시 반영
   revalidatePath('/', 'layout')
+  revalidateFeed()
   return NextResponse.json({ success: true, postId })
 }

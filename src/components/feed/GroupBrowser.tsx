@@ -9,7 +9,7 @@ import {
   type CardSort,
   type BookCard,
   type OperatorTag,
-} from '@/lib/feed'
+} from '@/lib/feedShared'
 
 // 그룹(시기) 전체보기 브라우저 — 3번 개편.
 // - 주제 필터: 홈 TopicFilterBar와 동일한 카테고리→하위 태그 드릴다운(단, 여기선 클라 필터).

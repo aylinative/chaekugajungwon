@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import type { OperatorTag } from '@/lib/feed'
+import type { OperatorTag } from '@/lib/feedShared'
 import { groupTagsByCategory } from '@/lib/tags'
 
 // 주제 필터 — 대표 카테고리 칩(가로 스크롤). 카테고리를 누르면 그 아래 하위 태그가 펼쳐지고,

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
 import BookCardItem from './BookCard'
-import type { GroupSectionData } from '@/lib/feed'
+import type { GroupSectionData } from '@/lib/feedShared'
 
 const BADGE_BY_VALUE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.value, g.selectedClass])

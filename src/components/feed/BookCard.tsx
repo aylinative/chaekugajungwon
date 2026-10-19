@@ -3,7 +3,7 @@ import { RECOMMEND_GROUPS, LABEL_TO_EMOJI } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import BookmarkButton from '@/components/BookmarkButton'
 import { ThumbIcon } from '@/components/RecommendButton'
-import type { BookCard } from '@/lib/feed'
+import type { BookCard } from '@/lib/feedShared'
 
 // 홈 피드 카드 = 책 1권 (기록 집계). 탭 시 /book/[isbn]으로 이동.
 // 추천(👍)은 표시 전용 — 추천 행위는 책 페이지의 기록 카드·상세에서 한다.

@@ -1,206 +1,215 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { unstable_cache } from 'next/cache'
 import { RECOMMEND_GROUPS, sortGroupLabelsByAge } from '@/lib/groups'
-import { isRecommended } from '@/lib/reactions'
 import { sortByGroupRanking } from '@/lib/ranking'
+import { FEED_CACHE_TAG } from '@/lib/cacheTags'
+import type { BookCard, GroupSectionData, OperatorTag, FeedData, GroupCardsData } from '@/lib/feedShared'
 
 // 홈 피드 = 책 1권 = 카드 1개 (기록 단위 아님 — CLAUDE.md 6.2/17장 책 단위 통합)
 // 같은 책에 기록이 여러 개면 집계값(추천 N명·대표 반응·글밥 대표값)으로 묶는다.
+//
+// 성능 구조(2026.10, #2):
+//   · 책별 집계는 DB 뷰 book_feed_cards가 수행(supabase/add_feed_views.sql) — 앱은 책 1권당 1행만 받는다.
+//   · '마지막으로 받은 id 다음부터 1,000건'(keyset)으로 끝까지 나눠 조회 — Supabase API 행 제한으로 인한
+//     누락이 없고, 조회 중 데이터가 바뀌어도 중복·누락이 없다. 뷰가 책 단위로 계산하므로 요청당 작업량 일정.
+//   · 공개 집계는 unstable_cache로 캐시(태그 'feed'), 쓰기 시 revalidateFeed()로 즉시 만료.
+//   · 사람마다 다른 '내가 저장함'과 날짜 시드 정렬은 캐시 밖에서 매 요청 처리.
 
 // 시기 섹션당 최대 노출 카드 수 (기본 3개 노출 → 가로 스크롤로 최대 12개)
 const MAX_CARDS_PER_GROUP = 12
 
-export interface BookCard {
-  bookId: string
-  isbn: string // books.book_key — /book/[isbn] slug
-  title: string
-  cover: string | null
-  recordCount: number // 이 책의 기록 수(반응 무관 전체)
-  recommendUserCount: number // 추천한 사람 수 (책 단위 distinct user)
-  reaction: number // 대표 반응 = 노출 자격(≥2) 기록들의 최빈값
-  density: number // 글밥량 대표값 = 최빈값
-  groups: string[] // 노출 자격 기록들의 시기 합집합 (여러 섹션 등장 가능, 섹션당 1번)
-  topics: string[]
-  latestCreatedAt: string
-  publishedDate: string | null // books.published_date — '출간순' 정렬용
-  bookmarkCount: number // books.bookmark_count (트리거 동기화 값)
-  bookmarkedByMe: boolean
-  isBoardBook: boolean // 보드북 여부(씨앗·새싹 배지용)
+// 한 번에 요청하는 행 수. 서버 행 제한이 이보다 작아도 '마지막 id 다음부터' 이어 받으므로 누락 없음.
+const PAGE_SIZE = 1000
+
+// 무한 반복 방지 안전장치(1,000 × 10,000 = 1천만 행). 넘으면 오류로 처리(빈 결과는 캐시되지 않음).
+const MAX_PAGES = 10_000
+
+// book_feed_cards에서 가져오는 컬럼(뷰에 컬럼이 늘어도 페이로드가 불지 않게 명시)
+const FEED_CARD_COLUMNS =
+  'book_id, book_key, title, cover_image_url, published_date, bookmark_count, is_board_book, ' +
+  'record_count, recommend_count, reaction, density, latest_created_at, group_post_counts, ' +
+  'op_topics, op_categories, custom_topics'
+
+// 카드 형태가 바뀌면 올린다 — 배포 후에도 남는 옛 캐시(다른 형태)를 쓰지 않게.
+const PUBLIC_FEED_CACHE_KEY = ['public-feed', 'v2']
+
+export type { BookCard, GroupSectionData, OperatorTag, FeedData, GroupCardsData, CardSort } from '@/lib/feedShared'
+export { CARD_SORT_LABELS, sortCardsBy } from '@/lib/feedShared'
+
+// book_feed_cards 뷰의 한 행
+interface FeedCardRow {
+  book_id: string
+  book_key: string | null
+  title: string | null
+  cover_image_url: string | null
+  published_date: string | null
+  bookmark_count: number
+  is_board_book: boolean
+  record_count: number
+  recommend_count: number
+  reaction: number | null
+  density: number
+  latest_created_at: string
+  group_post_counts: Record<string, number> // 시기별 자격 기록 수 — 키 = 이 책의 시기 합집합
+  op_topics: string[]
+  op_categories: string[]
+  custom_topics: string[]
 }
 
-export interface GroupSectionData {
-  value: string
-  label: string
-  ageRange: string
-  cards: BookCard[]
-}
-
-export interface OperatorTag {
-  id: string
-  name: string
-  tag_category: string | null
-  sort_order: number
-}
-
-export interface FeedData {
+// 캐시에 저장되는 공개 데이터 (사람마다 다른 값은 넣지 않는다)
+interface PublicFeed {
   operatorTags: OperatorTag[]
-  sections: GroupSectionData[]
+  cards: BookCard[] // bookmarkedByMe는 항상 false — 요청마다 덧씌운다
+  groupRecordCounts: Record<string, number> // 직렬화 가능한 객체(Map 불가)
 }
 
-export interface GroupCardsData {
-  value: string
-  label: string
-  ageLabel: string
-  cards: BookCard[]
-}
-
-interface RawPost {
-  id: string
-  text_density: number | null
-  child_reaction: number
-  created_at: string
-  book: {
-    id: string
-    title: string | null
-    cover_image_url: string | null
-    book_key: string | null
-    published_date: string | null
-    bookmark_count: number
-    is_board_book: boolean | null
-    likes: { count: number }[] | null // 책 단위 추천자 수 (likes.book_id, user당 1행)
-  } | null
-  post_groups: { group_name: string }[] | null
-  post_tags:
-    | {
-        custom_tag: string | null
-        is_operator_tag: boolean
-        operator_tags: { name: string; tag_category: string | null } | null
-      }[]
-    | null
-}
-
-// 최빈값 (동률이면 큰 값 — 반응 3>2, 글밥은 무해)
-function modeOf(nums: number[]): number {
-  const freq = new Map<number, number>()
-  nums.forEach((n) => freq.set(n, (freq.get(n) ?? 0) + 1))
-  let best = nums[0] ?? 0
-  let bestCount = 0
-  for (const [n, c] of freq) {
-    if (c > bestCount || (c === bestCount && n > best)) {
-      best = n
-      bestCount = c
-    }
+// keyset 페이지네이션: 정렬 키(유일값) 기준으로 '마지막으로 받은 값 다음부터' 끝까지 반복.
+// 빈 페이지가 오면 종료. 오류는 던진다(빈 결과가 캐시되지 않게).
+async function fetchAllByKey<T>(
+  key: keyof T & string,
+  fetchPage: (after: string | null) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  const all: T[] = []
+  let after: string | null = null
+  for (let i = 0; i < MAX_PAGES; i++) {
+    const { data, error } = await fetchPage(after)
+    if (error) throw error
+    const rows = data ?? []
+    if (rows.length === 0) return all
+    all.push(...rows)
+    after = String(rows[rows.length - 1][key])
   }
-  return best
+  throw new Error('fetchAllByKey(' + key + '): page limit exceeded')
 }
 
-// 책 카드용 주제 = 운영자 하위 태그 + 커스텀 태그. 단, 커스텀 태그가 운영자 태그의 '카테고리명'과
-// 겹치면 드롭(예: 커스텀 '가족' + 운영자 '엄마'(카테고리 가족) → '가족'은 중복이라 제거).
-function topicsFor(posts: RawPost[]): string[] {
-  const opNames = new Set<string>()
-  const categories = new Set<string>()
-  const customs = new Set<string>()
-  for (const p of posts) {
-    for (const t of p.post_tags ?? []) {
-      if (t.is_operator_tag && t.operator_tags?.name) {
-        opNames.add(t.operator_tags.name)
-        if (t.operator_tags.tag_category) categories.add(t.operator_tags.tag_category)
-      } else if (t.custom_tag) {
-        customs.add(t.custom_tag)
-      }
-    }
-  }
-  const result = [...opNames]
-  for (const c of customs) if (!categories.has(c) && !opNames.has(c)) result.push(c)
+// 캐시 함수 안에서는 쿠키를 쓸 수 없으므로 쿠키 없는 공개(anon) 클라이언트를 쓴다.
+// 공개 읽기 데이터만 조회(뷰는 security_invoker라 anon의 RLS가 그대로 적용됨).
+function createAnonClient(): SupabaseClient {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  )
+}
+
+// 책 카드용 주제 = 운영자 하위 태그 + 커스텀 태그. 단, 커스텀 태그가 운영자 태그의 '카테고리명'이나
+// 운영자 태그명과 겹치면 드롭(예: 커스텀 '가족' + 운영자 '엄마'(카테고리 가족) → '가족' 제거).
+function topicsFor(row: FeedCardRow): string[] {
+  const opNames = new Set(row.op_topics)
+  const categories = new Set(row.op_categories)
+  const result = [...row.op_topics]
+  for (const c of row.custom_topics) if (!categories.has(c) && !opNames.has(c)) result.push(c)
   return result
 }
 
-export async function fetchOperatorTags(supabase: SupabaseClient): Promise<OperatorTag[]> {
-  const { data } = await supabase
+function toCard(row: FeedCardRow): BookCard {
+  return {
+    bookId: row.book_id,
+    isbn: row.book_key ?? '',
+    title: row.title ?? '(제목 없음)',
+    cover: row.cover_image_url,
+    recordCount: row.record_count,
+    recommendUserCount: row.recommend_count,
+    reaction: row.reaction ?? 2,
+    density: row.density,
+    groups: sortGroupLabelsByAge(Object.keys(row.group_post_counts)), // 시기는 순서형 — 항상 연령 오름차순
+    topics: topicsFor(row),
+    latestCreatedAt: row.latest_created_at,
+    publishedDate: row.published_date,
+    bookmarkCount: row.bookmark_count,
+    bookmarkedByMe: false,
+    isBoardBook: row.is_board_book,
+  }
+}
+
+async function fetchOperatorTagsOrThrow(supabase: SupabaseClient): Promise<OperatorTag[]> {
+  const { data, error } = await supabase
     .from('operator_tags')
     .select('id, name, tag_category, sort_order')
     .eq('is_active', true)
     .order('sort_order', { ascending: true })
+  if (error) throw error
   return (data as OperatorTag[] | null) ?? []
 }
 
-// posts + bookmarks 조회 → 책 단위 카드 집계 + 시기별 누적 기록 수.
-// 홈 피드(getFeedData)와 그룹 전체보기(getGroupCards)가 공유한다.
-async function aggregateBookCards(
-  supabase: SupabaseClient,
-  userId?: string
-): Promise<{ cards: BookCard[]; groupRecordCounts: Map<string, number> }> {
-  const [{ data: postRows }, { data: bookmarkRows }] = await Promise.all([
-    supabase
-      .from('posts')
-      .select(
-        `id, text_density, child_reaction, created_at,
-         book:books ( id, title, cover_image_url, book_key, published_date, bookmark_count, is_board_book, likes ( count ) ),
-         post_groups ( group_name ),
-         post_tags ( custom_tag, is_operator_tag, operator_tags ( name, tag_category ) )`
-      )
-      .is('hidden_at', null)
-      .order('created_at', { ascending: false }),
-    userId
-      ? supabase.from('bookmarks').select('book_id').eq('user_id', userId)
-      : Promise.resolve({ data: null }),
-  ])
+// 활성 운영자 태그 (그룹 더보기 주제 탭 등). 실패 시 빈 배열.
+export async function fetchOperatorTags(supabase: SupabaseClient): Promise<OperatorTag[]> {
+  try {
+    return await fetchOperatorTagsOrThrow(supabase)
+  } catch (error) {
+    console.error('fetchOperatorTags error:', error)
+    return []
+  }
+}
 
-  const bookmarkedBookIds = new Set(
-    ((bookmarkRows as { book_id: string }[] | null) ?? []).map((b) => b.book_id)
-  )
+// 공개 피드 집계(캐시). 정렬은 하지 않는다 — 날짜 시드 정렬을 매 요청 적용하기 위해.
+const getPublicFeed = unstable_cache(
+  async (): Promise<PublicFeed> => {
+    const supabase = createAnonClient()
+    const [operatorTags, rows] = await Promise.all([
+      fetchOperatorTagsOrThrow(supabase),
+      fetchAllByKey<FeedCardRow>('book_id', (after) => {
+        let q = supabase
+          .from('book_feed_cards')
+          .select(FEED_CARD_COLUMNS)
+          .order('book_id')
+          .limit(PAGE_SIZE)
+        if (after) q = q.gt('book_id', after)
+        return q.returns<FeedCardRow[]>()
+      }),
+    ])
 
-  const posts = ((postRows as unknown as RawPost[] | null) ?? []).filter((p) => p.book)
-
-  // 시기별 누적 기록 수 (정렬 전환 임계값 판정용 — 태그 필터와 무관한 시기 전체 기준)
-  const groupRecordCounts = new Map<string, number>()
-  const byBook = new Map<string, RawPost[]>()
-  for (const p of posts) {
-    const bookId = p.book!.id
-    const list = byBook.get(bookId) ?? []
-    list.push(p)
-    byBook.set(bookId, list)
-    if (isRecommended(p.child_reaction)) {
-      for (const g of p.post_groups ?? []) {
-        groupRecordCounts.set(g.group_name, (groupRecordCounts.get(g.group_name) ?? 0) + 1)
+    // 시기별 누적 기록 수(정렬 전환 임계값 판정용) = 책별 시기 기록 수의 합
+    const groupRecordCounts: Record<string, number> = {}
+    for (const r of rows) {
+      for (const [g, c] of Object.entries(r.group_post_counts)) {
+        groupRecordCounts[g] = (groupRecordCounts[g] ?? 0) + c
       }
     }
+    return { operatorTags, cards: rows.map(toCard), groupRecordCounts }
+  },
+  PUBLIC_FEED_CACHE_KEY,
+  { tags: [FEED_CACHE_TAG], revalidate: 60 } // 쓰기 시 즉시 만료, 60초는 누락 대비 안전망
+)
+
+// 조회 실패 시 null — 빈 결과를 캐시하지 않고(캐시 함수가 던짐) 이번 요청만 빈 화면으로 처리.
+async function loadPublicFeed(): Promise<PublicFeed | null> {
+  try {
+    return await getPublicFeed()
+  } catch (error) {
+    console.error('getPublicFeed error:', error)
+    return null
   }
+}
 
-  const cards: BookCard[] = []
-  for (const [bookId, list] of byBook) {
-    // 커뮤니티 추천: 반응 2 이상 기록이 있는 책만 노출.
-    // '그냥 봤어요'(1)만 있는 책은 개인 기록·책 단위 집계에는 남지만 피드엔 안 뜸.
-    const qualifying = list.filter((p) => isRecommended(p.child_reaction))
-    if (qualifying.length === 0) continue
-
-    const book = list[0].book!
-    cards.push({
-      bookId,
-      isbn: book.book_key ?? '',
-      title: book.title ?? '(제목 없음)',
-      cover: book.cover_image_url,
-      recordCount: list.length,
-      // 추천은 책 단위 저장(user당 1행)이라 행 수 = 추천한 사람 수
-      recommendUserCount: book.likes?.[0]?.count ?? 0,
-      reaction: modeOf(qualifying.map((p) => p.child_reaction)),
-      density: modeOf(list.map((p) => p.text_density).filter((x): x is number => x != null)),
-      // 시기는 순서형 — 항상 연령 오름차순으로 노출
-      groups: sortGroupLabelsByAge([
-        ...new Set(qualifying.flatMap((p) => (p.post_groups ?? []).map((g) => g.group_name))),
-      ]),
-      topics: topicsFor(qualifying),
-      publishedDate: book.published_date ?? null,
-      latestCreatedAt: qualifying
-        .map((p) => p.created_at)
-        .sort()
-        .at(-1)!,
-      bookmarkCount: book.bookmark_count ?? 0,
-      bookmarkedByMe: bookmarkedBookIds.has(bookId),
-      isBoardBook: book.is_board_book ?? false,
+// 로그인 사용자가 저장한 책 id (사람마다 다르므로 캐시하지 않음). 실패 시 빈 집합.
+async function fetchMyBookmarkIds(
+  supabase: SupabaseClient,
+  userId?: string
+): Promise<Set<string>> {
+  if (!userId) return new Set()
+  try {
+    const rows = await fetchAllByKey<{ book_id: string }>('book_id', (after) => {
+      let q = supabase
+        .from('bookmarks')
+        .select('book_id')
+        .eq('user_id', userId)
+        .order('book_id')
+        .limit(PAGE_SIZE)
+      if (after) q = q.gt('book_id', after)
+      return q.returns<{ book_id: string }[]>()
     })
+    return new Set(rows.map((r) => r.book_id))
+  } catch (error) {
+    console.error('bookmarks fetch error:', error)
+    return new Set()
   }
+}
 
-  return { cards, groupRecordCounts }
+// 캐시된 카드 객체는 직접 수정하지 않고 새 객체로 덧씌운다.
+function withBookmarks(cards: BookCard[], mine: Set<string>): BookCard[] {
+  if (mine.size === 0) return cards
+  return cards.map((c) => (mine.has(c.bookId) ? { ...c, bookmarkedByMe: true } : c))
 }
 
 export async function getFeedData(
@@ -208,23 +217,26 @@ export async function getFeedData(
   tagFilter?: string,
   userId?: string
 ): Promise<FeedData> {
-  const [operatorTags, { cards, groupRecordCounts }] = await Promise.all([
-    fetchOperatorTags(supabase),
-    aggregateBookCards(supabase, userId),
-  ])
+  const [feed, mine] = await Promise.all([loadPublicFeed(), fetchMyBookmarkIds(supabase, userId)])
 
+  const cards = feed?.cards ?? []
   const filtered = tagFilter ? cards.filter((c) => c.topics.includes(tagFilter)) : cards
 
   const sections: GroupSectionData[] = RECOMMEND_GROUPS.map((g) => {
     const inGroup = filtered.filter((c) => c.groups.includes(g.label))
-    const sorted = sortByGroupRanking(inGroup, groupRecordCounts.get(g.label) ?? 0).slice(
+    const top = sortByGroupRanking(inGroup, feed?.groupRecordCounts[g.label] ?? 0).slice(
       0,
       MAX_CARDS_PER_GROUP
     )
-    return { value: g.value, label: g.label, ageRange: g.ageRange, cards: sorted }
+    return {
+      value: g.value,
+      label: g.label,
+      ageRange: g.ageRange,
+      cards: withBookmarks(top, mine), // 노출되는 카드에만 덧씌움
+    }
   })
 
-  return { operatorTags, sections }
+  return { operatorTags: feed?.operatorTags ?? [], sections }
 }
 
 // 그룹 전체보기: 해당 시기 카드 전체(캡 없음)를 홈과 동일한 랭킹으로 정렬해 반환.
@@ -237,36 +249,40 @@ export async function getGroupCards(
   const group = RECOMMEND_GROUPS.find((g) => g.value === groupValue)
   if (!group) return null
 
-  const { cards, groupRecordCounts } = await aggregateBookCards(supabase, userId)
-  const inGroup = cards.filter((c) => c.groups.includes(group.label))
-  const sorted = sortByGroupRanking(inGroup, groupRecordCounts.get(group.label) ?? 0)
+  const [feed, mine] = await Promise.all([loadPublicFeed(), fetchMyBookmarkIds(supabase, userId)])
+  const inGroup = (feed?.cards ?? []).filter((c) => c.groups.includes(group.label))
+  const sorted = sortByGroupRanking(inGroup, feed?.groupRecordCounts[group.label] ?? 0)
 
-  return { value: group.value, label: group.label, ageLabel: group.ageLabel, cards: sorted }
-}
-
-// 카드 정렬 방식 (홈 섹션·그룹 더보기 공용 드롭다운).
-export type CardSort = 'recommend' | 'published' | 'title'
-
-export const CARD_SORT_LABELS: Record<CardSort, string> = {
-  recommend: '추천순',
-  published: '신간순',
-  title: '제목순',
-}
-
-// 'recommend'는 서버 랭킹(sortByGroupRanking) 순서를 그대로 유지한다(재정렬 안 함).
-// 'published'=출간일 최신 먼저(없는 값 맨 뒤), 'title'=제목 오름차순(한글 로케일).
-export function sortCardsBy(cards: BookCard[], sort: CardSort): BookCard[] {
-  if (sort === 'recommend') return cards
-  const copy = [...cards]
-  if (sort === 'published') {
-    copy.sort((a, b) => {
-      if (!a.publishedDate && !b.publishedDate) return 0
-      if (!a.publishedDate) return 1
-      if (!b.publishedDate) return -1
-      return b.publishedDate.localeCompare(a.publishedDate)
-    })
-  } else {
-    copy.sort((a, b) => a.title.localeCompare(b.title, 'ko'))
+  return {
+    value: group.value,
+    label: group.label,
+    ageLabel: group.ageLabel,
+    cards: withBookmarks(sorted, mine),
   }
-  return copy
+}
+
+// ---------- 운영자 '서비스 규모' 경고용 (마이페이지) ----------
+// 캐시된 공개 피드에서 계산하므로 추가 DB 조회가 없다. 기준을 넘기 전에 구조 전환(CLAUDE.md 성능 단계 2)을 하기 위한 신호.
+
+// Next 데이터 캐시 항목 한도(node_modules/next .../incremental-cache: 2MB 초과 시 운영=저장 생략·경고, 개발=오류).
+export const FEED_CACHE_LIMIT = 2 * 1024 * 1024
+// 그룹 더보기는 한 시기의 카드를 한 번에 보낸다 — 이 이상이면 모바일에서 무거워져 '더 불러오기' 전환 필요.
+export const GROUP_PAGE_BOOK_LIMIT = 1000
+
+export interface FeedScale {
+  feedBooks: number // 피드에 노출 자격이 있는 책 수(캐시 카드 수)
+  cacheSize: number // Next가 한도를 재는 방식과 같은 기준의 크기
+  largestGroup: { label: string; books: number }
+}
+
+export async function getFeedScale(): Promise<FeedScale | null> {
+  const feed = await loadPublicFeed()
+  if (!feed) return null
+  // Next는 결과를 JSON 문자열로 담은 캐시 항목 전체를 다시 직렬화해 그 길이로 한도를 잰다 → 이중 직렬화로 맞춘다.
+  const cacheSize = JSON.stringify(JSON.stringify(feed)).length
+  const largestGroup = RECOMMEND_GROUPS.map((g) => ({
+    label: g.label,
+    books: feed.cards.filter((c) => c.groups.includes(g.label)).length,
+  })).reduce((a, b) => (b.books > a.books ? b : a))
+  return { feedBooks: feed.cards.length, cacheSize, largestGroup }
 }

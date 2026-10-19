@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
+import { revalidateFeed } from '@/lib/cacheTags'
 import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 
 // 숨김 복구 — 운영자 전용. { type: 'post'|'comment', id } 의 hidden_at을 null로.
@@ -29,5 +30,6 @@ export async function POST(request: Request) {
   }
 
   revalidatePath('/', 'layout')
+  revalidateFeed()
   return NextResponse.json({ success: true })
 }

@@ -7,6 +7,8 @@ Claude Code가 매 작업 시작 시 이 파일을 먼저 읽고 프로젝트 �
 놓친 사항이 있으면 먼저 알려줄 것 (작업 시작 전 체크).
 코드 제공 시 JSX 태그 쌍, import 누락 등 문법 오류를 반드시 사전 검토할 것.
 각 단계 완료 후 다음 단계로 자동 진행하지 말고, 완료 보고 후 대기할 것.
+성능·피드·DB 관련 작업 전에는 `node scripts/check-scale.mjs`(읽기 전용)로 서비스 규모를 점검하고, 🟡/🔴가 있으면 작업 전에 먼저 알릴 것. (기준·전환 방법: Deferred TODO [성능 단계 2])
+피드에 영향을 주는 새 쓰기 API(기록·추천·태그 등)를 만들면 반드시 revalidateFeed()(src/lib/cacheTags.ts)를 호출할 것 — 빠뜨리면 홈이 최대 60초 늦게 반영된다.
 
 
 1. 서비스 개요
@@ -653,6 +655,8 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
   supabase/reorg_topic_tags.sql            — 주제 태그 MECE 재정리(operator_tags.tag_category 6카테고리
                                              +sort_order, 이름정리·신규·형태 비활성, books.is_board_book) 2026.08.25
   supabase/add_onboarded_at.sql            — users.onboarded_at(온보딩 계정 단위 1회 노출) 2026.09.18 ⚠️미적용시 온보딩 미노출
+  supabase/add_feed_views.sql              — 피드 집계 DB 뷰(book_feed_cards·sitemap_books) + likes(book_id) 인덱스
+                                             + post_tags.seq(주제 태그 저장 순서 확정) 2026.10 (성능 #2)
   supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 
 
@@ -777,11 +781,35 @@ supabase/*.sql
           가이드(/guide)·모달이 DB에서 읽도록. 이미지 교체까지면 업로드도.
       판단(2026.09.28): 가이드·카테고리는 자주 안 바뀌어 DB화 이득이 크지 않음(편집기 비용>가끔 코드수정). 자주 손댈 것만 UI화.
       7개 베타 반영(진행 중) 끝난 뒤 별도 프로젝트로. 지금은 코드+Claude로 처리.
-  □ ★최우선 [성능] 서비스 '느리다' 피드백 개선 (2026.09.28 신설) — 사용자 체감 런타임 성능 점검·개선. 규모 있음(진단부터).
-      ★ 베타 피드백(2026.09.30, 응답 10건)에서 5명+ 반복 지적("반응 느림"·"클릭 시 느려요"·"눌렀을 때 느림") → 최우선 승격.
-      후보 원인: (1) Vercel 무료 플랜 콜드 스타트 (2) SSR 페이지의 다중/중복 DB 쿼리(홈 피드 feed.ts·책 페이지·distribution.ts)
-      (3) 책 표지 이미지 미최적화(원본 크기 로드, next/image 미사용) (4) Supabase 쿼리 지연·N+1 (5) revalidate/캐시 설정.
-      먼저 어느 화면이 느린지 특정 → 쿼리 수·이미지·캐시 순으로. ※ ponytail(개발 코드 최소화 플러그인)은 런타임 성능과 무관 — 검토 결과 도입 안 함(2026.09.28).
+  🔄 [성능] 서비스 '느리다' 피드백 개선 (2026.09.28 신설, 베타 5명+ 지적) — #1·#2 완료, #3·#4 남음.
+      ✅ #1 책 페이지 쿼리 중복 제거(2026.10, 커밋 010b91c): React cache()로 generateMetadata·본문이 조회 공유 +
+         lib/distribution.ts computeBookDistribution(조회/집계 분리). 책 페이지 DB 왕복 ~9-11 → ~3(비로그인)/~6(로그인).
+      ✅ #2 홈·그룹 더보기 집계를 DB로 이전 + 캐시(2026.10):
+         · DB 뷰 book_feed_cards(supabase/add_feed_views.sql)가 책 1권당 1행으로 집계(LATERAL, 책 단위 계산 →
+           요청당 작업량이 전체 데이터 크기와 무관 → Supabase anon 3초 문장 제한에 안 걸림). security_invoker로 RLS 유지.
+         · 앱은 keyset('마지막 id 다음부터 1,000건')으로 끝까지 조회 → API 1,000행 제한·조회 중 변경에도 누락·중복 없음.
+           sitemap도 동일(sitemap_books 뷰).
+         · 공개 집계는 unstable_cache(태그 'feed', TTL 60초, 키 버전 public-feed-vN — 카드 형태 바뀌면 올림).
+           '내가 저장함'·날짜 시드 정렬은 캐시 밖에서 매 요청. 조회 실패는 캐시하지 않음(빈 피드가 굳지 않게).
+         · 무효화 revalidateFeed() = revalidateTag('feed', { expire: 0 }). Next 16에서 단일 인자는 deprecated,
+           'max'는 stale-while-revalidate라 내 기록·추천이 다음 방문에 안 보임 → expire:0(즉시 만료)로. Route Handler라 updateTag 불가.
+           호출 위치: 기록 생성(/api/recommend)·수정·숨김·복구, 추천, 운영자 태그. 저장(북마크)은 호출 안 함
+           ('내가 저장함'은 매 요청 새로 확인, 타인에게 보이는 저장 수(5명↑)만 최대 60초 지연 — 가장 잦은 쓰기라 캐시 보호).
+         · 서버/클라 공용 타입·정렬은 lib/feedShared.ts(서버 전용 API import 금지), 서버 집계는 lib/feed.ts.
+         · ⚠️ 노출 자격 '반응 ≥ 2'가 SQL 뷰와 lib/reactions.ts RECOMMENDED_REACTION_MIN 두 곳에 있음 → 바꿀 땐 둘 다.
+         · 검증: 기존 JS 집계 vs 뷰 책 126권 전 항목 대조, 값 불일치 0·시기별 기록 수 일치. 주제 태그 순서는 post_tags.seq로 보존.
+      □ #3 이미지(B안 — Vercel 이미지 최적화 한도·비용 회피): next/image 대신 <img>에 width/height(레이아웃 밀림 방지)·
+         decoding=async·첫 화면 커버 fetchpriority. 비용 0.
+      □ #4 cold start 완화: 외부 uptime 핑(5분) — 운영 작업(코드 아님).
+  □ [성능 단계 2] 대규모 전환 — 마이페이지 운영자 '서비스 규모' 상자 또는 scripts/check-scale.mjs가 🟡(70%)/🔴(90%)일 때 착수.
+      기준(현재 2026.10: 캐시 3%·가장 큰 시기 8%·sitemap 0%):
+      (a) 피드 캐시 크기 ≥ 2MB의 70% (책 약 3,000권~) → 2MB 초과 시 Next가 캐시를 저장하지 않음(운영=경고만, 결과는 정확하나
+          매 요청 전체 조회로 느려짐 / 로컬 dev=오류). 대응: 홈은 시기별 상위 12권을 DB RPC에서 바로 랭킹·반환(날짜 시드
+          md5(seed||book_id)·최근 3일 우선·임계값 전환을 SQL로 이식), 캐시는 시기별 소형 항목으로.
+      (b) 가장 큰 시기 ≥ 1,000권의 70% → 그룹 더보기가 시기 전체 카드를 한 번에 보내 무거워짐.
+          대응: 서버 페이지네이션('더 불러오기') + 주제·정렬·내 기록 제외 필터를 서버(SQL)로.
+      (c) sitemap URL ≥ 50,000의 70% → 구글이 초과분 무시. 대응: app/sitemap.ts generateSitemaps로 분할.
+      ※ unstable_cache는 Next 16에서 'use cache'로 대체 예정(현재 정상 작동) — Next 메이저 업그레이드 시 함께 이전.
   □ ★최우선 [바코드 스캔] 기록 폼 도서 검색창에 카메라 버튼 → 책 뒤표지 바코드(EAN-13=ISBN13) 인식 → 카카오 target=isbn 검색으로
       책 자동 선택 (2026.09.30 신설, 베타 피드백 7/10이 '앱+바코드' 요청). 백엔드는 이미 있음(13.1 target=isbn 분기) — 프론트만.
       Android Chrome·삼성인터넷은 내장 BarcodeDetector로 경량 가능, ⚠️iOS Safari 미지원 → ZXing 등 JS 디코더 폴백 필수(작업량↑).

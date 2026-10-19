@@ -7,7 +7,7 @@ import {
   CARD_SORT_LABELS,
   type CardSort,
   type GroupSectionData,
-} from '@/lib/feed'
+} from '@/lib/feedShared'
 
 // 홈 피드 섹션 정렬 컨트롤 (STEP 2 + 정렬 드롭다운).
 // - 섹션 순서: '우리 아이 시기 먼저' 토글 — OFF(기본) 연령 오름차순 고정(CLAUDE.md 7장),

@@ -8,6 +8,8 @@ import MyShelfView, { type ShelfBook } from '@/components/mypage/MyShelfView'
 import ProfileEditor from '@/components/mypage/ProfileEditor'
 import ReadingCalendar, { type CalendarRecord } from '@/components/mypage/ReadingCalendar'
 import { FEEDBACK_FORM_URL } from '@/lib/feedback'
+import { getFeedScale } from '@/lib/feed'
+import ScaleStatus from '@/components/mypage/ScaleStatus'
 
 export const metadata: Metadata = { title: '마이페이지 | 책육아정원' }
 
@@ -60,6 +62,8 @@ export default async function MyPage() {
   const me = meRes.data as { nickname: string | null; is_operator: boolean } | null
   const nickname = me?.nickname ?? ''
   const isOperator = Boolean(me?.is_operator)
+  // 운영자 전용 '서비스 규모' 경고 — 캐시된 피드에서 계산(추가 DB 조회 없음)
+  const scale = isOperator ? await getFeedScale() : null
   const children = ((childRes.data as { birth_date: string }[] | null) ?? []).map((c) => ({
     birth_date: c.birth_date,
   }))
@@ -185,6 +189,9 @@ export default async function MyPage() {
           </h2>
           <Bookshelf items={wishItems} emptyText="아직 저장한 책이 없어요." />
         </section>
+
+        {/* 운영자 전용: 서비스 규모 경고(성능 구조 전환 시점 알림) */}
+        {isOperator && <ScaleStatus scale={scale} />}
 
         {/* 문의·건의 + (운영자) 숨긴 기록 관리 + 로그아웃 */}
         <footer className="flex flex-col items-center gap-3 pt-2">
