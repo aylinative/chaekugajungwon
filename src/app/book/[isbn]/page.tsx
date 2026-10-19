@@ -20,7 +20,7 @@ import BottomTabBar from '@/components/BottomTabBar'
 // 책 단위 페이지 (CLAUDE.md 19.2) — 같은 책의 모든 기록이 한 URL에 누적된다.
 // Server Component SSR 필수 (크롤러가 내용을 읽어야 함). slug는 ISBN13(books.book_key).
 // 추천 시기 분포는 상시 노출 (바텀시트와 달리 이 페이지는 정보를 보러 온 사람용 — 19.2-4).
-// 댓글은 기록별(comments.post_id) 유지 — 이 페이지에는 댓글 없음 (17장 결정 (가)).
+// 댓글 기능은 오픈 전 제외(2026.10, CLAUDE.md 12장).
 
 const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.selectedClass])
@@ -383,7 +383,7 @@ export default async function BookPage({
                   >
                     {/* 기록 카드 = 양육자의 평가 전용 (반응·시기·일기).
                         글밥량은 책 정보 영역에, 추천(책·시기 판단)도 책 정보 영역에 (2026.08).
-                        세부 페이지(/posts/[id])는 댓글 진입·공유 링크용. */}
+                        세부 페이지(/posts/[id])는 일기 전문·사진·공유 링크용. */}
                     <Link href={`/posts/${p.id}`} className="block p-4">
                       <div className="flex items-center gap-2">
                         <span className="flex items-center gap-2 text-sm font-medium text-text">

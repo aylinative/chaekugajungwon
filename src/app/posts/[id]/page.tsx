@@ -9,7 +9,6 @@ import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton from '@/components/RecommendButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
 import BottomTabBar from '@/components/BottomTabBar'
-import PostReactions, { type CommentItem } from '@/components/post/PostReactions'
 import PostActionsMenu from '@/components/post/PostActionsMenu'
 
 const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
@@ -133,7 +132,6 @@ export default async function PostDetailPage({
 
   let liked = false
   let myGroups: string[] = []
-  let myNickname = ''
   let bookmarkedByMe = false
   if (user && post.book?.id) {
     const { data: likeRow } = await supabase
@@ -144,13 +142,6 @@ export default async function PostDetailPage({
       .maybeSingle()
     liked = Boolean(likeRow)
     myGroups = (likeRow as { group_names: string[] | null } | null)?.group_names ?? []
-    const { data: me } = await supabase
-      .from('users')
-      .select('nickname')
-      .eq('id', user.id)
-      .maybeSingle()
-    myNickname = (me as { nickname: string } | null)?.nickname ?? ''
-
     if (post.book?.id) {
       const { data: bookmarkRow } = await supabase
         .from('bookmarks')
@@ -161,31 +152,6 @@ export default async function PostDetailPage({
       bookmarkedByMe = Boolean(bookmarkRow)
     }
   }
-
-  const { data: commentRows } = await supabase
-    .from('comments')
-    .select('id, content, created_at, user_id, author:users!comments_user_id_fkey ( nickname )')
-    .eq('post_id', id)
-    .is('hidden_at', null)
-    .order('created_at', { ascending: true })
-
-  const comments: CommentItem[] = (
-    (commentRows as unknown as
-      | {
-          id: string
-          content: string
-          created_at: string
-          user_id: string
-          author: { nickname: string | null } | null
-        }[]
-      | null) ?? []
-  ).map((c) => ({
-    id: c.id,
-    content: c.content,
-    created_at: c.created_at,
-    user_id: c.user_id,
-    nickname: c.author?.nickname ?? '익명',
-  }))
 
   const book = post.book
   const groups = sortGroupLabelsByAge((post.post_groups ?? []).map((g) => g.group_name))
@@ -378,14 +344,6 @@ export default async function PostDetailPage({
               />
             )}
           </div>
-          <PostReactions
-            postId={post.id}
-            initialComments={comments}
-            currentUserId={user?.id ?? null}
-            currentUserNickname={myNickname}
-            isLoggedIn={Boolean(user)}
-            isOperator={isOperator}
-          />
         </section>
       </main>
 

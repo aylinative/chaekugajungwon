@@ -14,12 +14,6 @@ interface HiddenPost {
   book: { title: string | null } | null
   author: { nickname: string | null } | null
 }
-interface HiddenComment {
-  id: string
-  content: string
-  hidden_at: string
-  author: { nickname: string | null } | null
-}
 
 function fmt(iso: string) {
   const d = new Date(iso)
@@ -37,26 +31,19 @@ export default async function ModerationPage() {
     redirect('/')
   }
 
-  const [{ data: postRows }, { data: commentRows }] = await Promise.all([
-    supabase
-      .from('posts')
-      .select(
-        `id, content, hidden_at,
-         book:books ( title ),
-         author:users!posts_user_id_fkey ( nickname )`
-      )
-      .not('hidden_at', 'is', null)
-      .order('hidden_at', { ascending: false }),
-    supabase
-      .from('comments')
-      .select('id, content, hidden_at, author:users!comments_user_id_fkey ( nickname )')
-      .not('hidden_at', 'is', null)
-      .order('hidden_at', { ascending: false }),
-  ])
+  // 댓글 기능은 오픈 전 제외(2026.10) — 숨긴 기록만 관리
+  const { data: postRows } = await supabase
+    .from('posts')
+    .select(
+      `id, content, hidden_at,
+       book:books ( title ),
+       author:users!posts_user_id_fkey ( nickname )`
+    )
+    .not('hidden_at', 'is', null)
+    .order('hidden_at', { ascending: false })
 
   const posts = (postRows as unknown as HiddenPost[] | null) ?? []
-  const comments = (commentRows as unknown as HiddenComment[] | null) ?? []
-  const total = posts.length + comments.length
+  const total = posts.length
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
@@ -101,31 +88,6 @@ export default async function ModerationPage() {
                         )}
                       </div>
                       <RestoreButton type="post" id={p.id} />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {/* 숨긴 댓글 */}
-            {comments.length > 0 && (
-              <section>
-                <h2 className="mb-2 px-1 text-sm font-semibold text-text">
-                  숨긴 댓글 {comments.length}
-                </h2>
-                <ul className="space-y-2">
-                  {comments.map((c) => (
-                    <li
-                      key={c.id}
-                      className="flex items-start gap-3 rounded-2xl bg-surface p-3 shadow-sm"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs text-text/50">
-                          {c.author?.nickname ?? '익명'} · {fmt(c.hidden_at)} 숨김
-                        </p>
-                        <p className="mt-1 line-clamp-2 text-sm text-text/70">{c.content}</p>
-                      </div>
-                      <RestoreButton type="comment" id={c.id} />
                     </li>
                   ))}
                 </ul>

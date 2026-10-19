@@ -8,7 +8,7 @@ export default function RestoreButton({
   type,
   id,
 }: {
-  type: 'post' | 'comment'
+  type: 'post'
   id: string
 }) {
   const router = useRouter()

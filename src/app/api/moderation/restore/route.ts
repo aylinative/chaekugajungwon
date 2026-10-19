@@ -3,7 +3,8 @@ import { revalidatePath } from 'next/cache'
 import { revalidateFeed } from '@/lib/cacheTags'
 import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 
-// 숨김 복구 — 운영자 전용. { type: 'post'|'comment', id } 의 hidden_at을 null로.
+// 숨김 복구 — 운영자 전용. { type: 'post', id } 기록의 hidden_at을 null로.
+// (댓글 기능은 오픈 전 제외 2026.10 — 댓글 복구 경로도 함께 제거)
 export async function POST(request: Request) {
   const supabase = await createServerSupabase()
 
@@ -18,12 +19,11 @@ export async function POST(request: Request) {
   }
 
   const { type, id } = await request.json().catch(() => ({}))
-  if ((type !== 'post' && type !== 'comment') || !id) {
+  if (type !== 'post' || !id) {
     return NextResponse.json({ error: '잘못된 요청입니다.' }, { status: 400 })
   }
 
-  const table = type === 'post' ? 'posts' : 'comments'
-  const { error } = await supabase.from(table).update({ hidden_at: null }).eq('id', id)
+  const { error } = await supabase.from('posts').update({ hidden_at: null }).eq('id', id)
   if (error) {
     console.error('Restore error:', error)
     return NextResponse.json({ error: '복구에 실패했습니다.' }, { status: 500 })
