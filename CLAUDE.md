@@ -806,8 +806,11 @@ supabase/*.sql
          미국 함수 → 서울 DB로 매 쿼리 태평양 왕복(~0.2초)×순차 4회 → 책 페이지 서버 응답 0.9~2초. 표지 탭 후 무반응 →
          연타 피드백의 주원인(터치 인식 문제 아님 — loading.tsx·눌림 표시 부재로 대기 중 화면 변화가 없었던 것).
          ⚠️ DB 지역을 옮기면 regions도 같이 맞출 것. 확인: 배포 후 X-Vercel-Id가 'icn1::icn1::'이면 적용.
-      □ #B 페이지 이동 즉시 피드백: /book·/group·/posts에 loading.tsx(뼈대 화면) — 누르는 즉시 화면 전환·연타 방지.
-      □ #C 카드 눌림 효과(active 스타일) — 손가락 닿는 순간 반응.
+      ✅ #B 페이지 이동 즉시 피드백(2026.10): /book·/group·/posts에 loading.tsx → 공용 components/PageSkeleton(variant book·post·grid,
+         실제 페이지와 같은 헤더·여백). 누르는 즉시 뼈대로 전환·연타 방지. Next가 뼈대를 미리 받아 둠(prefetch).
+      ✅ #C 표지 눌림 효과(2026.10): BookCard·Bookshelf 표지에 active:scale-[0.96]·opacity-80. 카드 전체가 아닌 표지에만
+         (카드 안 저장 버튼을 누를 때 카드가 눌린 듯 보이지 않게).
+      ※ A 측정(책 페이지): 앱 내 이동 0.9~1.8초 → 약 0.26초, 직접 열기 1.3~2.0초 → 0.26~0.89초(앞 두 번은 배포 직후 콜드).
       □ #3 이미지(B안 — Vercel 이미지 최적화 한도·비용 회피): next/image 대신 <img>에 width/height(레이아웃 밀림 방지)·
          decoding=async·첫 화면 커버 fetchpriority. 비용 0.
       □ #4 cold start 완화: 외부 uptime 핑(5분) — 운영 작업(코드 아님).

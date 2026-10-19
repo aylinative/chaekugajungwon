@@ -50,7 +50,8 @@ export default function BookCardItem({
       className={`flex flex-col gap-2 ${fullWidth ? 'w-full' : 'w-28 flex-shrink-0'}`}
     >
       {/* 표지 */}
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-surface-muted shadow-sm">
+      {/* 눌림 효과(표지에만 — 카드 전체에 걸면 저장 버튼을 누를 때도 카드가 눌린 듯 보임) */}
+      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-surface-muted shadow-sm transition duration-100 active:scale-[0.96] active:opacity-80">
         {card.cover ? (
           // 외부 이미지: next/image 도메인 설정 회피 위해 img 사용
           // eslint-disable-next-line @next/next/no-img-element

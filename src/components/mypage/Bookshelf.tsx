@@ -48,7 +48,8 @@ export default function Bookshelf({
             {row.map((item, i) => (
               <Link key={`${item.href}-${i}`} href={item.href} className="block">
                 {/* 표지: 위 모서리만 둥글게 → 선반에 평평히 얹힌 느낌 */}
-                <div className="aspect-[3/4] w-full overflow-hidden rounded-t-md bg-surface-muted shadow-sm">
+                {/* 눌림 효과 — 탭 즉시 반응 */}
+                <div className="aspect-[3/4] w-full overflow-hidden rounded-t-md bg-surface-muted shadow-sm transition duration-100 active:scale-[0.96] active:opacity-80">
                   {item.cover ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
