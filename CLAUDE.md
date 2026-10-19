@@ -800,6 +800,13 @@ supabase/*.sql
          · 서버/클라 공용 타입·정렬은 lib/feedShared.ts(서버 전용 API import 금지), 서버 집계는 lib/feed.ts.
          · ⚠️ 노출 자격 '반응 ≥ 2'가 SQL 뷰와 lib/reactions.ts RECOMMENDED_REACTION_MIN 두 곳에 있음 → 바꿀 땐 둘 다.
          · 검증: 기존 JS 집계 vs 뷰 책 126권 전 항목 대조, 값 불일치 0·시기별 기록 수 일치. 주제 태그 순서는 post_tags.seq로 보존.
+      ✅ #A 서버 함수 지역 서울로(2026.10): vercel.json "regions": ["icn1"]. 원인 진단 — Supabase DB는 서울(ap-northeast-2,
+         DATABASE_URL 호스트), Vercel 함수는 기본값 미국 워싱턴(iad1, 응답 헤더 X-Vercel-Id 'icn1::iad1::'). 한국 사용자 요청이
+         미국 함수 → 서울 DB로 매 쿼리 태평양 왕복(~0.2초)×순차 4회 → 책 페이지 서버 응답 0.9~2초. 표지 탭 후 무반응 →
+         연타 피드백의 주원인(터치 인식 문제 아님 — loading.tsx·눌림 표시 부재로 대기 중 화면 변화가 없었던 것).
+         ⚠️ DB 지역을 옮기면 regions도 같이 맞출 것. 확인: 배포 후 X-Vercel-Id가 'icn1::icn1::'이면 적용.
+      □ #B 페이지 이동 즉시 피드백: /book·/group·/posts에 loading.tsx(뼈대 화면) — 누르는 즉시 화면 전환·연타 방지.
+      □ #C 카드 눌림 효과(active 스타일) — 손가락 닿는 순간 반응.
       □ #3 이미지(B안 — Vercel 이미지 최적화 한도·비용 회피): next/image 대신 <img>에 width/height(레이아웃 밀림 방지)·
          decoding=async·첫 화면 커버 fetchpriority. 비용 0.
       □ #4 cold start 완화: 외부 uptime 핑(5분) — 운영 작업(코드 아님).
