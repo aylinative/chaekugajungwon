@@ -5,8 +5,6 @@ import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge, AGE_LABEL_FULL } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import { formatDate } from '@/lib/date'
-import BookmarkButton from '@/components/BookmarkButton'
-import RecommendButton from '@/components/RecommendButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostActionsMenu from '@/components/post/PostActionsMenu'
@@ -124,34 +122,8 @@ export default async function PostDetailPage({
   const isOwner = Boolean(user && user.id === post.user_id)
   const canModeratePost = isOwner || isOperator // 게시물 숨김 권한
 
-  // 추천은 책 단위 (2026.08 전환) — 이 책을 추천한 사람 수
-  const { count: likeCount } = await supabase
-    .from('likes')
-    .select('*', { count: 'exact', head: true })
-    .eq('book_id', post.book?.id ?? '')
-
-  let liked = false
-  let myGroups: string[] = []
-  let bookmarkedByMe = false
-  if (user && post.book?.id) {
-    const { data: likeRow } = await supabase
-      .from('likes')
-      .select('book_id, group_names')
-      .eq('book_id', post.book.id)
-      .eq('user_id', user.id)
-      .maybeSingle()
-    liked = Boolean(likeRow)
-    myGroups = (likeRow as { group_names: string[] | null } | null)?.group_names ?? []
-    if (post.book?.id) {
-      const { data: bookmarkRow } = await supabase
-        .from('bookmarks')
-        .select('book_id')
-        .eq('book_id', post.book.id)
-        .eq('user_id', user.id)
-        .maybeSingle()
-      bookmarkedByMe = Boolean(bookmarkRow)
-    }
-  }
+  // '나도 추천해요'·저장은 책 단위라 책 페이지(/book/[isbn])·홈 카드에서 한다.
+  // 기록 상세에서는 제외(2026.10 — 댓글 영역 제거와 함께) → 추천·저장 조회도 하지 않음.
 
   const book = post.book
   const groups = sortGroupLabelsByAge((post.post_groups ?? []).map((g) => g.group_name))
@@ -318,32 +290,6 @@ export default async function PostDetailPage({
               </Link>
             </div>
           )}
-        </section>
-
-        {/* ③ 반응 영역 */}
-        <section className="mt-4 rounded-2xl bg-surface p-4 shadow-sm">
-          {/* 나도 추천해요 + 저장 — 한 줄 정렬 */}
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-black/5 pb-4">
-            {book?.id && (
-              <RecommendButton
-                bookId={book.id}
-                initialLiked={liked}
-                initialCount={likeCount ?? 0}
-                initialGroups={myGroups}
-                isLoggedIn={Boolean(user)}
-                variant="detail"
-              />
-            )}
-            {book?.id && (
-              <BookmarkButton
-                bookId={book.id}
-                initialBookmarked={bookmarkedByMe}
-                initialCount={book.bookmark_count ?? 0}
-                isLoggedIn={Boolean(user)}
-                variant="detail"
-              />
-            )}
-          </div>
         </section>
       </main>
 
