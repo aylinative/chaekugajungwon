@@ -192,16 +192,45 @@ export async function PATCH(
     return NextResponse.json({ error: '시기 수정에 실패했습니다.' }, { status: 500 })
   }
 
-  // 3) 주제(post_tags) 교체 — 전부 삭제 후, 있으면 재삽입
-  const { error: tagDeleteError } = await supabase
+  // 3) 주제(post_tags) — 바뀐 것만 반영(diff).
+  // 예전엔 전부 삭제 후 '활성 태그 이름'으로만 다시 넣어서, 숨김(is_active=false) 처리된 옛 태그가
+  // 수정 저장 때마다 이름만 남은 custom_tag로 바뀌어 필터 연결이 끊겼다(주제 태그 개편 Part 0 발견).
+  // → 여전히 선택된 기존 태그 행은 건드리지 않고(숨김 태그여도 연결·저장 순서 유지), 빠진 것만 삭제,
+  //   새로 고른 것만 추가. 새로 추가하는 태그는 활성 태그에서만 찾는다(숨김 태그는 새로 고를 수 없음).
+  const wanted = new Set(
+    (Array.isArray(payload.topics) ? payload.topics : []).filter(
+      (t): t is string => typeof t === 'string' && t.trim() !== ''
+    )
+  )
+  const { data: existingTags, error: existingTagError } = await supabase
     .from('post_tags')
-    .delete()
+    .select('id, custom_tag, is_operator_tag, operator_tags ( name )')
     .eq('post_id', postId)
-  if (tagDeleteError) {
-    console.error('Post tags delete error:', tagDeleteError)
+  if (existingTagError) {
+    console.error('Post tags lookup error:', existingTagError)
     return NextResponse.json({ error: '주제 수정에 실패했습니다.' }, { status: 500 })
   }
-  if (Array.isArray(payload.topics) && payload.topics.length > 0) {
+  const kept = new Set<string>()
+  const removeIds: string[] = []
+  for (const row of (existingTags ?? []) as unknown as {
+    id: string
+    custom_tag: string | null
+    is_operator_tag: boolean
+    operator_tags: { name: string } | null
+  }[]) {
+    const name = row.is_operator_tag ? row.operator_tags?.name : row.custom_tag
+    if (name && wanted.has(name) && !kept.has(name)) kept.add(name)
+    else removeIds.push(row.id) // 선택 해제된 태그(또는 같은 이름 중복 행)
+  }
+  if (removeIds.length > 0) {
+    const { error: tagDeleteError } = await supabase.from('post_tags').delete().in('id', removeIds)
+    if (tagDeleteError) {
+      console.error('Post tags delete error:', tagDeleteError)
+      return NextResponse.json({ error: '주제 수정에 실패했습니다.' }, { status: 500 })
+    }
+  }
+  const toAdd = [...wanted].filter((name) => !kept.has(name))
+  if (toAdd.length > 0) {
     const { data: operatorTags, error: opTagError } = await supabase
       .from('operator_tags')
       .select('id, name')
@@ -213,7 +242,7 @@ export async function PATCH(
     const nameToId = new Map(
       (operatorTags ?? []).map((t: { id: string; name: string }) => [t.name, t.id])
     )
-    const tagRows = payload.topics.map((topic) => {
+    const tagRows = toAdd.map((topic) => {
       const tagId = nameToId.get(topic)
       return tagId
         ? { post_id: postId, tag_id: tagId, is_operator_tag: true }
