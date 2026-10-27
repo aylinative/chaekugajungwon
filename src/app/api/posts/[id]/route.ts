@@ -242,13 +242,13 @@ export async function PATCH(
     const nameToId = new Map(
       (operatorTags ?? []).map((t: { id: string; name: string }) => [t.name, t.id])
     )
-    const tagRows = toAdd.map((topic) => {
-      const tagId = nameToId.get(topic)
-      return tagId
-        ? { post_id: postId, tag_id: tagId, is_operator_tag: true }
-        : { post_id: postId, custom_tag: topic, is_operator_tag: false }
-    })
-    const { error: tagInsertError } = await supabase.from('post_tags').insert(tagRows)
+    // 목록에 없는 이름은 버린다(직접 입력 태그는 받지 않음 — 주제 태그 개편 Part 0 ②).
+    const tagRows = toAdd
+      .map((topic) => nameToId.get(topic))
+      .filter((tagId): tagId is string => Boolean(tagId))
+      .map((tagId) => ({ post_id: postId, tag_id: tagId, is_operator_tag: true }))
+    const { error: tagInsertError } =
+      tagRows.length > 0 ? await supabase.from('post_tags').insert(tagRows) : { error: null }
     if (tagInsertError) {
       console.error('Post tags insert error:', tagInsertError)
       return NextResponse.json({ error: '주제 수정에 실패했습니다.' }, { status: 500 })

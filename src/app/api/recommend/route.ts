@@ -206,7 +206,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '시기 저장에 실패했습니다.' }, { status: 500 })
     }
 
-    // --- 4) 주제 태그(post_tags): 운영자 태그는 id 연결, 나머지는 custom_tag ---
+    // --- 4) 주제 태그(post_tags): 활성 운영자 태그만 id로 연결 ---
+    // 목록에 없는 이름은 버린다(직접 입력 태그는 받지 않음 — 주제 태그 개편 Part 0 ②).
     if (Array.isArray(payload.topics) && payload.topics.length > 0) {
       const { data: operatorTags, error: opTagError } = await supabase
         .from('operator_tags')
@@ -223,14 +224,13 @@ export async function POST(request: Request) {
         (operatorTags ?? []).map((t: { id: string; name: string }) => [t.name, t.id])
       )
 
-      const tagRows = payload.topics.map((topic) => {
-        const tagId = nameToId.get(topic)
-        return tagId
-          ? { post_id: postId, tag_id: tagId, is_operator_tag: true }
-          : { post_id: postId, custom_tag: topic, is_operator_tag: false }
-      })
+      const tagIds = [
+        ...new Set(payload.topics.map((topic) => nameToId.get(topic)).filter((id): id is string => Boolean(id))),
+      ]
+      const tagRows = tagIds.map((tagId) => ({ post_id: postId, tag_id: tagId, is_operator_tag: true }))
 
-      const { error: tagError } = await supabase.from('post_tags').insert(tagRows)
+      const { error: tagError } =
+        tagRows.length > 0 ? await supabase.from('post_tags').insert(tagRows) : { error: null }
       if (tagError) {
         console.error('Post tags insert error:', tagError)
         await rollbackPost()

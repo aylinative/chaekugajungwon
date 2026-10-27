@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>기록하기 가벼운 주제 입력</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#3F6B4A}a:hover{color:#2E5037}
+button{font-family:inherit}
+input{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 430px; height: 932px; box-sizing: border-box; position: relative; display: flex; flex-direction: column; background: #FFFFFF; font-family: 'Noto Sans KR', system-ui, sans-serif; color: #1C1917; overflow: hidden">
+
+  <div style="height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid #E7E5E4">
+    <button type="button" aria-label="뒤로" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; cursor: pointer; padding: 0">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1C1917" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+    </button>
+    <h1 style="margin: 0; font-size: 17px; font-weight: 700">기록하기</h1>
+  </div>
+
+  <div style="flex: 1; overflow-y: auto; padding: 20px 16px 24px; display: flex; flex-direction: column; gap: 28px">
+
+    <div style="display: flex; gap: 12px; align-items: center; padding: 12px; border: 1px solid #E7E5E4; border-radius: 14px">
+      <div style="width: 48px; height: 64px; border-radius: 6px; background: #E7E5E4; flex-shrink: 0"></div>
+      <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+        <span style="font-size: 15px; font-weight: 700">{{bookTitle}}</span>
+        <span style="font-size: 13px; color: #57534E">{{bookMeta}}</span>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: #F5F5F4; border-radius: 12px">
+      <div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #57534E">읽으면 좋은 시기</span><span style="font-weight: 600">0~11M · 12~18M</span></div>
+      <div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #57534E">우리 아이 반응</span><span style="font-weight: 600">자꾸 꺼내봐요</span></div>
+      <div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #57534E">페이지당 글밥량</span><span style="font-weight: 600">1문장 내외</span></div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <div style="display: flex; align-items: baseline; gap: 6px">
+            <span style="font-size: 15px; font-weight: 700">주제 태그</span>
+            <span style="font-size: 13px; color: #57534E">선택</span>
+          </div>
+        </div>
+        <button type="button" onClick="{{openSheet}}" style="flex-shrink: 0; min-height: 44px; display: inline-flex; align-items: center; gap: 2px; padding: 0 4px 0 10px; border: none; background: transparent; color: #44403C; font-size: 13px; font-weight: 600; cursor: pointer">주제 더보기
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#44403C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+        </button>
+      </div>
+      <span style="margin-top: -12px; font-size: 13px; color: #57534E">내가 고른 주제는 다른 양육자가 책을 찾을 때 도움이 돼요</span>
+
+      <sc-if value="{{hasSelected}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; background: {{accBg}}">
+          <div style="display: flex; flex-wrap: wrap; gap: 6px">
+            <sc-for list="{{selectedList}}" as="s" hint-placeholder-count="2">
+              <button type="button" onClick="{{s.remove}}" aria-label="{{s.aria}}" style="min-height: 36px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px 0 12px; border-radius: 18px; border: none; background: #FFFFFF; color: {{acc}}; font-size: 13px; font-weight: 600; cursor: pointer">
+                <span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2">
+                  <sc-if value="{{s.hasParent}}" hint-placeholder-val="{{false}}"><span style="font-size: 11px; font-weight: 500; color: #78716C">{{s.parent}}</span></sc-if>
+                  <span>{{s.main}}</span>
+                </span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{acc}}" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{limitMsg}}" hint-placeholder-val="{{false}}">
+        <div role="status" style="padding: 10px 12px; border-radius: 10px; background: #FEF3C7; color: #78350F; font-size: 13px">3개까지 고를 수 있어요. 하나를 빼고 골라주세요.</div>
+      </sc-if>
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap">
+          <span style="font-size: 13px; font-weight: 600; color: #44403C">추천 주제</span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px">
+          <sc-for list="{{freq}}" as="f" hint-placeholder-count="8">
+            <button type="button" onClick="{{f.pick}}" aria-pressed="{{f.pressed}}" aria-label="{{f.name}}" style="{{f.style}}">
+              <span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2">
+                <sc-if value="{{f.hasParent}}" hint-placeholder-val="{{false}}"><span style="{{f.parentStyle}}">{{f.parent}}</span></sc-if>
+                <span>{{f.main}}</span>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+        <sc-for list="{{mainPanels}}" as="p" hint-placeholder-count="0">
+          <div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; background: #F5F5F4">
+            <span style="font-size: 12px; color: #44403C"><span style="font-weight: 700">{{p.title}}</span> · 더 자세히 고를 수 있어요 (선택)</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px">
+              <sc-for list="{{p.subs}}" as="s" hint-placeholder-count="4">
+                <button type="button" onClick="{{s.pick}}" aria-pressed="{{s.pressed}}" style="{{s.smallStyle}}">{{s.name}}</button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{showOthers}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 12px; color: #57534E"><span style="font-weight: 600; color: #44403C">다른 양육자들은 이런 주제도 골랐어요</span> · 놓친 게 있다면 더해주세요</span>
+          <div style="display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; margin: 0 -16px; padding: 0 16px 2px">
+            <sc-for list="{{others}}" as="o" hint-placeholder-count="2">
+              <button type="button" onClick="{{o.pick}}" aria-label="{{o.aria}}" style="flex-shrink: 0; white-space: nowrap; min-height: 40px; display: inline-flex; align-items: center; gap: 4px; padding: 0 14px 0 10px; border-radius: 20px; border: 1.5px dashed #A8A29E; background: #FFFFFF; color: #1C1917; font-size: 14px; font-weight: 600; cursor: pointer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#57534E" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+                <span>{{o.label}}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <span style="font-size: 15px; font-weight: 700">책육아 일기</span>
+      <div style="min-height: 96px; padding: 12px; border: 1px solid #E7E5E4; border-radius: 12px; font-size: 14px; color: #78716C">아이와 읽으며 있었던 일을 남겨주세요</div>
+    </div>
+  </div>
+
+  <div style="flex-shrink: 0; padding: 12px 16px 20px; border-top: 1px solid #E7E5E4; background: #FFFFFF">
+    <button type="button" style="width: 100%; height: 52px; border: none; border-radius: 14px; background: {{acc}}; color: #FFFFFF; font-size: 16px; font-weight: 700; cursor: pointer">기록 저장</button>
+  </div>
+
+  <sc-if value="{{sheetOpen}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; inset: 0; background: rgba(28,25,23,0.45); display: flex; flex-direction: column; justify-content: flex-end">
+      <button type="button" onClick="{{closeSheet}}" aria-label="닫기" style="flex: 1; border: none; background: transparent; cursor: pointer"></button>
+      <div role="dialog" aria-label="전체 주제" style="height: 82%; display: flex; flex-direction: column; background: #FFFFFF; border-radius: 20px 20px 0 0; overflow: hidden">
+        <div style="flex-shrink: 0; display: flex; flex-direction: column; align-items: center; padding-top: 8px">
+          <div style="width: 40px; height: 4px; border-radius: 2px; background: #D6D3D1"></div>
+        </div>
+        <div style="flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 8px 20px">
+          <div style="display: flex; align-items: baseline; gap: 8px">
+            <span style="font-size: 17px; font-weight: 700">전체 주제</span>
+            <span style="font-size: 13px; color: #57534E">{{count}}개 골랐어요</span>
+          </div>
+          <button type="button" onClick="{{closeSheet}}" aria-label="닫기" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; cursor: pointer">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1C1917" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+          </button>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px">
+          <sc-if value="{{limitMsg}}" hint-placeholder-val="{{false}}">
+            <div role="status" style="padding: 10px 12px; border-radius: 10px; background: #FEF3C7; color: #78350F; font-size: 13px">3개까지 고를 수 있어요. 하나를 빼고 골라주세요.</div>
+          </sc-if>
+          <div style="border: 1px solid #E7E5E4; border-radius: 14px; overflow: hidden">
+            <sc-for list="{{cats}}" as="c" hint-placeholder-count="10">
+              <div style="{{c.rowStyle}}">
+                <button type="button" onClick="{{c.toggle}}" aria-expanded="{{c.expanded}}" style="width: 100%; min-height: 60px; display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 16px; border: none; background: transparent; cursor: pointer; text-align: left">
+                  <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                    <span style="font-size: 15px; font-weight: 600; color: #1C1917">{{c.name}}</span>
+                    <span style="display: block; font-size: 12px; color: #78716C; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{c.preview}}</span>
+                  </span>
+                  <sc-if value="{{c.hasCount}}" hint-placeholder-val="{{false}}">
+                    <span style="min-width: 22px; height: 22px; padding: 0 6px; box-sizing: border-box; border-radius: 11px; background: {{acc}}; color: #FFFFFF; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center">{{c.count}}</span>
+                  </sc-if>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#57534E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="{{c.chevStyle}}"><path d="M6 9l6 6 6-6"></path></svg>
+                </button>
+                <sc-if value="{{c.isOpen}}" hint-placeholder-val="{{false}}">
+                  <div style="padding: 2px 14px 16px; display: flex; flex-direction: column; gap: 10px">
+                    <sc-if value="{{c.hasNote}}" hint-placeholder-val="{{false}}">
+                      <span style="font-size: 12px; color: #57534E">{{c.note}}</span>
+                    </sc-if>
+                    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+                      <sc-for list="{{c.tags}}" as="t" hint-placeholder-count="6">
+                        <button type="button" onClick="{{t.pick}}" aria-pressed="{{t.pressed}}" style="{{t.style}}">
+                          <span style="display: flex; align-items: center; justify-content: space-between; gap: 4px">
+                            <span style="{{t.labelStyle}}">{{t.name}}</span>
+                            <sc-if value="{{t.selected}}" hint-placeholder-val="{{false}}">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{acc}}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="M5 12l5 5L20 7"></path></svg>
+                            </sc-if>
+                          </span>
+                          <span style="display: block; font-size: 12px; color: #78716C; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{t.ex}}</span>
+                          <sc-if value="{{t.hasSub}}" hint-placeholder-val="{{false}}">
+                            <span style="{{t.subTagStyle}}">{{t.subLabel}}</span>
+                          </sc-if>
+                        </button>
+                      </sc-for>
+                    </div>
+                    <sc-for list="{{c.panels}}" as="p" hint-placeholder-count="0">
+                      <div style="{{p.style}}">
+                        <span style="font-size: 14px; font-weight: 700; color: #1C1917">{{p.title}}</span>
+                        <span style="font-size: 12px; color: #57534E">{{p.hint}}</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px">
+                          <sc-for list="{{p.subs}}" as="s" hint-placeholder-count="4">
+                            <button type="button" onClick="{{s.pick}}" aria-pressed="{{s.pressed}}" style="{{s.style}}">{{s.name}}</button>
+                          </sc-for>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{sugClosed}}" hint-placeholder-val="{{true}}">
+            <button type="button" onClick="{{openSug}}" style="align-self: flex-start; min-height: 44px; padding: 0 4px; border: none; background: transparent; color: #57534E; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer">찾는 주제가 없나요?</button>
+          </sc-if>
+          <sc-if value="{{sugOpen}}" hint-placeholder-val="{{false}}">
+            <div style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 12px; border: 1px solid #E7E5E4">
+              <label for="topic-suggest-light" style="font-size: 14px; font-weight: 600">어떤 주제가 있으면 좋을까요?</label>
+              <div style="display: flex; gap: 8px">
+                <input id="topic-suggest-light" type="text" value="{{sugText}}" onChange="{{onSug}}" placeholder="예: 이사, 캠핑, 한글날" style="flex: 1; min-width: 0; height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #D6D3D1; border-radius: 10px; font-size: 15px; color: #1C1917; background: #FFFFFF">
+                <button type="button" onClick="{{sendSug}}" style="{{sendStyle}}">운영자에게 알리기</button>
+              </div>
+              <span style="font-size: 12px; color: #57534E">모인 의견을 보고 주제를 추가해요 · {{sugLen}}/30</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{toast}}" hint-placeholder-val="{{false}}">
+            <div role="status" style="padding: 12px 14px; border-radius: 12px; background: #1C1917; color: #FFFFFF; font-size: 13px">알려주셔서 고마워요. 주제를 추가할 때 참고할게요.</div>
+          </sc-if>
+        </div>
+
+        <div style="flex-shrink: 0; padding: 12px 16px 20px; border-top: 1px solid #E7E5E4">
+          <button type="button" onClick="{{closeSheet}}" style="width: 100%; height: 52px; border: none; border-radius: 14px; background: {{acc}}; color: #FFFFFF; font-size: 16px; font-weight: 700; cursor: pointer">완료</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#66775A","options":["#66775A","#3F6B4A","#B45309","#1D4ED8","#44403C"]},"hasOthers":{"editor":"boolean","default":true},"$preview":{"width":430,"height":932}}'>
+var CATS = [
+  { id: 'c1', name: '마음·감정', tags: [
+    { id: 't1a', name: '여러 가지 감정', ex: '기쁨·슬픔·화·무서움' },
+    { id: 't1b', name: '사랑·애착', ex: '사랑해·안아줘·엄마 품' },
+    { id: 't1c', name: '위로·공감', ex: '괜찮아·토닥토닥' },
+    { id: 't1d', name: '나다움·자신감', ex: '나는 나·나를 사랑해' },
+    { id: 't1e', name: '도전·회복탄력성', ex: '다시 해보기·실수해도 괜찮아' },
+    { id: 't1f', name: '이별·죽음', ex: '헤어짐·하늘나라·반려동물' } ] },
+  { id: 'c2', name: '몸·생활', tags: [
+    { id: 't2a', name: '내 몸', ex: '손·발·얼굴·키' },
+    { id: 't2b', name: '아플 때·병원', ex: '감기·주사·치과' },
+    { id: 't2c', name: '생활습관', ex: '잠·밥·양치·배변', subs: ['잠', '밥 먹기', '양치·씻기', '배변', '옷 입기·정리'] },
+    { id: 't2d', name: '안전', ex: '길 건너기·불·낯선 사람' } ] },
+  { id: 'c3', name: '가족', tags: [
+    { id: 't3a', name: '엄마', ex: '엄마와 나·엄마 마음' },
+    { id: 't3b', name: '아빠', ex: '아빠와 놀기·아빠 마음' },
+    { id: 't3c', name: '형제자매', ex: '동생·언니·형·누나·오빠' },
+    { id: 't3d', name: '조부모·친척', ex: '할머니·할아버지·이모·삼촌' } ] },
+  { id: 'c4', name: '친구·세상', tags: [
+    { id: 't4a', name: '친구', ex: '사이좋게·다툼·화해' },
+    { id: 't4b', name: '배려·협력', ex: '나눔·양보·함께' },
+    { id: 't4c', name: '다양성', ex: '다른 생김새·장애·다른 나라' },
+    { id: 't4d', name: '어린이집·유치원·학교', ex: '첫 등원·입학·새 학기' },
+    { id: 't4e', name: '우리 동네', ex: '집·이사·가게·이웃·직업' },
+    { id: 't4f', name: '여행·나들이', ex: '캠핑·소풍·비행기 여행' } ] },
+  { id: 'c5', name: '동물', note: '사는 곳으로 나눴어요. 곤충·벌레와 공룡은 따로 있어요.', tags: [
+    { id: 't5a', name: '집·농장 동물', ex: '강아지·고양이·소·닭' },
+    { id: 't5b', name: '숲·들 동물', ex: '토끼·곰·다람쥐·판다' },
+    { id: 't5c', name: '초원·정글 동물', ex: '사자·코끼리·기린·원숭이' },
+    { id: 't5d', name: '추운 곳 동물', ex: '펭귄·북극곰·물개' },
+    { id: 't5e', name: '바다 동물', ex: '물고기·고래·문어·게·조개' },
+    { id: 't5f', name: '곤충·벌레', ex: '나비·개미·무당벌레·달팽이' },
+    { id: 't5g', name: '공룡', ex: '티라노사우루스·화석' } ] },
+  { id: 'c6', name: '자연·계절', tags: [
+    { id: 't6a', name: '식물', ex: '꽃·나무·씨앗·텃밭' },
+    { id: 't6b', name: '계절·날씨', ex: '봄·여름·가을·겨울·비·눈', subs: ['봄', '여름', '가을', '겨울', '비·눈·바람'] },
+    { id: 't6c', name: '하늘·우주', ex: '달·별·해·행성', subs: ['달', '별', '우주·행성'] },
+    { id: 't6d', name: '바다·산·숲', ex: '파도·모래놀이·계곡' },
+    { id: 't6e', name: '환경 지키기', ex: '지구·쓰레기·재활용' },
+    { id: 't6f', name: '자연관찰·세밀화', ex: '관찰·도감·세밀화' } ] },
+  { id: 'c7', name: '명절·기념일·전통', tags: [
+    { id: 't7a', name: '설·새해', ex: '떡국·세배·복주머니' },
+    { id: 't7b', name: '추석', ex: '송편·보름달·성묘' },
+    { id: 't7c', name: '크리스마스', ex: '산타·선물·트리' },
+    { id: 't7d', name: '할로윈', ex: '호박·변장·사탕' },
+    { id: 't7e', name: '어린이날·어버이날', ex: '카네이션·선물' },
+    { id: 't7f', name: '생일', ex: '케이크·촛불·파티' },
+    { id: 't7g', name: '전통·우리 것', ex: '한복·한글·전통놀이·절기' } ] },
+  { id: 'c8', name: '탈것·음식·물건', tags: [
+    { id: 't8a', name: '탈것', ex: '자동차·기차·중장비·배', subs: ['자동차·버스', '기차·지하철', '중장비·소방차', '비행기', '배'] },
+    { id: 't8b', name: '음식', ex: '과일·채소·빵·요리', subs: ['과일', '채소', '빵·간식'] },
+    { id: 't8c', name: '생활 물건', ex: '첫 낱말·옷·신발·장난감' } ] },
+  { id: 'c9', name: '말·인지', tags: [
+    { id: 't9a', name: '말놀이·말배우기', ex: '의성어·첫 말·끝말잇기' },
+    { id: 't9b', name: '숫자·세기', ex: '하나 둘 셋·더하기' },
+    { id: 't9c', name: '모양·크기', ex: '동그라미·네모·크다 작다' },
+    { id: 't9d', name: '색깔', ex: '빨강·노랑·무지개' },
+    { id: 't9e', name: '시간·하루', ex: '아침·밤·시계·요일' } ] },
+  { id: 'c10', name: '놀이·재미·상상', tags: [
+    { id: 't10a', name: '노래·동요', ex: '따라 부르기·리듬' },
+    { id: 't10b', name: '몸놀이', ex: '따라 하기·간지럼·까꿍' },
+    { id: 't10c', name: '웃음·유머', ex: '엉뚱·반전·말장난' },
+    { id: 't10d', name: '똥·방귀', ex: '똥·방귀·코딱지' },
+    { id: 't10e', name: '상상·판타지', ex: '괴물·마법·꿈·모험', required: true, subs: ['괴물·도깨비', '마법·신기한 일', '꿈', '다른 세계', '모험·보물찾기'] } ] }
+];
+
+var FREQ = ['t1a', 't3a', 't2c', 't6b', 't1b', 't9a', 't3b', 't5a'];
+var BOOK_MATCH = [ { tag: 't6c', sub: 0 }, { tag: 't2c', sub: 0 } ];
+var OTHERS = [ { tag: 't1b', sub: null }, { tag: 't9a', sub: null }, { tag: 't3a', sub: null } ];
+
+var TAGS = {};
+CATS.forEach(function (c) { c.tags.forEach(function (t) { TAGS[t.id] = t; }); });
+
+function tint(hex, a) {
+  var h = String(hex || '#3F6B4A').replace('#', '');
+  if (h.length === 3) { h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; }
+  var n = parseInt(h, 16);
+  if (isNaN(n)) { n = 0x3F6B4A; }
+  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+}
+
+function subId(tag, i) { return tag.id + '_' + i; }
+
+function pill(on, acc) {
+  return 'min-height: 40px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; ' +
+    (on ? 'border: 1.5px solid ' + acc + '; background: ' + acc + '; color: #FFFFFF' : 'border: 1.5px solid #F3ECE0; background: #F3ECE0; color: #4A4238');
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: {}, imag: {}, sheetOpen: false, open: null, limit: false, sugOpen: false, sugText: '', toast: false, focus: null };
+  }
+
+  componentWillUnmount() {
+    if (this.timer) { clearTimeout(this.timer); }
+    if (this.limitTimer) { clearTimeout(this.limitTimer); }
+  }
+
+  anySub(tag, sel) {
+    if (!tag.subs) { return false; }
+    for (var i = 0; i < tag.subs.length; i++) { if (sel[subId(tag, i)]) { return true; } }
+    return false;
+  }
+
+  isOn(tag, sel) { return tag.required ? this.anySub(tag, sel) : !!sel[tag.id]; }
+
+  countOf(sel) {
+    var self = this; var n = 0;
+    Object.keys(TAGS).forEach(function (id) { if (self.isOn(TAGS[id], sel)) { n++; } });
+    return n;
+  }
+
+  clearSubs(tag, sel) {
+    if (!tag.subs) { return; }
+    for (var i = 0; i < tag.subs.length; i++) { delete sel[subId(tag, i)]; }
+  }
+
+  flashLimit() {
+    var self = this;
+    this.setState({ limit: true });
+    if (this.limitTimer) { clearTimeout(this.limitTimer); }
+    this.limitTimer = setTimeout(function () { self.setState({ limit: false }); }, 2500);
+  }
+
+  pickTag(tag) {
+    var sel = Object.assign({}, this.state.sel);
+    var imag = Object.assign({}, this.state.imag);
+    var full = false;
+    if (tag.required) {
+      if (this.anySub(tag, sel)) { this.clearSubs(tag, sel); delete sel[tag.id]; imag[tag.id] = false; }
+      else if (imag[tag.id]) { imag[tag.id] = false; }
+      else if (full) { this.flashLimit(); return; }
+      else { imag[tag.id] = true; }
+    } else if (sel[tag.id]) {
+      delete sel[tag.id]; this.clearSubs(tag, sel);
+    } else {
+      if (full) { this.flashLimit(); return; }
+      sel[tag.id] = true;
+    }
+    var focus = sel[tag.id] && tag.subs && !tag.required ? tag.id : (sel[tag.id] ? null : (this.state.focus === tag.id ? null : this.state.focus));
+    this.setState({ sel: sel, imag: imag, limit: false, focus: focus });
+  }
+
+  pickSub(tag, i) {
+    var sel = Object.assign({}, this.state.sel);
+    var id = subId(tag, i);
+    if (sel[id]) {
+      delete sel[id];
+      if (tag.required && !this.anySub(tag, sel)) { delete sel[tag.id]; }
+    } else {
+      sel[id] = true; sel[tag.id] = true;
+    }
+    this.setState({ sel: sel, limit: false, focus: this.isOn(tag, sel) && !tag.required ? tag.id : (this.state.focus === tag.id ? null : this.state.focus) });
+  }
+
+  pickOther(o) {
+    var tag = TAGS[o.tag];
+    var sel = Object.assign({}, this.state.sel);
+    var on = this.isOn(tag, sel) && (o.sub === null || !!sel[subId(tag, o.sub)]);
+    if (on) {
+      if (o.sub === null) { delete sel[tag.id]; this.clearSubs(tag, sel); }
+      else { delete sel[subId(tag, o.sub)]; if (!this.anySub(tag, sel)) { delete sel[tag.id]; } }
+    } else {
+      sel[tag.id] = true;
+      if (o.sub !== null) { sel[subId(tag, o.sub)] = true; }
+    }
+    var nowOn = this.isOn(tag, sel);
+    this.setState({ sel: sel, limit: false, focus: nowOn ? (tag.subs && !tag.required ? tag.id : null) : (this.state.focus === tag.id ? null : this.state.focus) });
+  }
+
+  removeTag(tag) {
+    var sel = Object.assign({}, this.state.sel);
+    var imag = Object.assign({}, this.state.imag);
+    delete sel[tag.id]; this.clearSubs(tag, sel); imag[tag.id] = false;
+    this.setState({ sel: sel, imag: imag, focus: this.state.focus === tag.id ? null : this.state.focus });
+  }
+
+  removeSub(tag, i) {
+    var sel = Object.assign({}, this.state.sel);
+    delete sel[subId(tag, i)];
+    if (!this.anySub(tag, sel)) { delete sel[tag.id]; }
+    this.setState({ sel: sel, focus: (this.state.focus === tag.id && !this.isOn(tag, sel)) ? null : this.state.focus });
+  }
+
+  sendSug() {
+    var text = this.state.sugText.trim();
+    if (!text) { return; }
+    var self = this;
+    this.setState({ sugText: '', sugOpen: false, toast: true });
+    if (this.timer) { clearTimeout(this.timer); }
+    this.timer = setTimeout(function () { self.setState({ toast: false }); }, 2800);
+  }
+
+  renderVals() {
+    var self = this;
+    var acc = this.props.accent ?? '#66775A';
+    var hasOthers = this.props.hasOthers ?? true;
+    var accBg = tint(acc, 0.08);
+    var st = this.state;
+    var sel = st.sel;
+    var count = this.countOf(sel);
+
+    var selectedList = [];
+    var mainPanels = [];
+    CATS.forEach(function (c) {
+      c.tags.forEach(function (t) {
+        if (!self.isOn(t, sel)) { return; }
+        var subChosen = self.anySub(t, sel);
+        if (t.subs && subChosen) {
+          t.subs.forEach(function (sn, i) {
+            if (sel[subId(t, i)]) {
+              selectedList.push({ label: t.name + ' › ' + sn, main: sn, parent: t.name, hasParent: true, aria: t.name + ' ' + sn + ' 빼기', remove: function () { self.removeSub(t, i); } });
+            }
+          });
+        } else {
+          selectedList.push({ label: t.name, main: t.name, parent: '', hasParent: false, aria: t.name + ' 빼기', remove: function () { self.removeTag(t); } });
+        }
+        if (t.subs && !t.required && st.focus === t.id) {
+          mainPanels.push({
+            title: t.name,
+            subs: t.subs.map(function (sn, i) {
+              var on = !!sel[subId(t, i)];
+              return {
+                name: sn,
+                pressed: on ? 'true' : 'false',
+                pick: function () { self.pickSub(t, i); },
+                smallStyle: 'min-height: 34px; padding: 0 12px; border-radius: 17px; font-size: 13px; font-weight: 600; cursor: pointer; ' + (on ? 'border: 1.5px solid ' + acc + '; background: ' + acc + '; color: #FFFFFF' : 'border: 1.5px solid #FFFFFF; background: #FFFFFF; color: #1C1917')
+              };
+            })
+          });
+        }
+      });
+    });
+
+    var others = OTHERS.filter(function (o) {
+      var tag = TAGS[o.tag];
+      return !(self.isOn(tag, sel) && (o.sub === null || !!sel[subId(tag, o.sub)]));
+    }).map(function (o) {
+      var tag = TAGS[o.tag];
+      var label = o.sub === null ? tag.name : tag.name + ' › ' + tag.subs[o.sub];
+      return { label: label, aria: label + ' 더하기', pick: function () { self.pickOther(o); } };
+    });
+
+    var recItems = (hasOthers ? BOOK_MATCH : []).slice();
+    FREQ.forEach(function (id) {
+      if (recItems.length >= 8) { return; }
+      if (recItems.some(function (r) { return r.tag === id; })) { return; }
+      recItems.push({ tag: id, sub: null });
+    });
+    var freq = recItems.map(function (o) {
+      var tag = TAGS[o.tag];
+      var on = o.sub === null ? self.isOn(tag, sel) : (self.isOn(tag, sel) && !!sel[subId(tag, o.sub)]);
+      var label = o.sub === null ? tag.name : tag.name + ' › ' + tag.subs[o.sub];
+      return {
+        name: label,
+        main: o.sub === null ? tag.name : tag.subs[o.sub],
+        parent: o.sub === null ? '' : tag.name,
+        hasParent: o.sub !== null,
+        parentStyle: 'font-size: 11px; font-weight: 500; color: ' + (on ? 'rgba(255,255,255,0.85)' : '#6F6557'),
+        pressed: on ? 'true' : 'false',
+        style: pill(on, acc).replace('min-height: 40px', 'min-height: 44px'),
+        pick: o.sub === null ? function () { self.pickTag(tag); } : function () { self.pickOther(o); }
+      };
+    });
+
+    var cats = CATS.map(function (c, ci) {
+      var n = 0;
+      var panels = [];
+      var tags = c.tags.map(function (t) {
+        var subChosen = self.anySub(t, sel);
+        var selected = self.isOn(t, sel);
+        var pending = t.required && !!st.imag[t.id] && !subChosen;
+        if (selected) { n++; }
+        if (t.subs && (selected || pending)) {
+          panels.push({
+            title: t.required ? t.name + ' · 어떤 상상인가요?' : t.name + ' · 더 자세히',
+            hint: t.required ? '하나 이상 골라주세요. 동물이 말하는 것만으로는 해당하지 않아요.' : '고르지 않아도 괜찮아요',
+            style: 'display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 12px; background: ' + (t.required ? accBg : '#F5F5F4') + (pending ? '; border: 1.5px dashed ' + acc : '; border: 1.5px solid transparent'),
+            subs: t.subs.map(function (sn, i) {
+              var on = !!sel[subId(t, i)];
+              return { name: sn, pressed: on ? 'true' : 'false', pick: function () { self.pickSub(t, i); }, style: pill(on, acc) };
+            })
+          });
+        }
+        var border = selected ? '1.5px solid ' + acc : (pending ? '1.5px dashed ' + acc : '1.5px solid #E7E5E4');
+        return {
+          name: t.name,
+          ex: t.ex,
+          selected: selected,
+          pressed: selected ? 'true' : 'false',
+          hasSub: !!t.subs,
+          subLabel: t.required ? '세부 선택 필요' : '세부 선택 가능',
+          subTagStyle: 'align-self: flex-start; margin-top: 2px; padding: 2px 6px; border-radius: 6px; font-size: 11px; font-weight: 600; ' + (t.required ? 'background: ' + acc + '; color: #FFFFFF' : 'background: #F5F5F4; color: #57534E'),
+          labelStyle: 'font-size: 14px; font-weight: 700; color: ' + (selected ? acc : '#1C1917') + '; min-width: 0',
+          style: 'width: 100%; min-height: 64px; box-sizing: border-box; display: flex; flex-direction: column; align-items: stretch; gap: 3px; padding: 10px 12px; border-radius: 12px; text-align: left; cursor: pointer; border: ' + border + '; background: ' + (selected ? accBg : '#FFFFFF'),
+          pick: function () { self.pickTag(t); }
+        };
+      });
+      var isOpen = st.open === c.id;
+      return {
+        name: c.name,
+        preview: c.tags.map(function (t) { return t.name; }).join(' · '),
+        count: n,
+        hasCount: n > 0,
+        isOpen: isOpen,
+        expanded: isOpen ? 'true' : 'false',
+        hasNote: !!c.note,
+        note: c.note || '',
+        tags: tags,
+        panels: panels,
+        rowStyle: (ci > 0 ? 'border-top: 1px solid #E7E5E4; ' : '') + (isOpen ? 'background: #FAFAF9' : 'background: #FFFFFF'),
+        chevStyle: 'flex-shrink: 0; transition: transform 160ms ease; transform: rotate(' + (isOpen ? 180 : 0) + 'deg)',
+        toggle: function () { self.setState({ open: st.open === c.id ? null : c.id }); }
+      };
+    });
+
+    return {
+      acc: acc,
+      accBg: accBg,
+      bookTitle: hasOthers ? '달님 안녕' : '[처음 기록되는 책]',
+      bookMeta: hasOthers ? '하야시 아키코 · 한림출판사' : '이 책의 다른 기록이 아직 없을 때',
+      count: count,
+      counterStyle: 'font-size: 13px; font-weight: 700; color: ' + (count >= 3 ? acc : '#57534E'),
+      selectedList: selectedList,
+      mainPanels: mainPanels,
+      hasSelected: selectedList.length > 0,
+      showOthers: !!hasOthers && count > 0 && others.length > 0,
+      recCaption: hasOthers ? '앞의 2개는 책 소개에서 찾았어요' : '책 소개에서 찾은 주제가 없어 자주 쓰는 주제로 채웠어요',
+      others: others,
+      freq: freq,
+      cats: cats,
+      limitMsg: st.limit,
+      sheetOpen: st.sheetOpen,
+      openSheet: function () { self.setState({ sheetOpen: true }); },
+      closeSheet: function () { self.setState({ sheetOpen: false, limit: false }); },
+      sugOpen: st.sugOpen,
+      sugClosed: !st.sugOpen,
+      sugText: st.sugText,
+      sugLen: st.sugText.length,
+      toast: st.toast,
+      openSug: function () { self.setState({ sugOpen: true, toast: false }); },
+      onSug: function (e) { self.setState({ sugText: String(e.target.value || '').slice(0, 30) }); },
+      sendSug: function () { self.sendSug(); },
+      sendStyle: 'flex-shrink: 0; height: 44px; padding: 0 14px; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; ' + (st.sugText.trim() ? 'background: ' + acc + '; color: #FFFFFF' : 'background: #E7E5E4; color: #57534E')
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -73,7 +73,7 @@ export default function TopicFilterBar({
               href={`/?tag=${encodeURIComponent(name)}`}
               className={tagChip(name === activeTag)}
             >
-              #{name}
+              {name}
             </Link>
           ))}
         </div>

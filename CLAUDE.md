@@ -238,7 +238,7 @@ Supabase에 시드 데이터로 이미 등록 완료
         카테고리는 operator_tags.tag_category(텍스트)라 해당 값 UPDATE. 코드 상수 TAG_CATEGORIES·TOPIC_CATEGORY_ORDER 동시 변경.
   ■ 신규 태그: 나다움 / 감정·마음 / 회복탄력성 / 배려·협력  (구 '인성/감정/회복탄력성'을 SEL 축으로 분할)
   ■ 이름 정리: 슬래시(/)→가운뎃점(·), 어린이집/유치원/학교→기관, 몸/신체→몸·건강, 명절/기념일→명절·기념일 등
-  ■ 형태 축 폐지: 조작북·병풍/팝업책·양장본 태그 비활성. 보드북은 태그가 아니라 books.is_board_book(책 속성)
+  ■ 형태 축 폐지: 형태 태그(보드북·조작북·병풍/팝업책·양장본) 삭제(2026.10.22, 기록 0건). 보드북은 태그가 아니라 books.is_board_book(책 속성)
     체크박스로 기록 시 입력(첫 기록 때 체크, 수정 가능). 씨앗·새싹에 유용. 홈 피드 표현은 미정(Deferred).
   ■ SEL 세분화는 '감정·마음/회복탄력성/배려·협력' 수준까지만(더 잘게 안 나눔 — '많다' 회귀 방지).
   ■ 구현 순서(내일): (a) 마이그레이션 SQL — operator_tags에 category 컬럼 + 태그 rename/신규/비활성
@@ -811,9 +811,9 @@ supabase/*.sql
       ✅ #C 표지 눌림 효과(2026.10): BookCard·Bookshelf 표지에 active:scale-[0.96]·opacity-80. 카드 전체가 아닌 표지에만
          (카드 안 저장 버튼을 누를 때 카드가 눌린 듯 보이지 않게).
       ※ A 측정(책 페이지): 앱 내 이동 0.9~1.8초 → 약 0.26초, 직접 열기 1.3~2.0초 → 0.26~0.89초(앞 두 번은 배포 직후 콜드).
-      □ #3 이미지(B안 — Vercel 이미지 최적화 한도·비용 회피): next/image 대신 <img>에 width/height(레이아웃 밀림 방지)·
+      ⏸ #3 이미지(보류 2026.10.22 — 서울 리전·로딩 뼈대 후 체감 양호, 느림 이슈 재발 시 검토)(B안 — Vercel 이미지 최적화 한도·비용 회피): next/image 대신 <img>에 width/height(레이아웃 밀림 방지)·
          decoding=async·첫 화면 커버 fetchpriority. 비용 0.
-      □ #4 cold start 완화: 외부 uptime 핑(5분) — 운영 작업(코드 아님).
+      ⏸ #4 cold start 완화(보류 2026.10.22 — 첫 접속만 약간 느린 수준이라 수용, 재발 시 검토): 외부 uptime 핑(5분) — 운영 작업(코드 아님).
   □ [성능 단계 2] 대규모 전환 — 마이페이지 운영자 '서비스 규모' 상자 또는 scripts/check-scale.mjs가 🟡(70%)/🔴(90%)일 때 착수.
       기준(현재 2026.10: 캐시 3%·가장 큰 시기 8%·sitemap 0%):
       (a) 피드 캐시 크기 ≥ 2MB의 70% (책 약 3,000권~) → 2MB 초과 시 Next가 캐시를 저장하지 않음(운영=경고만, 결과는 정확하나
@@ -1141,3 +1141,4 @@ CLAUDE.md v1.6
 CLAUDE.md v1.7
 2026.08.25
 도서 검색 API 전환: 알라딘 Open API 종료 대응 → 카카오 Daum 책 검색 API(13.1). 어댑터 방식(라우트 응답 형태 유지)이라 프론트·저장 로직 무변경. 이후 '알라딘 표기 삭제' 정리(2026.08.26): 라우트 /api/aladin/search→/api/books/search 이동(구 경로 삭제), 내부 명칭(AladinItem→CatalogItem 등)·UI 라벨('알라딘에서 보기'→'책 정보 보기')·문서 현재상태 표기를 카카오/중립으로 교체. DB 컬럼도 배포 전이라 리네임: aladin_item_id→book_key, aladin_url→source_url (supabase/rename_aladin_columns.sql — RENAME COLUMN 메타데이터 연산, search_books 함수 재정의 포함). 코드 34곳 tsc 검증. 검증 스파이크로 카카오 실측(속도 76ms·표지 100%·영어원서·판매상태 OK, 유일 약점=카테고리 노이즈) 후 결정. 카테고리 노이즈는 라우트 내부 재정렬로 보완(src/lib/pictureBookRanking.ts: 제목 중복정리→개정판 대표 + 그림책 출판사 부스트 + 문제집/세트 페널티, 추가 호출 0). 바코드 target=isbn 분기 신규. 표지 폴백 공용 컴포넌트 '제목 카드'(BookCover.tsx, onError 포함) → 기록폼·검색에 배선. 국립중앙도서관(부가기호=77) 완전 카탈로그는 개인 접근 문턱·영어원서/판매상태 손실로 A안(카카오) 채택, B안(대량수집)·출판사 자동도출·수동입력 백스톱은 Deferred TODO. 문의·건의 채널=구글폼(일방향, 회신 선택) 마이페이지 하단+검색 빈 상태 배선(src/lib/feedback.ts). 환경변수 KAKAO_CLIENT_ID(배포 시 Vercel 등록). ALADIN_TTB_KEY는 미사용이나 보관(2026.08.26 결정). ⚠️ 스파이크 파일 spike_book_search.mjs·spike_rank_test.mjs는 검증용(배포 전 정리).
+주제 태그 관련 작업을 할 때는 docs/taxonomy/DECISIONS.md를 먼저 끝까지 읽고 그 원칙과 결정을 따를 것.

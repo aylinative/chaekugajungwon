@@ -107,7 +107,7 @@ export default function GroupBrowser({
                   onClick={() => setActiveTag((t) => (t === name ? null : name))}
                   className={tagChip(name === activeTag)}
                 >
-                  #{name}
+                  {name}
                 </button>
               ))}
             </div>

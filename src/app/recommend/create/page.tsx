@@ -743,7 +743,7 @@ function RecommendCreateInner() {
                       : 'bg-surface-muted text-text/70'
                   }`}
                 >
-                  #{topic}
+                  {topic}
                 </button>
               ))}
             </div>
