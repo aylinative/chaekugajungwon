@@ -111,7 +111,7 @@ OAuth 2.0 (Supabase Auth 연동)
 6. 홈 피드 상세 스펙
 6.1 전체 구조
 상단 고정 헤더: 앱 로고 + 검색 아이콘
-전체 주제 태그 필터 바: 운영자가 설정한 태그 가로 스크롤 칩
+전체 주제 태그 필터 바: 큰 분류(가로 스크롤) → 주제 칩 → 세부 (8.1 필터 규칙)
 시기 섹션 × 6개 (씨앗/새싹/꽃잎/열매/나무/어른) 세로 배치
 6.2 시기 섹션 구조 (각 섹션 동일 패턴)
 섹션 헤더: 시기 이름 배지 + 연령 설명 + 더보기 버튼
@@ -206,47 +206,38 @@ UI 레퍼런스: TripAdvisor 홈 피드 구조 참고
 
 
 8. 태그 시스템
-8.1 운영자 태그
-운영자가 직접 생성 및 관리
-홈 피드 상단 필터 바 및 각 시기의 서브 필터에 표시
-태그 클릭 시 해당 태그가 붙은 기록만 필터링 (노션 장르별 보드 방식)
-태그 비활성화는 삭제 대신 is_active 필드로 처리 (히스토리 데이터 보존)
-Supabase에 시드 데이터로 이미 등록 완료
-
-운영자 태그 목록 (구버전, 마이그레이션 전 현재 DB): 가족, 친구, 계절, 명절/기념일, 인성/감정/회복탄력성, 다양성, 공룡, 동물, 식물, 곤충, 음식, 생활습관, 색깔, 잠자리독서, 똥/방귀, 말놀이/수놀이, 몸/신체, 어린이집/유치원/학교, 탈것, 캐릭터, 보드북, 조작북, 병풍/팝업책, 양장본 (24개)
-
-★ 태그 MECE 재정리 — 구현 완료 (2026.08.25 마이그레이션 적용, 이후 태그 추가·개명 반영). 현재 DB 상태:
-  ■ 설계 논리: '시선의 방향'(나→가족→사회·관계→세상)으로 대표 카테고리를 나눔. 요즘 강조되는
-    SEL(자기이해·자기조절→사회성·관계)과도 일치. 단, 화면 라벨은 추상적('나') 대신 구체적으로
-    (안에 뭐가 있는지 라벨만 봐도 알게 — discoverability).
-  ■ 6개 대표 카테고리 + 하위 태그 (다중 선택 유지, 카테고리 탭→하위 태그 드릴다운). ★현재 활성 DB 기준:
-    1) 나·마음·몸·습관 : 나다움 · 인성·감정·마음 · 회복탄력성 · 생활습관 · 잠자리독서 · 몸·건강
-    2) 가족           : 아빠 · 엄마 · 형제자매 · 할머니·할아버지 · 친척   (구 일반 '가족' 태그는 비활성 — 카테고리명과 중복)
-    3) 사회·관계       : 친구 · 배려·협력 · 다양성 · 기관/학교   (구 '친구·사회' — rename 2026.09.28)
-    4) 자연·생물       : 동물 · 공룡 · 곤충 · 식물 · 계절 · 바다 · 과일
-    5) 사물·인지       : 탈것 · 음식 · 색깔 · 명절·기념일·전통 · 시간   (구 '사물·개념' — rename 2026.09.28. 명절·기념일·전통은 놀이·말→여기 이동)
-    6) 놀이·말         : 말놀이·수놀이 · 똥·방귀 · 캐릭터 · 생일 · 형태가재밌는북 · 몸놀이   (캐릭터=토이북 포함)
-  ■ 재정리 이후 변경 이력(마이그레이션):
-    · add_family_subtags.sql — 가족 하위(아빠·엄마·형제자매·할머니·할아버지)
-    · adjust_family_institution_tags.sql — 일반 '가족' 비활성, '친척' 신규, 기관→기관/학교
-    · add_topic_tags_2.sql — 형태가재밌는북·몸놀이(놀이·말), 바다·과일(자연·생물), 명절·기념일 사물·개념으로 이동
-    · add_time_tag.sql — '시간'(사물·개념) 신규 (2026.09)
-    · rename_emotion_tag.sql — '감정·마음' → '인성·감정·마음' (2026.09)
-    · add_birthday_tag.sql — '생일'(놀이·말) 신규 + 바닷속 생일 파티·부릉부릉 누구 생일? 연결 (2026.09)
-    · rename_holiday_tag.sql — '명절·기념일' → '명절·기념일·전통' (2026.09)
-    · rename_categories_social_cognition.sql — 카테고리 rename '친구·사회'→'사회·관계', '사물·개념'→'사물·인지' (2026.09.28).
-        카테고리는 operator_tags.tag_category(텍스트)라 해당 값 UPDATE. 코드 상수 TAG_CATEGORIES·TOPIC_CATEGORY_ORDER 동시 변경.
-  ■ 신규 태그: 나다움 / 감정·마음 / 회복탄력성 / 배려·협력  (구 '인성/감정/회복탄력성'을 SEL 축으로 분할)
-  ■ 이름 정리: 슬래시(/)→가운뎃점(·), 어린이집/유치원/학교→기관, 몸/신체→몸·건강, 명절/기념일→명절·기념일 등
-  ■ 형태 축 폐지: 형태 태그(보드북·조작북·병풍/팝업책·양장본) 삭제(2026.10.22, 기록 0건). 보드북은 태그가 아니라 books.is_board_book(책 속성)
-    체크박스로 기록 시 입력(첫 기록 때 체크, 수정 가능). 씨앗·새싹에 유용. 홈 피드 표현은 미정(Deferred).
-  ■ SEL 세분화는 '감정·마음/회복탄력성/배려·협력' 수준까지만(더 잘게 안 나눔 — '많다' 회귀 방지).
-  ■ 구현 순서(내일): (a) 마이그레이션 SQL — operator_tags에 category 컬럼 + 태그 rename/신규/비활성
-    + books.is_board_book. 기존 post_tags는 tag_id 유지(rename은 name만). 구 '인성/감정/회복탄력성'(uses=2)은
-    감정·마음으로 이어받음. (b) 기록 폼: 하드코딩 topicOptions 제거 → DB 태그 카테고리별 로드 + 보드북 체크박스.
-    (c) 필터 UI: 대표 카테고리→하위 태그 드릴다운(홈 서브필터·마이 주제별 보기 토대).
-  ⚠️ 현재 폼 topicOptions(하드코딩)가 DB와 어긋나 있음(폼 '기관' vs DB '어린이집/유치원/학교', DB '양장본' 폼 없음).
-    → 폼 DB연동으로 근본 해결.
+8.1 주제 태그 (2026.10 개편 — 상세: docs/taxonomy/DECISIONS.md, 주제 태그 작업 전 끝까지 읽을 것)
+■ 용어: 큰 분류(10, 묶음·고르는 대상 아님) / 주제(56, 고르는 단위) / 세부(43, 11개 주제에만, 모두 선택 사항)
+  코드·DB: operator_tags.level = 'topic' | 'detail', 세부는 parent_id로 상위 주제 연결, 큰 분류 = tag_category(이름), 고유값 = slug
+■ 큰 분류 10개 (lib/tagCategories.ts): 마음·감정 / 몸·생활 / 가족 / 친구·세상 / 동물 / 자연·계절 /
+  명절·기념일·전통 / 탈것·음식·물건 / 말·인지 / 놀이·재미·상상  (전체 목록·별칭: docs/taxonomy/aliases_v1.csv)
+■ 확정 원칙
+  1) 태그는 작성자가 입력할 때 직접 고른 것만 저장. 기존 기록에 소급하지 않음(개편 때 운영자 재분류 76건만 예외)
+  2) 고르는 개수 상한 없음
+  3) 추천 주제·다른 양육자 선택은 미리 선택해 두지 않음
+  4) 다른 양육자 선택은 사용자가 하나 이상 고른 뒤에만, 인원수 없이 (쏠림 방지).
+     2명(기록 2건) 이상이 고른 주제만, 최대 3개 (2026.10.30 운영자 — 한 사람의 선택이 정답처럼 보이지 않게)
+  5) 고르는 칩에는 '#' 없음 / 보여주는 태그(카드·책·상세)에는 '#'
+  6) 지우기 = 화면의 칩 하나 단위 (세부 칩 × → 그 세부, 마지막 세부면 주제도)
+■ 저장 규칙: 세부를 고르면 주제+세부 둘 다 저장. 활성 태그 slug만 받음(직접 입력 없음 — 8.2). lib/topicSave.ts
+  수정 저장은 바뀐 것만(diff) — 숨김 태그 연결·옛 custom_tag는 그대로 보존.
+■ post_tags.source (운영자만 보는 값): recommend=추천 주제 / others=다른 양육자 줄 / all=주제 더보기 시트 /
+  legacy=개편 전 기록 / reclassify=개편 때 운영자 재분류. 'others' 비율이 높으면 쏠림 신호(운영자 화면 통계).
+■ 필터 규칙 (lib/topicDisplay.ts 단일 소스): 세부=그 세부만 / 주제=주제+그 세부 / 큰 분류=그 분류의 모든 태그(숨김 포함).
+  홈 주소 /?cat=큰분류&tag=slug (옛 ?tag=태그이름도 받음). 시기 더보기도 같은 컴포넌트(components/feed/TopicFilter).
+■ 표시 규칙: 세부가 있으면 세부 이름만(#달 — 같은 기록의 그 주제는 생략), 숨김(개편 전) 태그도 그 기록엔 그대로 표시.
+■ 숨김 = is_active=false, 삭제 아님(연결 유지). 옛 태그 8개 숨김 보존(인성·감정·마음, 몸·건강, 동물, 명절·기념일·전통,
+  말놀이·수놀이, 숨은그림찾기, 친척 등) — 큰 분류 필터에서는 계속 보임.
+■ 기록하기 화면(components/record/): 책 소개(카카오 contents)를 참고한 추천 주제 최대 3개 + 세부 줄 + 주제 더보기 시트(큰 분류 아코디언)
+  + 다른 양육자 줄 + '찾는 주제가 없나요?'(topic_suggestions, 운영자 화면에서 집계). 매칭은 브라우저에서(lib/topicMatch.ts, 서버 호출 없음).
+  주제 목록은 /api/topics(하루 캐시, 운영자 태그 변경 시 revalidateTopics). 개발용: DB 개편 전이면 CSV로 미리보기(로컬 전용).
+  ※ 매칭 정확도는 '넘어가도 될 정도'(2026.10.30 운영자) — 운영자 화면에서 별칭을 고쳐가며 개선.
+■ 보드북은 태그가 아니라 books.is_board_book 체크박스(물성). 형태 태그 4개(보드북·조작북·병풍/팝업책·양장본)는 삭제(2026.10.22).
+■ 운영자 화면(/admin/tags): 큰 분류 → 주제 → 세부, 태그마다 이름·칩 예시·검색 별칭·소개 매칭어·소개 제외어·정렬·숨김 수정,
+  세부 추가, 고른 경로 통계(최근 30일), 사용자 제안(대기/추가함/보류). '추가함'은 표시만 — 태그는 직접 추가.
+■ 파일: docs/taxonomy/ — DECISIONS.md(결정·이유), aliases_v1.csv(별칭 사전 = 분류 정본), mapping_v1.csv(옛 37개 태그 처리),
+  reclassify_*.csv(재분류 76건), 주제_별칭사전_최종본_v1.xlsx(보기용). SQL: supabase/taxonomy_v2_{migration,verify,rollback}.sql
+  (2026.10.30 실행 완료). CSV를 고치면 scripts/taxonomy/gen_migration_sql.cjs로 SQL 재생성, 확인은 scripts/taxonomy/check-taxonomy.mjs.
 
 📌 시기(연령)와 주제 태그는 별개의 분류축. 한 기록에 동시에 붙일 수 있음. 예: "열매" 시기 + "공룡" 태그. (형태는 별도 보드북 체크)
 8.2 사용자 추가 태그 — 두지 않음 (2026.10.28 확정)
@@ -548,6 +539,7 @@ SNS 공유
 책 제목 또는 작가명 입력 → 두 섹션 구조 (2026.08 확정. 작가 검색: 카카오 통합검색(제목+저자) + search_books의 author 매칭).
   ① '책육아 기록이 있는 책' — 우리 DB. search_books 함수(supabase/add_search_function.sql): 띄어쓰기 무시 부분 일치('달님안녕'↔'달님 안녕') + pg_trgm 유사도. 기록 수→추천 수 정렬, 탭하면 /book/[isbn].
   ② '아직 기록이 없는 책' — 카카오 검색 결과 중 DB에 없는 책(최대 10). 정렬: 제목 정확 일치(공백 무시)→접두 일치→그림책 출판사 부스트→개정판 대표(재정렬 lib/pictureBookRanking). 점선 테두리+'책육아 기록 없음' 라벨로 기록 없는 책임을 명확히 구분. '첫 기록 남기기' 버튼 → 기록 폼에 책 제목 프리필(?query=)되어 즉시 자동 검색.
+  ②-1 '주제로 찾은 책'(2026.10.28): 검색어가 주제 별칭과 같으면 그 주제의 책을 주제마다 묶어 제목 결과 아래에 (api/search/topics, 피드 캐시에서 고름 — DECISIONS 15장)
   ①이 비어도 ②로 기록 유도 — 모든 검색이 발견 아니면 기록 유도로 끝난다(콜드스타트 전략).
   기록 폼 검색 최소 길이 1(한 글자 제목 '점' 대응). ※ 한 글자 오타 매칭은 한글 trigram 특성상 한계
 신고 기능
@@ -618,7 +610,10 @@ Server Component의 setAll 쿠키 핸들러는 반드시 try/catch로 감쌀 것
                ※ custom_tag 열은 레거시 보존용. 새 기록은 운영자 태그(tag_id)만 저장 (2026.10.28~)
   - post_images: post_id, image_url, sort_order
   - post_children: post_id, child_id
-  - operator_tags: id, name, tag_category, is_active, created_by, created_at
+  - operator_tags: id, name, tag_category(큰 분류), is_active, created_by, created_at, sort_order,
+                   slug(UNIQUE), level(topic|detail), parent_id(세부→상위 주제), chip_example, search_aliases[], intro_keywords[], intro_excludes[]  ← 2026.10.30
+  - post_tags.source: recommend|others|all|legacy|reclassify (8.1)   ← 2026.10.30
+  - topic_suggestions: user_id, book_id, text(≤30), normalized, status(pending|added|declined), UNIQUE(user_id, normalized). RLS 본인 쓰기·운영자 읽기  ← 2026.10.30
   - likes: user_id, book_id(→books), group_names(text[] NOT NULL DEFAULT '{}'), created_at
            ← 2026.08 변경 (구: post_id). PK(user_id, book_id) — user당 책 1행 = 행 수가 곧 추천자 수.
            ※ UI 라벨은 '나도 추천해요'. 테이블명 likes는 유지.
@@ -666,6 +661,8 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
   supabase/add_onboarded_at.sql            — users.onboarded_at(온보딩 계정 단위 1회 노출) 2026.09.18 ⚠️미적용시 온보딩 미노출
   supabase/add_feed_views.sql              — 피드 집계 DB 뷰(book_feed_cards·sitemap_books) + likes(book_id) 인덱스
                                              + post_tags.seq(주제 태그 저장 순서 확정) 2026.10 (성능 #2)
+  supabase/taxonomy_v2_migration.sql      — 주제 태그 개편(태그 열·매핑·재분류 76건·피드 뷰 op_slugs·topic_suggestions) 2026.10.30
+                                             (확인 taxonomy_v2_verify.sql, 되돌리기 taxonomy_v2_rollback.sql + 코드 revert)
   supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 
 
@@ -835,7 +832,7 @@ supabase/*.sql
       HTTPS(충족)·카메라 권한 UX 필요. 네이티브 앱 아니어도 웹에서 실용적으로 가능.
   □ [베타 피드백 검토사항] (2026.09.30, 응답 10건 triage) — 위 최우선 2건 외 요청. 착수 전 판단 필요:
       · [검색] 띄어쓰기 검색 개선 요청 1건(search_books가 일부 처리하나 사례 있음) — 추가 정규화 검토.
-      · [주제 태그 세분화] 6/10 '더 세분화 필요'. 단 8.1은 과세분화 경계 → 신중. 구체안=시즌 태그(설/한글날, '명절·기념일·전통' 이미 있음)·
+      · ✅ [주제 태그 세분화] → 2026.10.30 주제 태그 개편으로 반영(8.1). 원문: 6/10 '더 세분화 필요'. 단 8.1은 과세분화 경계 → 신중. 구체안=시즌 태그(설/한글날, '명절·기념일·전통' 이미 있음)·
         카테고리→하위 드릴다운(이미 있으나 인지 낮음, 발견성 개선 여지).
       · [월 피처링] "이번 달 추천 책" 요청.
       · [개월 리뷰수 노출] "실제 몇 개월 아기가 리뷰 남겼는지" — 추천 시기 분포·기록 수를 홈 카드에서 더 잘 보이게(현재 약함).
@@ -848,6 +845,8 @@ supabase/*.sql
   □ [소통] 댓글 대체 방식 검토 (2026.10 신설) — 베타에서 댓글 중요도가 낮아 오픈 전 제외(화면·API 제거, comments 테이블·기존 7건 보존).
       베타 요청: 게시판·댓글·책 돌려보기(3건). 재도입 시 기록 단위 댓글 vs 책 단위 소통 vs 게시판 등 방식부터 재설계.
       옛 코드: git 기록(PostReactions.tsx, /api/posts/[id]/comments). RLS상 직접 REST insert는 가능하나 노출 경로 없음(필요 시 정책 차단).
+  □ [주제 태그] 책 소개 매칭 정확도 개선 — 운영자 화면에서 별칭 튜닝. 알라딘 API를 다시 쓸 수 있게 되면 출판사 책소개(긴 소개)로 보완 (2026.10.30)
+  □ [주제 태그] 기록하기 칩 높이 36px — 누르기 불편 신고 시 40px로 (2026.10.28)
   □ [신호] '도움돼요'(기록 공감) — 기록 정렬 필요해지면 출시 후
   ✅ [온보딩] 신규 가입자 5장 캐러셀 모달 — 완료(2026.08.31, 커밋 d408d7b). OnboardingModal(취지 2+사용법 3), CTA→/recommend/create. 이미지 placeholder 폴백.
       ※ 노출 판단 계정 단위 전환(2026.09.18): 기존 localStorage-only는 기기별이라 기존 유저가 새 기기(아이패드 등)에서
@@ -1147,4 +1146,7 @@ CLAUDE.md v1.6
 CLAUDE.md v1.7
 2026.08.25
 도서 검색 API 전환: 알라딘 Open API 종료 대응 → 카카오 Daum 책 검색 API(13.1). 어댑터 방식(라우트 응답 형태 유지)이라 프론트·저장 로직 무변경. 이후 '알라딘 표기 삭제' 정리(2026.08.26): 라우트 /api/aladin/search→/api/books/search 이동(구 경로 삭제), 내부 명칭(AladinItem→CatalogItem 등)·UI 라벨('알라딘에서 보기'→'책 정보 보기')·문서 현재상태 표기를 카카오/중립으로 교체. DB 컬럼도 배포 전이라 리네임: aladin_item_id→book_key, aladin_url→source_url (supabase/rename_aladin_columns.sql — RENAME COLUMN 메타데이터 연산, search_books 함수 재정의 포함). 코드 34곳 tsc 검증. 검증 스파이크로 카카오 실측(속도 76ms·표지 100%·영어원서·판매상태 OK, 유일 약점=카테고리 노이즈) 후 결정. 카테고리 노이즈는 라우트 내부 재정렬로 보완(src/lib/pictureBookRanking.ts: 제목 중복정리→개정판 대표 + 그림책 출판사 부스트 + 문제집/세트 페널티, 추가 호출 0). 바코드 target=isbn 분기 신규. 표지 폴백 공용 컴포넌트 '제목 카드'(BookCover.tsx, onError 포함) → 기록폼·검색에 배선. 국립중앙도서관(부가기호=77) 완전 카탈로그는 개인 접근 문턱·영어원서/판매상태 손실로 A안(카카오) 채택, B안(대량수집)·출판사 자동도출·수동입력 백스톱은 Deferred TODO. 문의·건의 채널=구글폼(일방향, 회신 선택) 마이페이지 하단+검색 빈 상태 배선(src/lib/feedback.ts). 환경변수 KAKAO_CLIENT_ID(배포 시 Vercel 등록). ALADIN_TTB_KEY는 미사용이나 보관(2026.08.26 결정). ⚠️ 스파이크 파일 spike_book_search.mjs·spike_rank_test.mjs는 검증용(배포 전 정리).
+CLAUDE.md v1.8
+2026.10.30
+주제 태그 개편: 큰 분류 10·주제 56·세부 43(8.1). operator_tags 계층(slug·level·parent_id)·별칭 열, post_tags.source, 옛 태그 매핑·숨김 보존·운영자 재분류 76건, 기록하기 주제 영역 새로(책 소개 추천·세부 줄·주제 더보기 시트·다른 양육자 줄·주제 제안), 홈/시기 필터 3단계, 검색 '주제로 찾은 책', 운영자 태그 관리 계층화·출처 통계·제안 목록, 직접 입력 태그 차단. 결정·이유는 docs/taxonomy/DECISIONS.md.
 주제 태그 관련 작업을 할 때는 docs/taxonomy/DECISIONS.md를 먼저 끝까지 읽고 그 원칙과 결정을 따를 것.

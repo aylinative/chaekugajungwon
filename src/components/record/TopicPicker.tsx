@@ -17,6 +17,9 @@ import { matchTopics } from '@/lib/topicMatch'
 import TopicChip from '@/components/record/TopicChip'
 import TopicSheet from '@/components/record/TopicSheet'
 
+// 다른 양육자 줄 최대 개수 (2명 이상이 고른 것만 — 서버에서 거름, 2026.10.30 운영자)
+const OTHERS_LIMIT = 3
+
 // 기록하기 '주제 태그' 영역 (docs/taxonomy/DECISIONS.md 8장 — '가벼운 입력')
 // 위에서 아래: 제목 줄 / 설명 / 고른 주제(진한 칩) / 세부(가로 스크롤 한 줄) / 책 소개를 참고한 추천 주제(최대 3, 안 고른 것만) / 주제 더보기(오른쪽) / 다른 양육자 줄(조건부)
 // - 추천은 책 소개 매칭만. 자주 쓰는 주제로 채우지 않음(책과 상관없는 칩이 나와서 — 2026.10.28 운영자)
@@ -99,7 +102,7 @@ export default function TopicPicker({ taxonomy, picks, onChange, bookTitle, book
     const inRec = new Set(matched.flatMap((m) => (m.details.length ? m.details : [m.topic])))
     const list = others.filter((s) => idx.bySlug.has(s) && !picked.has(s) && !inRec.has(s))
     const detailParents = new Set(list.map((s) => idx.bySlug.get(s)!.parent).filter(Boolean))
-    return list.filter((s) => !detailParents.has(s))
+    return list.filter((s) => !detailParents.has(s)).slice(0, OTHERS_LIMIT)
   }, [others, matched, picked, idx])
 
   if (!taxonomy) {
