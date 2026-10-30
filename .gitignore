@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 바코드 인식 wasm (빌드 때 node_modules에서 복사 — scripts/copy-zxing-wasm.mjs)
+/public/zxing/

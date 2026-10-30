@@ -8,6 +8,7 @@ import { CHILD_REACTIONS } from '@/lib/reactions'
 import { densityHint } from '@/lib/density'
 import type { TopicPick, TaxonomyData } from '@/lib/topics'
 import TopicPicker from '@/components/record/TopicPicker'
+import BarcodeScanner from '@/components/record/BarcodeScanner'
 import BookCover from '@/components/BookCover'
 
 interface BookItem {
@@ -45,6 +46,7 @@ function RecommendCreateInner() {
   const [changingBook, setChangingBook] = useState(false)
   const [initialBook, setInitialBook] = useState<BookItem | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
+  const [scanOpen, setScanOpen] = useState(false) // 바코드 스캔 화면
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
@@ -102,6 +104,28 @@ function RecommendCreateInner() {
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
+
+  // 바코드로 읽은 ISBN13 → 카카오 ISBN 검색(이미 있는 target=isbn 분기). 1권이면 바로 선택, 여러 권이면 목록, 없으면 안내.
+  const handleBarcode = async (isbn: string) => {
+    setScanOpen(false)
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/books/search?query=${encodeURIComponent(isbn)}`)
+      const data = await res.json()
+      if (!res.ok || data.error) throw new Error(data.error || '검색에 실패했습니다.')
+      const items: BookItem[] = data.items || []
+      if (items.length === 1) selectBook(items[0])
+      else if (items.length > 1) {
+        setBooks(items)
+        setShowDropdown(true)
+      } else setError(`바코드(${isbn})로 책을 찾지 못했어요. 책 제목으로 검색해 주세요.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '검색 중 오류가 발생했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const selectBook = (book: BookItem) => {
     setSelectedBook(book)
@@ -466,12 +490,28 @@ function RecommendCreateInner() {
               onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
               placeholder="예: 달님 안녕"
               autoComplete="off"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-main"
+              className="w-full rounded-xl border border-gray-200 py-2 pl-3 pr-12 text-sm outline-none focus:border-main"
             />
-            {loading && (
+            {loading ? (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
                 검색 중…
               </span>
+            ) : (
+              // 바코드 스캔 (2026.10.30) — 카메라를 쓸 수 있는 브라우저에서만
+              typeof navigator !== 'undefined' &&
+              typeof navigator.mediaDevices?.getUserMedia === 'function' && (
+                <button
+                  type="button"
+                  onClick={() => setScanOpen(true)}
+                  aria-label="바코드로 책 찾기"
+                  className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-text/60"
+                >
+                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                    <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" strokeLinecap="round" />
+                    <path d="M7 8v8M10 8v8M13 8v8M16 8v8" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )
             )}
 
             {showDropdown && books.length > 0 && (
@@ -507,6 +547,7 @@ function RecommendCreateInner() {
           </div>
 
           {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+          {scanOpen && <BarcodeScanner onDetected={handleBarcode} onClose={() => setScanOpen(false)} />}
           {showDropdown && !loading && books.length === 0 && query.trim().length >= 2 && (
             <p className="mt-2 text-sm text-gray-400">검색 결과가 없어요.</p>
           )}
