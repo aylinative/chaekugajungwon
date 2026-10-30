@@ -830,7 +830,8 @@ supabase/*.sql
       (2026.10.30 구현, 기록하기 화면만). components/record/BarcodeScanner.tsx. 브라우저 BarcodeDetector(안드로이드 크롬·삼성 인터넷)가 있으면 사용,
       없으면(아이폰 사파리 등) barcode-detector 라이브러리(ZXing wasm, MIT)를 스캔 화면을 열 때만 불러옴.
       wasm은 외부 CDN 대신 /zxing/에서 서빙 — scripts/copy-zxing-wasm.mjs가 predev/prebuild에서 node_modules → public/zxing/ 복사(.gitignore).
-      카메라는 HTTPS에서만(로컬 localhost 예외). □ 실기기 확인: 안드로이드 크롬 + 아이폰 사파리.
+      카메라는 HTTPS에서만(로컬 localhost 예외). ✅ 실기기 확인(2026.10.31): 안드로이드 크롬, 아이패드 사파리.
+      인식률: 안내 네모 영역만 잘라 읽기(15% 여유, 3번에 1번은 전체) + 1920×1080·계속 초점 — 아이패드에서 아주 가까이 대야 읽히던 문제 해결.
   □ [앱 전환 검토] (2026.10.30 신설) — 지금은 사이트(모바일 웹+PWA) 유지가 결론. 푸시 알림이 꼭 필요해지면 그때 검토.
       방식: 지금 사이트를 Capacitor 등으로 감싸 앱으로(처음부터 다시 만들 필요 없음). 준비 순서: ①회원 탈퇴(앱 내 계정 삭제 — 애플 필수,
       사이트에도 있으면 좋음) ②애플로 로그인(카카오 등 타사 로그인 앱은 대체 로그인 필요, 가이드라인 4.8) ③푸시 알림.
