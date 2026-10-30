@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
 import { CHILD_REACTIONS } from '@/lib/reactions'
 import { densityHint } from '@/lib/density'
-import { groupTagsByCategory, type TagCategoryGroup, type OperatorTagRow } from '@/lib/tags'
+import type { TopicPick, TaxonomyData } from '@/lib/topics'
+import TopicPicker from '@/components/record/TopicPicker'
 import BookCover from '@/components/BookCover'
 
 interface BookItem {
@@ -18,6 +19,7 @@ interface BookItem {
   link: string
   isbn13: string
   isOutOfPrint: boolean
+  description?: string // 카카오 책 소개 — 주제 추천 매칭용 (수정 화면에서는 없음)
 }
 
 // 글밥량 = 페이지당 글 양(중립 속성). 별점 연상을 피해 게이지+부연으로 표시.
@@ -49,10 +51,9 @@ function RecommendCreateInner() {
   const [selectedReaction, setSelectedReaction] = useState<number | null>(null)
   const [showReactionInfo, setShowReactionInfo] = useState(false)
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null)
-  const [selectedTopics, setSelectedTopics] = useState<string[]>([])
-  const [tagGroups, setTagGroups] = useState<TagCategoryGroup[]>([]) // 운영자 태그(DB) 카테고리별
-  const [activeCat, setActiveCat] = useState(0) // 주제: 카테고리 탭(드릴다운)
-  const [showTopicInfo, setShowTopicInfo] = useState(false)
+  // 주제 태그(2026.10 개편): 고른 주제·세부 slug + 고른 경로(source)
+  const [topicPicks, setTopicPicks] = useState<TopicPick[]>([])
+  const [taxonomy, setTaxonomy] = useState<TaxonomyData | null>(null)
   const [isBoardBook, setIsBoardBook] = useState(false) // 보드북 여부(책 속성)
   const [memo, setMemo] = useState('')
   // 사진: 실제 File을 들고 있다가 제출 시 Storage 업로드. preview는 blob URL(표시 전용).
@@ -130,17 +131,12 @@ function RecommendCreateInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 주제 태그를 DB(operator_tags)에서 카테고리별로 로드 (하드코딩 제거 — DB가 단일 소스)
+  // 주제 목록(큰 분류·주제·세부·매칭어 + 자주 쓰는 주제)을 화면을 열 때 한 번만 불러옴 (하루 캐시 API)
   useEffect(() => {
-    async function loadTags() {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('operator_tags')
-        .select('name, tag_category, sort_order')
-        .eq('is_active', true)
-      setTagGroups(groupTagsByCategory((data as OperatorTagRow[] | null) ?? []))
-    }
-    loadTags()
+    fetch('/api/topics')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: TaxonomyData | null) => d && Array.isArray(d.tags) && setTaxonomy(d))
+      .catch(() => {})
   }, [])
 
   // 편집 모드: 기존 기록을 불러와 프리필 (작성자 아니면 홈으로)
@@ -161,7 +157,7 @@ function RecommendCreateInner() {
           `id, user_id, child_reaction, text_density, content,
            book:books ( title, author, publisher, published_date, cover_image_url, source_url, book_key, is_out_of_print, is_board_book ),
            post_groups ( group_name ),
-           post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) )`
+           post_tags ( operator_tags ( slug, is_active ) )`
         )
         .eq('id', editId)
         .is('hidden_at', null)
@@ -184,9 +180,7 @@ function RecommendCreateInner() {
           is_board_book: boolean | null
         } | null
         post_groups: { group_name: string }[] | null
-        post_tags:
-          | { custom_tag: string | null; is_operator_tag: boolean; operator_tags: { name: string } | null }[]
-          | null
+        post_tags: { operator_tags: { slug: string | null; is_active: boolean } | null }[] | null
       } | null
 
       if (!row || row.user_id !== user.id) {
@@ -218,10 +212,12 @@ function RecommendCreateInner() {
       )
       if (row.child_reaction != null) setSelectedReaction(row.child_reaction)
       if (row.text_density != null) setSelectedAmount(row.text_density) // 0(글 없는 그림책)도 프리필
-      setSelectedTopics(
+      // 활성 태그만 불러옴. 숨김 처리된 옛 태그는 화면에 없고, 서버가 그대로 보존한다.
+      setTopicPicks(
         (row.post_tags ?? [])
-          .map((t) => (t.is_operator_tag ? t.operator_tags?.name : t.custom_tag))
+          .map((t) => (t.operator_tags?.is_active ? t.operator_tags.slug : null))
           .filter((v): v is string => Boolean(v))
+          .map((slug) => ({ slug, source: 'existing' as const }))
       )
       setMemo(row.content ?? '')
     }
@@ -234,14 +230,6 @@ function RecommendCreateInner() {
       current.includes(groupValue)
         ? current.filter((item) => item !== groupValue)
         : [...current, groupValue]
-    )
-  }
-
-  const toggleTopic = (topic: string) => {
-    setSelectedTopics((current) =>
-      current.includes(topic)
-        ? current.filter((item) => item !== topic)
-        : [...current, topic]
     )
   }
 
@@ -286,6 +274,11 @@ function RecommendCreateInner() {
       return
     }
 
+    if (taxonomy?.preview) {
+      setSubmitError('개발용 미리보기에서는 저장할 수 없어요 (DB 개편 전).')
+      return
+    }
+
     setIsSubmitting(true)
     setSubmitError('')
     setSubmitSuccess('')
@@ -309,7 +302,7 @@ function RecommendCreateInner() {
             groups: selectedGroups,
             child_reaction: selectedReaction,
             reading_amount: selectedAmount,
-            topics: selectedTopics,
+            tags: topicPicks.map((p) => ({ slug: p.slug, source: p.source })),
             is_board_book: isBoardBook,
             memo,
           }),
@@ -362,7 +355,7 @@ function RecommendCreateInner() {
         groups: selectedGroups,
         child_reaction: selectedReaction,
         reading_amount: selectedAmount,
-        topics: selectedTopics,
+        tags: topicPicks.map((p) => ({ slug: p.slug, source: p.source })),
         is_board_book: isBoardBook,
         memo,
         photo_urls: uploadedUrls,
@@ -688,66 +681,14 @@ function RecommendCreateInner() {
             </p>
           </div>
 
-          <div>
-            <p className="mb-1 flex items-center gap-1.5 text-sm font-medium">
-              주제 태그
-              <button
-                type="button"
-                onClick={() => setShowTopicInfo((v) => !v)}
-                aria-label="주제 태그 안내"
-                aria-expanded={showTopicInfo}
-                className="flex h-4 w-4 items-center justify-center rounded-full border border-text/30 text-[10px] text-text/50"
-              >
-                i
-              </button>
-            </p>
-            {showTopicInfo && (
-              <p className="mb-2 rounded-xl bg-surface-muted px-3 py-2 text-xs leading-relaxed text-text/60">
-                책에 해당하는 주제를 선택하면 같은 주제의 책을 찾는 양육자들에게 더 잘 보여요. 여러 주제를 선택할 수 있어요.
-              </p>
-            )}
-
-            {/* 카테고리 탭 → 하위 태그 드릴다운 (8.1) — 태그가 많아 한 카테고리씩 노출 */}
-            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {tagGroups.map((group, i) => {
-                const cnt = group.tags.filter((t) => selectedTopics.includes(t)).length
-                return (
-                  <button
-                    key={group.category}
-                    type="button"
-                    onClick={() => setActiveCat(i)}
-                    className={`flex-shrink-0 rounded-full px-3 py-1.5 text-[13px] font-bold ${
-                      i === activeCat ? 'bg-main text-white' : 'bg-surface-muted text-text/60'
-                    }`}
-                  >
-                    {group.category}
-                    {cnt > 0 && <span className="ml-1 opacity-90">· {cnt}</span>}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* 상위 카테고리 ↔ 하위 태그 구분 바 (스크롤바 숨김 + 위·아래 여백 균형) */}
-            <div className="my-4 h-px bg-black/10" />
-
-            {/* 선택된 카테고리의 하위 태그 */}
-            <div className="flex flex-wrap gap-2">
-              {tagGroups[activeCat]?.tags.map((topic) => (
-                <button
-                  key={topic}
-                  type="button"
-                  onClick={() => toggleTopic(topic)}
-                  className={`rounded-full px-3 py-1.5 text-[13px] ${
-                    selectedTopics.includes(topic)
-                      ? 'bg-group-sprout font-medium text-text'
-                      : 'bg-surface-muted text-text/70'
-                  }`}
-                >
-                  {topic}
-                </button>
-              ))}
-            </div>
-          </div>
+          <TopicPicker
+            taxonomy={taxonomy}
+            picks={topicPicks}
+            onChange={setTopicPicks}
+            bookTitle={selectedBook?.title ?? ''}
+            bookDescription={selectedBook?.description ?? ''}
+            bookKey={selectedBook ? selectedBook.isbn13 || selectedBook.link || selectedBook.title : null}
+          />
 
           <div>
             <p className="mb-2 text-sm font-medium">책육아 일기</p>

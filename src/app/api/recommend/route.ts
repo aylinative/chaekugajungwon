@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
 import { revalidateFeed } from '@/lib/cacheTags'
+import { resolveTagPicks, type TagPayload } from '@/lib/topicSave'
 
 // post_groups.group_name CHECK 제약은 한글 라벨('씨앗' 등)만 허용.
 // 폼에서 넘어오는 그룹 값('seed' 등)을 한글 라벨로 변환.
@@ -23,7 +24,7 @@ interface RecommendPayload {
   groups?: string[]
   child_reaction?: number // 1~3 (3=자꾸 꺼내봐요, 2=재밌어했어요, 1=그냥 봤어요)
   reading_amount?: number
-  topics?: string[]
+  tags?: TagPayload[] // 고른 주제·세부 { slug, source } (2026.10 개편)
   is_board_book?: boolean // 보드북 여부(책 속성)
   memo?: string
   photo_urls?: string[] // Storage 업로드 후 public URL (폼에서 업로드 완료된 것만)
@@ -206,29 +207,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '시기 저장에 실패했습니다.' }, { status: 500 })
     }
 
-    // --- 4) 주제 태그(post_tags): 활성 운영자 태그만 id로 연결 ---
-    // 목록에 없는 이름은 버린다(직접 입력 태그는 받지 않음 — 주제 태그 개편 Part 0 ②).
-    if (Array.isArray(payload.topics) && payload.topics.length > 0) {
-      const { data: operatorTags, error: opTagError } = await supabase
-        .from('operator_tags')
-        .select('id, name')
-        .eq('is_active', true)
-
+    // --- 4) 주제 태그(post_tags): 활성 태그 slug → id, 세부면 상위 주제도. 출처(source) 함께 저장 ---
+    // 목록에 없는 slug는 버린다(직접 입력 태그 없음 — CLAUDE.md 8.2).
+    {
+      const { rows, error: opTagError } = await resolveTagPicks(supabase, payload.tags)
       if (opTagError) {
         console.error('Operator tags lookup error:', opTagError)
         await rollbackPost()
         return NextResponse.json({ error: '태그 조회에 실패했습니다.' }, { status: 500 })
       }
-
-      const nameToId = new Map(
-        (operatorTags ?? []).map((t: { id: string; name: string }) => [t.name, t.id])
-      )
-
-      const tagIds = [
-        ...new Set(payload.topics.map((topic) => nameToId.get(topic)).filter((id): id is string => Boolean(id))),
-      ]
-      const tagRows = tagIds.map((tagId) => ({ post_id: postId, tag_id: tagId, is_operator_tag: true }))
-
+      const tagRows = rows.map((r) => ({ post_id: postId, tag_id: r.tag_id, is_operator_tag: true, source: r.source }))
       const { error: tagError } =
         tagRows.length > 0 ? await supabase.from('post_tags').insert(tagRows) : { error: null }
       if (tagError) {

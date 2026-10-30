@@ -18,9 +18,9 @@ export const metadata: Metadata = {
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ tag?: string }>
+  searchParams: Promise<{ tag?: string; cat?: string }>
 }) {
-  const { tag } = await searchParams
+  const { tag, cat } = await searchParams
   const supabase = await createServerSupabase()
 
   const {
@@ -71,7 +71,8 @@ export default async function Home({
     !meError && !(me as { onboarded_at: string | null } | null)?.onboarded_at
 
   // 로그인 후: 홈 피드
-  const { operatorTags, sections } = await getFeedData(supabase, tag, user.id)
+  const { operatorTags, sections } = await getFeedData(supabase, { tag, cat }, user.id)
+  const filterLabel = tag ? operatorTags.find((t) => t.slug === tag || t.name === tag)?.name ?? tag : cat
   const hasAnyPost = sections.some((s) => s.cards.length > 0)
 
   // '우리 아이 기준' 정렬용: 아이들 현재 시기 value (첫째=생일 오름차순 첫 아이, 중복 제거)
@@ -93,15 +94,15 @@ export default async function Home({
       {/* 신규 가입자 온보딩 — 계정당 1회(users.onboarded_at). 새 기기에서도 재노출 안 됨 */}
       <OnboardingModal show={showOnboarding} />
       <FeedHeader />
-      <TopicFilterBar tags={operatorTags} activeTag={tag} />
+      <TopicFilterBar tags={operatorTags} value={{ tag, cat }} />
 
       <main className="flex-1 pb-4">
         {!hasAnyPost ? (
           <div className="flex flex-col items-center gap-3 px-6 py-20 text-center">
             <span className="text-3xl">🌱</span>
             <p className="text-sm text-text/60">
-              {tag
-                ? `'#${tag}' 태그가 붙은 추천이 아직 없어요.`
+              {filterLabel
+                ? `'${filterLabel}' 주제의 추천이 아직 없어요.`
                 : '아직 추천된 그림책이 없어요. 첫 기록을 남겨보세요!'}
             </p>
             <a

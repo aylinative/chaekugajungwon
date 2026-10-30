@@ -92,6 +92,7 @@ export async function GET(request: NextRequest) {
       link: d.url,
       isbn13: pickIsbn13(d.isbn),
       isOutOfPrint: /절판|품절/.test(d.status ?? ''),
+      description: d.contents ?? '', // 주제 추천 매칭용 (추가 호출 없음 — 받은 값을 넘기기만)
     }));
 
     // ISBN 정확검색은 단건 정확이라 재정렬 불필요. 제목/키워드 검색만 재정렬.

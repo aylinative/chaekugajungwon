@@ -249,10 +249,15 @@ Supabase에 시드 데이터로 이미 등록 완료
     → 폼 DB연동으로 근본 해결.
 
 📌 시기(연령)와 주제 태그는 별개의 분류축. 한 기록에 동시에 붙일 수 있음. 예: "열매" 시기 + "공룡" 태그. (형태는 별도 보드북 체크)
-8.2 사용자 추가 태그
-기록 작성 시 자유롭게 추가 가능
-피드와 상세에 해시태그 형태로 표시
-필터링·분류에는 적용되지 않음 (표시 전용)
+8.2 사용자 추가 태그 — 두지 않음 (2026.10.28 확정)
+- 사용자 자유 태그 기능은 두지 않는다. 주제 태그는 운영자만 추가·수정·숨김할 수 있다.
+  (기록 저장·수정 API도 활성 운영자 태그에 없는 이름은 버린다 — 2026.10.28 구현)
+- 사용자는 기록하기 폼의 '찾는 주제가 없나요?'로 주제를 제안할 수 있다.
+  제안은 topic_suggestions 테이블에 저장되고, 운영자 주제 태그 관리 화면에서 제안 횟수 순으로 확인한다. (Part 2, 구현 예정)
+- 운영자가 새 주제를 추가해도 기존 게시물에 소급해서 태그를 달지 않는다.
+  (모든 태그는 작성자가 입력 시점에 직접 고른 것만 — 단 개편 때의 1회 예외 76건은 docs/taxonomy/DECISIONS.md 2장)
+- promoted_from(자유 태그 승격) 구조는 쓰지 않는다. (DB에 없음, 만들지 않음)
+- 기존 custom_tag 1건('가족')은 보존하며 상세에 표시만 된다.
 
 
 9. 게시물 입력 필드 스펙
@@ -275,8 +280,8 @@ Supabase에 시드 데이터로 이미 등록 완료
 5단계 선택
 아래 기준표 참조
 주제 태그
-칩 선택 + 직접 입력
-운영자 태그 선택 + 사용자 추가 태그 입력 가능
+칩 선택
+운영자 태그(큰 분류 → 주제 → 세부)에서 선택. 직접 입력 없음 — 없는 주제는 '찾는 주제가 없나요?'로 제안 (8.2)
 책육아 일기
 자유 텍스트
 제한 없는 자유 메모란
@@ -610,6 +615,7 @@ Server Component의 setAll 쿠키 핸들러는 반드시 try/catch로 감쌀 것
   - post_groups: post_id, group_name  ← CHECK 제약: 한글 라벨('씨앗'/'새싹'/'꽃잎'/'열매'/'나무'/'어른')만 허용
   - post_tags: post_id, tag_id(→operator_tags, nullable), custom_tag(nullable), is_operator_tag
                ← CHECK 제약(chk_tag_type): 운영자태그면 tag_id 있고 custom_tag NULL / 커스텀이면 반대
+               ※ custom_tag 열은 레거시 보존용. 새 기록은 운영자 태그(tag_id)만 저장 (2026.10.28~)
   - post_images: post_id, image_url, sort_order
   - post_children: post_id, child_id
   - operator_tags: id, name, tag_category, is_active, created_by, created_at

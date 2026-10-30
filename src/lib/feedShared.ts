@@ -1,6 +1,7 @@
 // 홈 피드·그룹 더보기에서 서버와 클라이언트가 함께 쓰는 타입·정렬 유틸.
 // ⚠️ 서버 전용 API(next/cache, DB 클라이언트 등)를 여기에 import하지 말 것 —
 //    클라이언트 컴포넌트(FeedSections·GroupBrowser 등)가 이 파일을 가져간다. 서버 로직은 lib/feed.ts.
+import type { FilterTag } from '@/lib/topicDisplay'
 
 export interface BookCard {
   bookId: string
@@ -12,7 +13,8 @@ export interface BookCard {
   reaction: number // 대표 반응 = 노출 자격(≥2) 기록들의 최빈값
   density: number // 글밥량 대표값 = 최빈값
   groups: string[] // 노출 자격 기록들의 시기 합집합 (여러 섹션 등장 가능, 섹션당 1번)
-  topics: string[]
+  topics: string[] // 보여줄 주제 이름(세부 우선, '#' 없이)
+  tagSlugs: string[] // 이 책 자격 기록들에 달린 태그 slug(숨김 포함) — 주제·큰 분류 필터용
   latestCreatedAt: string
   publishedDate: string | null // books.published_date — '신간순' 정렬용
   bookmarkCount: number // books.bookmark_count (트리거 동기화 값)
@@ -27,12 +29,8 @@ export interface GroupSectionData {
   cards: BookCard[]
 }
 
-export interface OperatorTag {
-  id: string
-  name: string
-  tag_category: string | null
-  sort_order: number
-}
+// 필터·표시용 태그 (숨김 포함). 기록하기 화면은 /api/topics를 쓴다.
+export type OperatorTag = FilterTag
 
 export interface FeedData {
   operatorTags: OperatorTag[]

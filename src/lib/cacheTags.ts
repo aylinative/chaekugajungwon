@@ -13,3 +13,9 @@ export const FEED_CACHE_TAG = 'feed'
 export function revalidateFeed() {
   revalidateTag(FEED_CACHE_TAG, { expire: 0 })
 }
+
+// 기록하기 주제 목록(/api/topics, 하루 캐시)의 태그. 운영자가 태그를 추가·개명·숨김하면 호출.
+export const TOPICS_CACHE_TAG = 'topics'
+export function revalidateTopics() {
+  revalidateTag(TOPICS_CACHE_TAG, { expire: 0 })
+}

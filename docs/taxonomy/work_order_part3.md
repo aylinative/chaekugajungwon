@@ -134,7 +134,7 @@ Part 0에서 보고한 현재 구조를 기준으로, 아래 요구사항을 어
 Step 1 마이그레이션이 끝났어. 이제 /recommend/create 의 주제 태그 영역을 새로 만들어줘.
 모바일 웹 반응형이 제1원칙이야. 기준 너비 430px, 터치 영역 최소 44px.
 기존 색·폰트·칩 스타일은 현재 배포된 사이트 기준을 그대로 따라줘 (2026.10.22 운영자 결정):
-- 주제 칩: 기본 베이지(bg-surface-muted #f5efe1, 글자 text/70), 선택 연두(bg-group-sprout #a6d879, 글자 text)
+- 주제 칩: 기본 베이지(bg-surface-muted #f5efe1, 글자 text/70), 선택 올리브(bg-main #6B7F5E, 흰 글자) — 2026.10.28 운영자: 연두는 너무 밝아 '기록 남기기' 버튼 색으로 변경
 - 큰 분류 탭: 기본 베이지(bg-surface-muted), 선택 올리브(bg-main #6B7F5E, 흰 글자)
   (현재 기록하기 폼 src/app/recommend/create/page.tsx의 카테고리 탭·태그 칩과 같음)
 

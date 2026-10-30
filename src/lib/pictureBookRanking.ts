@@ -12,6 +12,7 @@ export interface BookItem {
   link: string
   isbn13: string
   isOutOfPrint: boolean
+  description?: string // 카카오 책 소개(contents, 잘려서 옴) — 기록하기 주제 추천 매칭용
 }
 
 // ① 시드: 그림책/유아 강세 출판사(부분일치). 콜드스타트용.

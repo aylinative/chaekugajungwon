@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { revalidateFeed } from '@/lib/cacheTags'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
+import { resolveTagPicks, type TagPayload } from '@/lib/topicSave'
 
 // post_groups.group_name CHECK는 한글 라벨만 허용 — 폼 값('seed')을 라벨('씨앗')로 변환.
 const GROUP_VALUE_TO_LABEL: Record<string, string> = Object.fromEntries(
@@ -21,7 +22,7 @@ interface EditPayload {
   groups?: string[]
   child_reaction?: number
   reading_amount?: number
-  topics?: string[]
+  tags?: TagPayload[] // 고른 주제·세부 { slug, source } (2026.10 개편)
   is_board_book?: boolean
   memo?: string
 }
@@ -192,19 +193,20 @@ export async function PATCH(
     return NextResponse.json({ error: '시기 수정에 실패했습니다.' }, { status: 500 })
   }
 
-  // 3) 주제(post_tags) — 바뀐 것만 반영(diff).
+  // 3) 주제(post_tags) — 바뀐 것만 반영(diff, tag_id 기준).
   // 예전엔 전부 삭제 후 '활성 태그 이름'으로만 다시 넣어서, 숨김(is_active=false) 처리된 옛 태그가
   // 수정 저장 때마다 이름만 남은 custom_tag로 바뀌어 필터 연결이 끊겼다(주제 태그 개편 Part 0 발견).
-  // → 여전히 선택된 기존 태그 행은 건드리지 않고(숨김 태그여도 연결·저장 순서 유지), 빠진 것만 삭제,
-  //   새로 고른 것만 추가. 새로 추가하는 태그는 활성 태그에서만 찾는다(숨김 태그는 새로 고를 수 없음).
-  const wanted = new Set(
-    (Array.isArray(payload.topics) ? payload.topics : []).filter(
-      (t): t is string => typeof t === 'string' && t.trim() !== ''
-    )
-  )
+  // → 숨김 태그 연결과 옛 custom_tag는 화면에 없으므로 건드리지 않고 그대로 둔다.
+  //   활성 태그 중 여전히 선택된 행은 그대로(출처·저장 순서 유지), 빠진 것만 삭제, 새로 고른 것만 추가.
+  const { rows: wantedRows, error: opTagError } = await resolveTagPicks(supabase, payload.tags)
+  if (opTagError) {
+    console.error('Operator tags lookup error:', opTagError)
+    return NextResponse.json({ error: '태그 조회에 실패했습니다.' }, { status: 500 })
+  }
+  const wanted = new Map(wantedRows.map((r) => [r.tag_id, r.source]))
   const { data: existingTags, error: existingTagError } = await supabase
     .from('post_tags')
-    .select('id, custom_tag, is_operator_tag, operator_tags ( name )')
+    .select('id, tag_id, is_operator_tag, operator_tags ( is_active )')
     .eq('post_id', postId)
   if (existingTagError) {
     console.error('Post tags lookup error:', existingTagError)
@@ -214,13 +216,13 @@ export async function PATCH(
   const removeIds: string[] = []
   for (const row of (existingTags ?? []) as unknown as {
     id: string
-    custom_tag: string | null
+    tag_id: string | null
     is_operator_tag: boolean
-    operator_tags: { name: string } | null
+    operator_tags: { is_active: boolean } | null
   }[]) {
-    const name = row.is_operator_tag ? row.operator_tags?.name : row.custom_tag
-    if (name && wanted.has(name) && !kept.has(name)) kept.add(name)
-    else removeIds.push(row.id) // 선택 해제된 태그(또는 같은 이름 중복 행)
+    if (!row.is_operator_tag || !row.tag_id || !row.operator_tags?.is_active) continue // 숨김 태그·옛 custom_tag 보존
+    if (wanted.has(row.tag_id) && !kept.has(row.tag_id)) kept.add(row.tag_id)
+    else removeIds.push(row.id) // 선택 해제된 태그(또는 같은 태그 중복 행)
   }
   if (removeIds.length > 0) {
     const { error: tagDeleteError } = await supabase.from('post_tags').delete().in('id', removeIds)
@@ -229,30 +231,14 @@ export async function PATCH(
       return NextResponse.json({ error: '주제 수정에 실패했습니다.' }, { status: 500 })
     }
   }
-  const toAdd = [...wanted].filter((name) => !kept.has(name))
-  if (toAdd.length > 0) {
-    const { data: operatorTags, error: opTagError } = await supabase
-      .from('operator_tags')
-      .select('id, name')
-      .eq('is_active', true)
-    if (opTagError) {
-      console.error('Operator tags lookup error:', opTagError)
-      return NextResponse.json({ error: '태그 조회에 실패했습니다.' }, { status: 500 })
-    }
-    const nameToId = new Map(
-      (operatorTags ?? []).map((t: { id: string; name: string }) => [t.name, t.id])
-    )
-    // 목록에 없는 이름은 버린다(직접 입력 태그는 받지 않음 — 주제 태그 개편 Part 0 ②).
-    const tagRows = toAdd
-      .map((topic) => nameToId.get(topic))
-      .filter((tagId): tagId is string => Boolean(tagId))
-      .map((tagId) => ({ post_id: postId, tag_id: tagId, is_operator_tag: true }))
-    const { error: tagInsertError } =
-      tagRows.length > 0 ? await supabase.from('post_tags').insert(tagRows) : { error: null }
-    if (tagInsertError) {
-      console.error('Post tags insert error:', tagInsertError)
-      return NextResponse.json({ error: '주제 수정에 실패했습니다.' }, { status: 500 })
-    }
+  const tagRows = [...wanted]
+    .filter(([tagId]) => !kept.has(tagId))
+    .map(([tag_id, source]) => ({ post_id: postId, tag_id, is_operator_tag: true, source }))
+  const { error: tagInsertError } =
+    tagRows.length > 0 ? await supabase.from('post_tags').insert(tagRows) : { error: null }
+  if (tagInsertError) {
+    console.error('Post tags insert error:', tagInsertError)
+    return NextResponse.json({ error: '주제 수정에 실패했습니다.' }, { status: 500 })
   }
 
   // 홈·책 페이지·상세·마이페이지 캐시 반영

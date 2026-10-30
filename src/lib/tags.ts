@@ -1,13 +1,7 @@
-// 주제 태그 대표 카테고리 표시 순서 (단일 소스) — operator_tags.tag_category 값과 일치.
-// 시선의 방향(나→가족→사회·관계→세상) 순. CLAUDE.md 8.1 확정(2026.08.24).
-export const TOPIC_CATEGORY_ORDER = [
-  '나·마음·몸·습관',
-  '가족',
-  '사회·관계',
-  '자연·생물',
-  '사물·인지',
-  '놀이·말',
-] as const
+import { TAG_CATEGORIES } from '@/lib/tagCategories'
+
+// 주제 태그 큰 분류 표시 순서 — 단일 소스는 lib/tagCategories.ts (2026.10 개편, 10개)
+export const TOPIC_CATEGORY_ORDER = TAG_CATEGORIES
 
 export interface OperatorTagRow {
   name: string

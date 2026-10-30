@@ -9,7 +9,7 @@ import { computeBookDistribution } from '@/lib/distribution'
 import { formatDate } from '@/lib/date'
 import { getDistributionSummary } from '@/components/book/PeriodDistribution'
 import PeriodDistribution from '@/components/book/PeriodDistribution'
-import BookTopics from '@/components/book/BookTopics'
+import BookTopics, { type TopicLink } from '@/components/book/BookTopics'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import ShareButton from '@/components/ShareButton'
@@ -54,7 +54,7 @@ interface BookPostRow {
     | {
         custom_tag: string | null
         is_operator_tag: boolean
-        operator_tags: { name: string; tag_category: string | null } | null
+        operator_tags: { id: string; slug: string | null; name: string; level: string; parent_id: string | null; tag_category: string | null } | null
       }[]
     | null
 }
@@ -62,7 +62,7 @@ interface BookPostRow {
 const POSTS_SELECT = `id, user_id, text_density, child_reaction, content, created_at,
   author:users!posts_user_id_fkey ( nickname ),
   post_groups ( group_name ),
-  post_tags ( custom_tag, is_operator_tag, operator_tags ( name, tag_category ) )`
+  post_tags ( custom_tag, is_operator_tag, operator_tags ( id, slug, name, level, parent_id, tag_category ) )`
 
 // React cache() — generateMetadata와 본문이 같은 요청 안에서 조회를 공유(중복 제거).
 // 캐시 키는 원시값(isbn/bookId)만 — supabase 클라이언트를 인자로 넘기면 매번 달라 중복제거가 안 됨.
@@ -169,33 +169,37 @@ function modeOf(nums: (number | null)[]): number | null {
 }
 
 // 책의 모든 기록에서 사용된 주제 태그 합산 → 사용 빈도 많은 순 정렬.
-// 홈피드 카드(feed.ts topicsFor)와 동일하게, 커스텀 태그가 운영자 하위태그의 카테고리명
-// (또는 운영자 태그명)과 겹치면 드롭한다(예: 커스텀 '가족' + 하위 '엄마'(가족) → '엄마'만).
-function aggregateTopics(posts: BookPostRow[]): string[] {
-  const opFreq = new Map<string, number>()
+// 표시 규칙(work_order_part3 Step 3): 기록마다 세부가 있으면 세부 이름만(그 주제는 생략), 숨김(개편 전) 태그도 표시.
+// 커스텀 태그(옛 직접 입력)는 운영자 태그의 큰 분류명·이름과 겹치면 드롭(예: 커스텀 '가족' + '엄마'(가족) → '엄마'만).
+// slug가 있으면 홈 필터로 이동(?tag=slug), 커스텀 태그는 링크 없음.
+function aggregateTopics(posts: BookPostRow[]): TopicLink[] {
+  const opFreq = new Map<string, { slug: string | null; count: number }>()
   const categories = new Set<string>()
   const customFreq = new Map<string, number>()
   for (const p of posts) {
+    const ops = (p.post_tags ?? []).flatMap((t) => (t.is_operator_tag && t.operator_tags ? [t.operator_tags] : []))
+    const parentsWithDetail = new Set(ops.filter((o) => o.level === 'detail' && o.parent_id).map((o) => o.parent_id))
+    for (const o of ops) {
+      if (o.level === 'topic' && parentsWithDetail.has(o.id)) continue // 세부가 있으면 주제 생략
+      const cur = opFreq.get(o.name)
+      opFreq.set(o.name, { slug: o.slug, count: (cur?.count ?? 0) + 1 })
+      if (o.tag_category) categories.add(o.tag_category)
+    }
     for (const t of p.post_tags ?? []) {
-      if (t.is_operator_tag && t.operator_tags?.name) {
-        const name = t.operator_tags.name
-        opFreq.set(name, (opFreq.get(name) ?? 0) + 1)
-        if (t.operator_tags.tag_category) categories.add(t.operator_tags.tag_category)
-      } else if (t.custom_tag) {
-        customFreq.set(t.custom_tag, (customFreq.get(t.custom_tag) ?? 0) + 1)
-      }
+      if (!t.is_operator_tag && t.custom_tag) customFreq.set(t.custom_tag, (customFreq.get(t.custom_tag) ?? 0) + 1)
     }
   }
-  const merged: { name: string; count: number }[] = [...opFreq].map(([name, count]) => ({
+  const merged: { name: string; slug: string | null; count: number }[] = [...opFreq].map(([name, v]) => ({
     name,
-    count,
+    slug: v.slug,
+    count: v.count,
   }))
   for (const [name, count] of customFreq) {
-    if (!categories.has(name) && !opFreq.has(name)) merged.push({ name, count })
+    if (!categories.has(name) && !opFreq.has(name)) merged.push({ name, slug: null, count })
   }
   return merged
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-    .map((x) => x.name)
+    .map(({ name, slug }) => ({ name, slug }))
 }
 
 export default async function BookPage({

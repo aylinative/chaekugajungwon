@@ -49,7 +49,8 @@ select
   s.group_post_counts,
   s.op_topics,
   s.op_categories,
-  s.custom_topics
+  s.custom_topics,
+  s.op_slugs
 from public.books b
 cross join lateral (
   select
@@ -99,7 +100,16 @@ cross join lateral (
       from public.posts p join public.post_tags pt on pt.post_id = p.id
       where p.book_id = b.id and p.hidden_at is null and p.child_reaction >= 2
         and not pt.is_operator_tag and pt.custom_tag is not null
-      order by pt.custom_tag, p.created_at desc, pt.seq) t), '{}')                      as custom_topics
+      order by pt.custom_tag, p.created_at desc, pt.seq) t), '{}')                      as custom_topics,
+    -- 운영자 태그 slug(숨김 포함): 가장 최근 기록에 처음 등장한 순 — 주제·큰 분류 필터와 표시용(2026.10 주제 개편)
+    coalesce((select array_agg(t.slug order by t.last_seen desc, t.first_seq) from (
+      select distinct on (ot.slug) ot.slug, p.created_at as last_seen, pt.seq as first_seq
+      from public.posts p
+      join public.post_tags pt on pt.post_id = p.id
+      join public.operator_tags ot on ot.id = pt.tag_id
+      where p.book_id = b.id and p.hidden_at is null and p.child_reaction >= 2
+        and pt.is_operator_tag and ot.slug is not null
+      order by ot.slug, p.created_at desc, pt.seq) t), '{}')                            as op_slugs
 ) s
 where exists (  -- 피드 노출 자격 기록이 1건 이상인 책만
   select 1 from public.posts p

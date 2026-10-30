@@ -34,7 +34,11 @@ interface RawDetail {
   author: { nickname: string | null } | null
   post_groups: { group_name: string }[] | null
   post_tags:
-    | { custom_tag: string | null; is_operator_tag: boolean; operator_tags: { name: string } | null }[]
+    | {
+        custom_tag: string | null
+        is_operator_tag: boolean
+        operator_tags: { id: string; name: string; level: string; parent_id: string | null } | null
+      }[]
     | null
   post_images: { image_url: string; sort_order: number }[] | null
 }
@@ -43,7 +47,7 @@ const DETAIL_SELECT = `id, text_density, child_reaction, content, created_at, us
   book:books ( id, title, author, publisher, published_date, cover_image_url, source_url, is_out_of_print, bookmark_count ),
   author:users!posts_user_id_fkey ( nickname ),
   post_groups ( group_name ),
-  post_tags ( custom_tag, is_operator_tag, operator_tags ( name ) ),
+  post_tags ( custom_tag, is_operator_tag, operator_tags ( id, name, level, parent_id ) ),
   post_images ( image_url, sort_order )`
 
 export async function generateMetadata({
@@ -127,7 +131,13 @@ export default async function PostDetailPage({
 
   const book = post.book
   const groups = sortGroupLabelsByAge((post.post_groups ?? []).map((g) => g.group_name))
-  const topics = (post.post_tags ?? [])
+  // 세부가 있으면 세부 이름만(그 주제는 생략), 숨김(개편 전) 태그도 그대로 표시 — work_order_part3 Step 3
+  const tagRows = post.post_tags ?? []
+  const parentsWithDetail = new Set(
+    tagRows.map((t) => t.operator_tags).filter((o) => o?.level === 'detail' && o.parent_id).map((o) => o!.parent_id)
+  )
+  const topics = tagRows
+    .filter((t) => !(t.operator_tags?.level === 'topic' && parentsWithDetail.has(t.operator_tags.id)))
     .map((t) => (t.is_operator_tag ? t.operator_tags?.name : t.custom_tag))
     .filter((t): t is string => Boolean(t))
   const images = (post.post_images ?? [])

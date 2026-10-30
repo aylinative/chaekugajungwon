@@ -4,6 +4,7 @@ import { RECOMMEND_GROUPS, sortGroupLabelsByAge } from '@/lib/groups'
 import { sortByGroupRanking } from '@/lib/ranking'
 import { FEED_CACHE_TAG } from '@/lib/cacheTags'
 import type { BookCard, GroupSectionData, OperatorTag, FeedData, GroupCardsData } from '@/lib/feedShared'
+import { displayNames, matchingSlugs, passesFilter, type TopicFilterValue } from '@/lib/topicDisplay'
 
 // 홈 피드 = 책 1권 = 카드 1개 (기록 단위 아님 — CLAUDE.md 6.2/17장 책 단위 통합)
 // 같은 책에 기록이 여러 개면 집계값(추천 N명·대표 반응·글밥 대표값)으로 묶는다.
@@ -28,10 +29,10 @@ const MAX_PAGES = 10_000
 const FEED_CARD_COLUMNS =
   'book_id, book_key, title, cover_image_url, published_date, bookmark_count, is_board_book, ' +
   'record_count, recommend_count, reaction, density, latest_created_at, group_post_counts, ' +
-  'op_topics, op_categories, custom_topics'
+  'op_slugs, op_categories, custom_topics'
 
 // 카드 형태가 바뀌면 올린다 — 배포 후에도 남는 옛 캐시(다른 형태)를 쓰지 않게.
-const PUBLIC_FEED_CACHE_KEY = ['public-feed', 'v2']
+const PUBLIC_FEED_CACHE_KEY = ['public-feed', 'v3'] // v3: 주제 개편(op_slugs·tagSlugs)
 
 export type { BookCard, GroupSectionData, OperatorTag, FeedData, GroupCardsData, CardSort } from '@/lib/feedShared'
 export { CARD_SORT_LABELS, sortCardsBy } from '@/lib/feedShared'
@@ -51,7 +52,7 @@ interface FeedCardRow {
   density: number
   latest_created_at: string
   group_post_counts: Record<string, number> // 시기별 자격 기록 수 — 키 = 이 책의 시기 합집합
-  op_topics: string[]
+  op_slugs: string[] // 태그 slug(숨김 포함): 최근 기록에 처음 등장한 순
   op_categories: string[]
   custom_topics: string[]
 }
@@ -94,15 +95,16 @@ function createAnonClient(): SupabaseClient {
 
 // 책 카드용 주제 = 운영자 하위 태그 + 커스텀 태그. 단, 커스텀 태그가 운영자 태그의 '카테고리명'이나
 // 운영자 태그명과 겹치면 드롭(예: 커스텀 '가족' + 운영자 '엄마'(카테고리 가족) → '가족' 제거).
-function topicsFor(row: FeedCardRow): string[] {
-  const opNames = new Set(row.op_topics)
+function topicsFor(row: FeedCardRow, bySlug: Map<string, OperatorTag>): string[] {
+  const names = displayNames(row.op_slugs, bySlug) // 세부가 있으면 세부 이름만, 숨김 태그도 표시
+  const opNames = new Set(names)
   const categories = new Set(row.op_categories)
-  const result = [...row.op_topics]
+  const result = [...names]
   for (const c of row.custom_topics) if (!categories.has(c) && !opNames.has(c)) result.push(c)
   return result
 }
 
-function toCard(row: FeedCardRow): BookCard {
+function toCard(row: FeedCardRow, bySlug: Map<string, OperatorTag>): BookCard {
   return {
     bookId: row.book_id,
     isbn: row.book_key ?? '',
@@ -113,7 +115,8 @@ function toCard(row: FeedCardRow): BookCard {
     reaction: row.reaction ?? 2,
     density: row.density,
     groups: sortGroupLabelsByAge(Object.keys(row.group_post_counts)), // 시기는 순서형 — 항상 연령 오름차순
-    topics: topicsFor(row),
+    topics: topicsFor(row, bySlug),
+    tagSlugs: row.op_slugs,
     latestCreatedAt: row.latest_created_at,
     publishedDate: row.published_date,
     bookmarkCount: row.bookmark_count,
@@ -125,14 +128,25 @@ function toCard(row: FeedCardRow): BookCard {
 async function fetchOperatorTagsOrThrow(supabase: SupabaseClient): Promise<OperatorTag[]> {
   const { data, error } = await supabase
     .from('operator_tags')
-    .select('id, name, tag_category, sort_order')
-    .eq('is_active', true)
+    .select('id, slug, name, level, parent_id, tag_category, sort_order, is_active')
     .order('sort_order', { ascending: true })
   if (error) throw error
-  return (data as OperatorTag[] | null) ?? []
+  type Row = { id: string; slug: string; name: string; level: 'topic' | 'detail'; parent_id: string | null; tag_category: string | null; sort_order: number; is_active: boolean }
+  const rows = (data as Row[] | null) ?? []
+  const slugById = new Map(rows.map((r) => [r.id, r.slug]))
+  return rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    level: r.level,
+    parent: r.parent_id ? slugById.get(r.parent_id) ?? null : null,
+    category: r.tag_category ?? '',
+    sortOrder: r.sort_order,
+    isActive: r.is_active,
+  }))
 }
 
-// 활성 운영자 태그 (그룹 더보기 주제 탭 등). 실패 시 빈 배열.
+// 운영자 태그 전체(숨김 포함 — 큰 분류 필터에 개편 전 태그도 포함되게). 실패 시 빈 배열.
 export async function fetchOperatorTags(supabase: SupabaseClient): Promise<OperatorTag[]> {
   try {
     return await fetchOperatorTagsOrThrow(supabase)
@@ -166,7 +180,8 @@ const getPublicFeed = unstable_cache(
         groupRecordCounts[g] = (groupRecordCounts[g] ?? 0) + c
       }
     }
-    return { operatorTags, cards: rows.map(toCard), groupRecordCounts }
+    const bySlug = new Map(operatorTags.map((t) => [t.slug, t]))
+    return { operatorTags, cards: rows.map((r) => toCard(r, bySlug)), groupRecordCounts }
   },
   PUBLIC_FEED_CACHE_KEY,
   { tags: [FEED_CACHE_TAG], revalidate: 60 } // 쓰기 시 즉시 만료, 60초는 누락 대비 안전망
@@ -214,13 +229,15 @@ function withBookmarks(cards: BookCard[], mine: Set<string>): BookCard[] {
 
 export async function getFeedData(
   supabase: SupabaseClient,
-  tagFilter?: string,
+  filter: TopicFilterValue,
   userId?: string
 ): Promise<FeedData> {
   const [feed, mine] = await Promise.all([loadPublicFeed(), fetchMyBookmarkIds(supabase, userId)])
 
   const cards = feed?.cards ?? []
-  const filtered = tagFilter ? cards.filter((c) => c.topics.includes(tagFilter)) : cards
+  // 주제 = 주제+그 세부 / 세부 = 그 세부 / 큰 분류 = 그 분류의 모든 태그(숨김 포함) — lib/topicDisplay
+  const match = matchingSlugs(filter, feed?.operatorTags ?? [])
+  const filtered = cards.filter((c) => passesFilter(c.tagSlugs, match))
 
   const sections: GroupSectionData[] = RECOMMEND_GROUPS.map((g) => {
     const inGroup = filtered.filter((c) => c.groups.includes(g.label))
@@ -285,4 +302,15 @@ export async function getFeedScale(): Promise<FeedScale | null> {
     books: feed.cards.filter((c) => c.groups.includes(g.label)).length,
   })).reduce((a, b) => (b.books > a.books ? b : a))
   return { feedBooks: feed.cards.length, cacheSize, largestGroup }
+}
+
+// ---------- 홈 검색 '주제로 찾은 책' (DECISIONS 15장) ----------
+// 공개 피드 캐시의 카드에서 그 태그(주제면 세부 포함)가 달린 책을 고른다 — 추가 DB 조회 없음.
+export async function getCardsByTag(tagSlug: string): Promise<BookCard[]> {
+  const feed = await loadPublicFeed()
+  if (!feed) return []
+  const match = matchingSlugs({ tag: tagSlug }, feed.operatorTags)
+  return feed.cards
+    .filter((c) => passesFilter(c.tagSlugs, match))
+    .sort((a, b) => b.recordCount - a.recordCount || b.recommendUserCount - a.recommendUserCount)
 }
