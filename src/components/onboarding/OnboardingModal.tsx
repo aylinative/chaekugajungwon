@@ -13,7 +13,16 @@ const STORAGE_KEY = 'chaekugajungwon_onboarding_v1'
 const SWIPE_THRESHOLD = 50
 
 // preview: 개발 서버 확인용(/?onboarding=preview, 개발에서만) — 기기·계정 기록을 무시하고 열고, 닫아도 기록하지 않음
-export default function OnboardingModal({ show, preview = false }: { show: boolean; preview?: boolean }) {
+// firstRecord: 기록 0건인 신규 가입자 — 닫거나 버튼을 누르면 첫 기록 화면으로(첫 기록 게이트 11.4)
+export default function OnboardingModal({
+  show,
+  preview = false,
+  firstRecord = false,
+}: {
+  show: boolean
+  preview?: boolean
+  firstRecord?: boolean
+}) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(0)
@@ -22,26 +31,44 @@ export default function OnboardingModal({ show, preview = false }: { show: boole
   // 서버가 노출 대상(show)이라 판단했고, 같은 기기에서 이미 닫지 않았을 때만 연다.
   useEffect(() => {
     if (!show) return
-    if (preview) return setOpen(true)
+    // 미리보기·기록 0건 신규 가입자는 기기 기록(localStorage)을 무시 — 탈퇴 후 같은 기기 재가입 등에서 안내·첫 기록을 건너뛰지 않게
+    if (preview || firstRecord) return setOpen(true)
     try {
       if (!localStorage.getItem(STORAGE_KEY)) setOpen(true)
     } catch {
       setOpen(true) // localStorage 접근 불가 환경이면 서버 판단만 따른다
     }
-  }, [show, preview])
+  }, [show, preview, firstRecord])
 
+  const FIRST_RECORD_URL = '/recommend/create?first=1'
   const dismiss = () => {
     if (preview) return setOpen(false)
-    try {
-      localStorage.setItem(STORAGE_KEY, '1')
-    } catch {}
-    // 계정 단위로 '봤음' 기록 — 다른 기기에서도 재노출 안 됨(best-effort)
-    fetch('/api/onboarding', { method: 'POST' }).catch(() => {})
+    if (firstRecord) {
+      // '봤음' 저장이 끝난 뒤 이동 — 저장 전에 홈으로 돌아오면 팝업도 게이트도 없는 상태가 될 수 있어서
+      markSeen().finally(() => router.push(FIRST_RECORD_URL))
+      return
+    }
+    markSeen()
     setOpen(false)
   }
 
+  // 같은 기기 즉시 재노출 방지 + 계정 단위 '봤음' 기록(best-effort)
+  const markSeen = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, '1')
+    } catch {}
+    setOpen(false)
+    // 계정 단위로 '봤음' 기록 — 다른 기기에서도 재노출 안 됨(best-effort)
+    return fetch('/api/onboarding', { method: 'POST' }).then(
+      () => undefined,
+      () => undefined
+    )
+  }
+
   const goCta = () => {
-    dismiss()
+    if (preview) return setOpen(false)
+    if (firstRecord) return dismiss() // 첫 기록 화면(?first=1)으로 이동
+    markSeen()
     router.push('/recommend/create')
   }
 

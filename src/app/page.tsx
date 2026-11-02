@@ -67,26 +67,23 @@ export default async function Home({
     )
   }
 
-  // 첫 기록 게이트(11.4): 기록 0건이면 피드 대신 첫 기록 화면으로.
-  // 이 서비스의 핵심은 추천 기록이 쌓이는 것 — 모든 유저는 1건 쓰고 시작한다.
-  const { count: myPostCount } = await supabase
-    .from('posts')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-  if ((myPostCount ?? 0) === 0) {
-    redirect('/recommend/create?first=1')
-  }
-
   // 온보딩 노출 판단은 계정 단위(users.onboarded_at)로 — localStorage(기기별)로만 하면
   // 기존 유저가 새 기기로 접속할 때 신규 온보딩이 다시 뜬다. NULL이면 아직 안 봄 → 노출.
   // (컬럼 미생성 등 조회 실패 시 error가 세팅되므로 안전하게 미노출 처리 → 마이그레이션 후 정상 동작)
-  const { data: me, error: meError } = await supabase
-    .from('users')
-    .select('onboarded_at')
-    .eq('id', user.id)
-    .maybeSingle()
+  const [{ data: me, error: meError }, { count: myPostCount }] = await Promise.all([
+    supabase.from('users').select('onboarded_at').eq('id', user.id).maybeSingle(),
+    supabase.from('posts').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+  ])
   const showOnboarding =
     !meError && !(me as { onboarded_at: string | null } | null)?.onboarded_at
+
+  // 첫 기록 게이트(11.4): 기록 0건이면 피드 대신 첫 기록 화면으로 — 모든 유저는 1건 쓰고 시작한다.
+  // 단, 안내 팝업을 아직 안 본 신규 가입자는 홈에서 팝업을 먼저 보고, 팝업의 '첫 기록 남기러 가기'(또는 닫기)로
+  // 첫 기록 화면에 간다 (2026.11.03 운영자: 가입 → 닉네임·아이 → 홈 + 안내 팝업 → 첫 기록).
+  const needsFirstRecord = (myPostCount ?? 0) === 0
+  if (needsFirstRecord && !showOnboarding && !previewOnboarding) {
+    redirect('/recommend/create?first=1')
+  }
 
   // 로그인 후: 홈 피드
   const { operatorTags, sections } = await getFeedData(supabase, { tag, cat }, user.id)
@@ -110,7 +107,11 @@ export default async function Home({
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       {/* 신규 가입자 온보딩 — 계정당 1회(users.onboarded_at). 새 기기에서도 재노출 안 됨 */}
-      <OnboardingModal show={showOnboarding || previewOnboarding} preview={previewOnboarding} />
+      <OnboardingModal
+        show={showOnboarding || previewOnboarding}
+        preview={previewOnboarding}
+        firstRecord={needsFirstRecord}
+      />
       <FeedHeader />
       <TopicFilterBar tags={operatorTags} value={{ tag, cat }} />
 
