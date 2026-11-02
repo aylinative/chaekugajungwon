@@ -15,6 +15,7 @@ import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import ShareButton from '@/components/ShareButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
 import HidePostButton from '@/components/post/HidePostButton'
+import ReportBlockActions from '@/components/report/ReportBlockActions'
 import BottomTabBar from '@/components/BottomTabBar'
 
 // 책 단위 페이지 (CLAUDE.md 19.2) — 같은 책의 모든 기록이 한 URL에 누적된다.
@@ -241,8 +242,9 @@ export default async function BookPage({
   let myGroups: string[] = []
   let likedByMe = false
   let hasMyRecord = false
+  let blockedIds = new Set<string>() // 내가 차단한 사람 — 그 사람의 기록 카드는 나에게만 안 보임(2026.11.03)
   if (user) {
-    const [{ data: myLikeRow }, { count: myRecordCount }] = await Promise.all([
+    const [{ data: myLikeRow }, { count: myRecordCount }, { data: blockRows }] = await Promise.all([
       supabase
         .from('likes')
         .select('group_names')
@@ -254,11 +256,15 @@ export default async function BookPage({
         .select('*', { count: 'exact', head: true })
         .eq('book_id', book.id)
         .eq('user_id', user.id),
+      supabase.from('user_blocks').select('blocked_id').eq('blocker_id', user.id),
     ])
+    blockedIds = new Set(((blockRows as { blocked_id: string }[] | null) ?? []).map((r) => r.blocked_id))
     likedByMe = Boolean(myLikeRow)
     myGroups = (myLikeRow as { group_names: string[] | null } | null)?.group_names ?? []
     hasMyRecord = (myRecordCount ?? 0) > 0
   }
+
+  const visiblePosts = posts.filter((p) => !blockedIds.has(p.user_id))
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
@@ -367,15 +373,15 @@ export default async function BookPage({
         {/* 책육아 기록 누적 (작성순) */}
         <section className="mt-4">
           <h2 className="mb-2 px-1 text-sm font-semibold text-text">
-            책육아 기록 {posts.length > 0 && `${posts.length}`}
+            책육아 기록 {visiblePosts.length > 0 && `${visiblePosts.length}`}
           </h2>
-          {posts.length === 0 ? (
+          {visiblePosts.length === 0 ? (
             <div className="rounded-2xl bg-surface px-6 py-10 text-center shadow-sm">
               <p className="text-sm text-text/50">아직 기록이 없어요.</p>
             </div>
           ) : (
             <ul className="space-y-3">
-              {posts.map((p) => {
+              {visiblePosts.map((p) => {
                 const groups = sortGroupLabelsByAge(
                   (p.post_groups ?? []).map((g) => g.group_name)
                 )
@@ -427,6 +433,12 @@ export default async function BookPage({
                       )}
                     </Link>
                     {/* 작성자 본인에게만 수정/삭제 (삭제는 소프트, stay=그 자리 새로고침) */}
+                    {/* 남의 기록: 신고·차단 (로그인한 경우) */}
+                    {user && user.id !== p.user_id && (
+                      <div className="flex justify-end gap-3 border-t border-black/5 px-4 py-1.5">
+                        <ReportBlockActions postId={p.id} authorId={p.user_id} authorNickname={p.author?.nickname ?? null} />
+                      </div>
+                    )}
                     {user?.id === p.user_id && (
                       <div className="flex justify-end gap-3 border-t border-black/5 px-4 py-1.5">
                         <Link

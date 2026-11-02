@@ -5,6 +5,7 @@
 -- - 외래키 cascade에만 기대지 않고 순서대로 명시 삭제 (schema.sql과 라이브 DB의 FK가 다른 곳이 있어서 — CLAUDE.md [스키마])
 -- - 운영자 계정은 실수 방지를 위해 탈퇴 불가 (권한을 콘솔에서 먼저 해제해야 함)
 -- - 사진 파일(Storage)은 SQL로 지우면 실제 파일이 남으므로 API(/api/account/delete)가 먼저 지운다
+-- ⚠️ 최신판은 supabase/add_reports_blocks.sql(신고·차단 삭제 포함, 2026.11.03). 이 파일은 첫 버전 기록용.
 -- 실행: Supabase SQL Editor에서 한 번 (팝업이 뜨면 'Run without RLS' — 새 테이블 없음)
 -- =====================================================================
 create or replace function public.delete_my_account()

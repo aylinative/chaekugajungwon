@@ -555,8 +555,12 @@ SNS 공유
   ②-1 '주제로 찾은 책'(2026.10.28): 검색어가 주제 별칭과 같으면 그 주제의 책을 주제마다 묶어 제목 결과 아래에 (api/search/topics, 피드 캐시에서 고름 — DECISIONS 15장)
   ①이 비어도 ②로 기록 유도 — 모든 검색이 발견 아니면 기록 유도로 끝난다(콜드스타트 전략).
   기록 폼 검색 최소 길이 1(한 글자 제목 '점' 대응). ※ 한 글자 오타 매칭은 한글 trigram 특성상 한계
-신고 기능
-⏸ MVP 이후 추가 예정
+신고·차단 ✅ (2026.11.03 — 애플 1.2·구글 UGC 정책 대응)
+  - 신고: 기록 상세 ⋯ 메뉴 '신고하기' / 책 페이지 남의 기록 카드 '신고' → 사유 5종(부적절·개인정보 노출·광고·저작권·기타)+설명 → reports.
+    운영자는 /moderation '신고된 기록'에서 숨기기(기록 숨김+처리됨) / 문제없음. 마이페이지 운영자 링크에 대기 신고 수 표시.
+  - 차단: ⋯ '이 사용자 차단' / 카드 '차단' → user_blocks. 그 사람의 기록이 나에게만 책 페이지·기록 상세에서 안 보임
+    (홈 카드의 집계 숫자는 여러 기록 합이라 그대로). 마이페이지 '차단 관리'(/mypage/blocks)에서 해제. 상대는 차단 사실을 모름.
+  - SQL: supabase/add_reports_blocks.sql (탈퇴 함수도 신고·차단 삭제하도록 갱신).
 
 
 
@@ -678,6 +682,7 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
                                              + post_tags.seq(주제 태그 저장 순서 확정) 2026.10 (성능 #2)
   supabase/taxonomy_v2_migration.sql      — 주제 태그 개편(태그 열·매핑·재분류 76건·피드 뷰 op_slugs·topic_suggestions) 2026.10.30
                                              (확인 taxonomy_v2_verify.sql, 되돌리기 taxonomy_v2_rollback.sql + 코드 revert)
+  supabase/add_reports_blocks.sql         — 신고(reports)·차단(user_blocks) + 탈퇴 함수 갱신 2026.11.03
   supabase/add_delete_account.sql         — 회원 탈퇴 함수 delete_my_account()(security definer, 본인만·운영자 불가) 2026.11.03
   supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 

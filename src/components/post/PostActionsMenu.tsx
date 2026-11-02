@@ -3,9 +3,12 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import ReportSheet from '@/components/report/ReportSheet'
+import { blockUser } from '@/components/report/ReportBlockActions'
 
 // 기록 상세 상단 우측 ⋯(점 3개) 메뉴 — 수정/공유/삭제(또는 숨김)를 접어둔다.
 // 삭제/숨김은 소프트 삭제(hidden_at) 동일. 작성자='삭제', 운영자 타인글='숨김'.
+// 남의 기록이면 '신고하기'·'이 사용자 차단'(애플 1.2·구글 UGC 정책, 2026.11.03).
 export default function PostActionsMenu({
   postId,
   sharePath,
@@ -15,6 +18,7 @@ export default function PostActionsMenu({
   canModerate = false,
   moderateLabel = '삭제',
   moderateConfirm = '이 기록을 삭제할까요? 목록에서 보이지 않게 됩니다.',
+  report,
 }: {
   postId: string
   sharePath: string
@@ -24,10 +28,12 @@ export default function PostActionsMenu({
   canModerate?: boolean
   moderateLabel?: string
   moderateConfirm?: string
+  report?: { authorId: string; authorNickname: string | null } // 로그인한 남의 기록일 때만
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [pending, setPending] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
 
   const share = async () => {
     setOpen(false)
@@ -103,6 +109,30 @@ export default function PostActionsMenu({
             <button type="button" onClick={share} className={itemClass}>
               공유
             </button>
+            {report && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false)
+                    setReportOpen(true)
+                  }}
+                  className={itemClass}
+                >
+                  신고하기
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setOpen(false)
+                    if (await blockUser(report.authorId, report.authorNickname)) router.refresh()
+                  }}
+                  className={itemClass}
+                >
+                  이 사용자 차단
+                </button>
+              </>
+            )}
             {canModerate && (
               <button
                 type="button"
@@ -116,6 +146,7 @@ export default function PostActionsMenu({
           </div>
         </>
       )}
+      {reportOpen && <ReportSheet postId={postId} onClose={() => setReportOpen(false)} />}
     </div>
   )
 }

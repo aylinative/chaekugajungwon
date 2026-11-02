@@ -11,6 +11,7 @@ import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostActionsMenu from '@/components/post/PostActionsMenu'
+import UnblockButton from '@/components/report/UnblockButton'
 
 const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.selectedClass])
@@ -128,6 +129,17 @@ export default async function PostDetailPage({
   const isOperator = await getIsOperator(supabase, user?.id)
   const isOwner = Boolean(user && user.id === post.user_id)
   const canModeratePost = isOwner || isOperator // 게시물 숨김 권한
+  // 내가 차단한 사람의 기록이면 내용 대신 안내(애플 1.2 차단 — 나에게만 안 보임, 2026.11.03)
+  let isBlocked = false
+  if (user && !isOwner) {
+    const { data: block } = await supabase
+      .from('user_blocks')
+      .select('blocked_id')
+      .eq('blocker_id', user.id)
+      .eq('blocked_id', post.user_id)
+      .maybeSingle()
+    isBlocked = Boolean(block)
+  }
 
   // '나도 추천해요'·저장 — 책 단위(likes·bookmarks.book_id)라 책 페이지·홈 카드와 같은 데이터.
   // 공유 링크로 들어온 사람이 바로 누를 수 있게 기록 상세에도 둔다(2026.11 재도입).
@@ -196,6 +208,7 @@ export default async function PostDetailPage({
           canEdit={false}
           canModerate={canModeratePost}
           moderateLabel={isOwner ? '삭제' : '숨김'}
+          report={user && !isOwner ? { authorId: post.user_id, authorNickname: post.author?.nickname ?? null } : undefined}
           moderateConfirm={
             isOwner
               ? '이 기록을 삭제할까요? 목록에서 보이지 않게 됩니다.'
@@ -277,7 +290,13 @@ export default async function PostDetailPage({
           )}
         </section>
 
-        {/* ② 작성자 추천 카드 영역 */}
+        {/* ② 작성자 추천 카드 영역 — 차단한 사용자의 기록이면 안내만 */}
+        {isBlocked ? (
+          <section className="mt-4 flex flex-col items-center gap-3 rounded-2xl bg-surface p-6 text-center shadow-sm">
+            <p className="text-sm text-text/60">차단한 사용자의 기록이에요.</p>
+            <UnblockButton userId={post.user_id} />
+          </section>
+        ) : (
         <section className="mt-4 space-y-4 rounded-2xl bg-surface p-4 shadow-sm">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-main/10 text-sm">
@@ -365,6 +384,7 @@ export default async function PostDetailPage({
             </div>
           )}
         </section>
+        )}
       </main>
 
       <BottomTabBar />

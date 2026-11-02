@@ -64,6 +64,10 @@ export default async function MyPage() {
   const isOperator = Boolean(me?.is_operator)
   // 운영자 전용 '서비스 규모' 경고 — 캐시된 피드에서 계산(추가 DB 조회 없음)
   const scale = isOperator ? await getFeedScale() : null
+  // 운영자: 처리 안 된 신고 수 — 하단 링크에 표시 (2026.11.03)
+  const pendingReports = isOperator
+    ? (await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending')).count ?? 0
+    : 0
   const children = ((childRes.data as { birth_date: string }[] | null) ?? []).map((c) => ({
     birth_date: c.birth_date,
   }))
@@ -208,11 +212,16 @@ export default async function MyPage() {
             >
               건의·제보
             </a>
+
             {isOperator && (
               <>
                 <span aria-hidden>·</span>
                 <Link href="/moderation" className="underline underline-offset-2">
-                  숨긴 기록
+                  {pendingReports > 0 ? (
+                    <span className="font-semibold text-red-500">신고 {pendingReports}</span>
+                  ) : (
+                    '숨긴 기록'
+                  )}
                 </Link>
                 <span aria-hidden>·</span>
                 <Link href="/admin/tags" className="underline underline-offset-2">
@@ -228,6 +237,10 @@ export default async function MyPage() {
             <span aria-hidden>·</span>
             <Link href="/terms" className="underline underline-offset-2">
               이용약관
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/mypage/blocks" className="underline underline-offset-2">
+              차단 관리
             </Link>
             <span aria-hidden>·</span>
             <Link href="/mypage/withdraw" className="underline underline-offset-2">
