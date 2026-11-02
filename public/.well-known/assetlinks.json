@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "kr.co.bookgardening.app",
+        "sha256_cert_fingerprints": ["06:2E:A5:EA:99:8C:57:A6:1B:35:B8:13:59:4A:E7:55:12:F8:27:5A:40:BC:FC:BA:77:E7:F9:D3:81:20:6E:59"]
+      }
+    }]
