@@ -124,6 +124,10 @@ export default function OnboardingModal({
           </h2>
           <p className="mt-2 min-h-[5.5rem] text-sm leading-relaxed text-stone-600">
             {SLIDES[index].body}
+            {/* 마지막 장에만 — 팝업을 닫은 뒤 다시 볼 곳 안내 (모달 전용, /guide 페이지에는 안 나옴) */}
+            {isLast && (
+              <span className="mt-1 block text-xs text-stone-500">이용가이드는 마이페이지에서 확인 가능해요</span>
+            )}
           </p>
 
           {/* 닷 인디케이터 */}
