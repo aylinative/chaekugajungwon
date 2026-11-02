@@ -18,9 +18,11 @@ export const metadata: Metadata = {
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ tag?: string; cat?: string }>
+  searchParams: Promise<{ tag?: string; cat?: string; onboarding?: string }>
 }) {
-  const { tag, cat } = await searchParams
+  const { tag, cat, onboarding } = await searchParams
+  // 개발 서버에서만: /?onboarding=preview 로 온보딩 팝업 미리보기 (운영에서는 무시)
+  const previewOnboarding = process.env.NODE_ENV === 'development' && onboarding === 'preview'
   const supabase = await createServerSupabase()
 
   const {
@@ -92,7 +94,7 @@ export default async function Home({
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       {/* 신규 가입자 온보딩 — 계정당 1회(users.onboarded_at). 새 기기에서도 재노출 안 됨 */}
-      <OnboardingModal show={showOnboarding} />
+      <OnboardingModal show={showOnboarding || previewOnboarding} preview={previewOnboarding} />
       <FeedHeader />
       <TopicFilterBar tags={operatorTags} value={{ tag, cat }} />
 

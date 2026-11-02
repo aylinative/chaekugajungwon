@@ -12,7 +12,8 @@ import SlideImage from '@/components/onboarding/SlideImage'
 const STORAGE_KEY = 'chaekugajungwon_onboarding_v1'
 const SWIPE_THRESHOLD = 50
 
-export default function OnboardingModal({ show }: { show: boolean }) {
+// preview: 개발 서버 확인용(/?onboarding=preview, 개발에서만) — 기기·계정 기록을 무시하고 열고, 닫아도 기록하지 않음
+export default function OnboardingModal({ show, preview = false }: { show: boolean; preview?: boolean }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(0)
@@ -21,14 +22,16 @@ export default function OnboardingModal({ show }: { show: boolean }) {
   // 서버가 노출 대상(show)이라 판단했고, 같은 기기에서 이미 닫지 않았을 때만 연다.
   useEffect(() => {
     if (!show) return
+    if (preview) return setOpen(true)
     try {
       if (!localStorage.getItem(STORAGE_KEY)) setOpen(true)
     } catch {
       setOpen(true) // localStorage 접근 불가 환경이면 서버 판단만 따른다
     }
-  }, [show])
+  }, [show, preview])
 
   const dismiss = () => {
+    if (preview) return setOpen(false)
     try {
       localStorage.setItem(STORAGE_KEY, '1')
     } catch {}
