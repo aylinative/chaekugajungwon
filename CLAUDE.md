@@ -510,6 +510,13 @@ OO개월
     목록에서 실제로 빠지는 건 새로고침(재조회) 시점. 즉시 제거하지 말 것.
 
 
+11.5 회원 탈퇴 (2026.11.03, A안 = 전부 삭제 — 스토어 심사 기준)
+  - 진입: 마이페이지 하단 '회원 탈퇴' → /mypage/withdraw. 삭제 항목 안내 + '탈퇴' 입력해야 버튼 활성. 운영자 계정은 탈퇴 불가.
+  - 처리(/api/account/delete): ①사진 파일 삭제(Storage post-images/{user_id}/) ②카카오 연결 끊기(KAKAO_ADMIN_KEY, 회원번호)
+    ③DB 전부 삭제(rpc delete_my_account — 기록·아이·추천·저장·제안·계정·auth.users) ④로그아웃 → /?withdrawn=1 안내.
+  - 앱 밖 삭제 요청: aylinative@gmail.com (개인정보처리방침에 명시 — 구글 요구사항).
+  - 개인정보처리방침 /privacy, 이용약관 /terms (로그인 화면·마이페이지 하단 링크). 카카오 로그인 scope는 닉네임만(프로필 사진 제외).
+
 11.4 첫 기록 게이트 (2026.08 확정)
 이 서비스의 핵심은 추천 기록이 쌓이는 것 — 모든 유저는 기록 1건을 쓰고 서비스를 시작한다.
   - 흐름: 카카오 가입 → 온보딩(닉네임·아이) → 첫 기록 화면(/recommend/create?first=1) → 기록 완료 → 홈 입장
@@ -586,6 +593,8 @@ SNS 공유
 구현 위치: src/app/api/books/search/route.ts
   ※ DB 컬럼도 카카오 전환에 맞춰 리네임(2026.08.26): aladin_item_id→book_key, aladin_url→source_url (supabase/rename_aladin_columns.sql). 라우트는 /api/books/search로 이동(구 /api/aladin/search 삭제).
     → 코드·DB·문서 현재상태에 'aladin' 표기 없음. 남은 언급은 변경이력(역사)뿐.
+⚠️ 법률 문서 연동(2026.11.03): /terms('서비스 내용'·'책임의 한계')와 /privacy('처리 위탁' 표)에 '카카오 책 검색'이 적혀 있다.
+  책 검색 API를 알라딘 등으로 바꾸거나 로그인 수단·호스팅·DB 업체를 바꾸면 두 페이지 문구도 반드시 함께 고칠 것(시행일·변경 고지 포함).
 환경변수: .env.local의 KAKAO_CLIENT_ID (배포 시 Vercel 등록 필수). 구 ALADIN_TTB_KEY는 코드 미사용이나 보관(삭제하지 않음).
 13.2 카카오 로그인 (Supabase Auth 연동)
 scope: profile_nickname profile_image만 명시 (account_email 제외)
@@ -663,6 +672,7 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
                                              + post_tags.seq(주제 태그 저장 순서 확정) 2026.10 (성능 #2)
   supabase/taxonomy_v2_migration.sql      — 주제 태그 개편(태그 열·매핑·재분류 76건·피드 뷰 op_slugs·topic_suggestions) 2026.10.30
                                              (확인 taxonomy_v2_verify.sql, 되돌리기 taxonomy_v2_rollback.sql + 코드 revert)
+  supabase/add_delete_account.sql         — 회원 탈퇴 함수 delete_my_account()(security definer, 본인만·운영자 불가) 2026.11.03
   supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 
 
@@ -833,7 +843,7 @@ supabase/*.sql
       카메라는 HTTPS에서만(로컬 localhost 예외). ✅ 실기기 확인(2026.10.31): 안드로이드 크롬, 아이패드 사파리.
       인식률: 안내 네모 영역만 잘라 읽기(15% 여유, 3번에 1번은 전체) + 1920×1080·계속 초점 — 아이패드에서 아주 가까이 대야 읽히던 문제 해결.
   □ [앱 전환 검토] (2026.10.30 신설) — 지금은 사이트(모바일 웹+PWA) 유지가 결론. 푸시 알림이 꼭 필요해지면 그때 검토.
-      방식: 지금 사이트를 Capacitor 등으로 감싸 앱으로(처음부터 다시 만들 필요 없음). 준비 순서: ①회원 탈퇴(앱 내 계정 삭제 — 애플 필수,
+      방식: 지금 사이트를 Capacitor 등으로 감싸 앱으로(처음부터 다시 만들 필요 없음). 준비 순서: ①회원 탈퇴 ✅(2026.11.03, 11.5)(앱 내 계정 삭제 — 애플 필수,
       사이트에도 있으면 좋음) ②애플로 로그인(카카오 등 타사 로그인 앱은 대체 로그인 필요, 가이드라인 4.8) ③푸시 알림.
       ⚠️ 애플 4.2(최소 기능): 사이트를 감싸기만 하면 거절될 수 있음 → 푸시·바코드(앱 전용 기능)·공유 등 앱다운 기능을 갖출 것.
       비용: 애플 연 $99, 구글 1회 $25. 업데이트: 앱 코드 변경은 심사(1~2일), 서버 데이터·웹 화면 변경은 심사 불필요.

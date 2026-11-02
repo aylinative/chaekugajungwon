@@ -18,9 +18,9 @@ export const metadata: Metadata = {
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ tag?: string; cat?: string; onboarding?: string }>
+  searchParams: Promise<{ tag?: string; cat?: string; onboarding?: string; withdrawn?: string }>
 }) {
-  const { tag, cat, onboarding } = await searchParams
+  const { tag, cat, onboarding, withdrawn } = await searchParams
   // 개발 서버에서만: /?onboarding=preview 로 온보딩 팝업 미리보기 (운영에서는 무시)
   const previewOnboarding = process.env.NODE_ENV === 'development' && onboarding === 'preview'
   const supabase = await createServerSupabase()
@@ -40,12 +40,28 @@ export default async function Home({
             <h1 className="text-2xl font-bold text-main">책육아정원</h1>
             <p className="text-sm text-text/60">그림책 추천 커뮤니티</p>
           </div>
+          {withdrawn === '1' && (
+            <p className="-mt-4 rounded-xl bg-surface-muted px-4 py-2.5 text-center text-xs text-text/70">
+              탈퇴가 완료됐어요. 그동안 함께해 주셔서 고마워요.
+            </p>
+          )}
           <a
             href="/api/auth/kakao"
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] py-3 font-medium text-[#191919] transition-colors hover:bg-[#F5DC00]"
           >
             카카오로 시작하기
           </a>
+          <p className="-mt-6 text-center text-[11px] leading-relaxed text-text/45">
+            시작하면{' '}
+            <a href="/terms" className="underline underline-offset-2">
+              이용약관
+            </a>
+            과{' '}
+            <a href="/privacy" className="underline underline-offset-2">
+              개인정보처리방침
+            </a>
+            에 동의하게 돼요.
+          </p>
         </div>
       </main>
     )

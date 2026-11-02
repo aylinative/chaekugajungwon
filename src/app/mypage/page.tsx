@@ -221,6 +221,19 @@ export default async function MyPage() {
               </>
             )}
           </div>
+          <div className="flex items-center gap-2 text-[11px] text-text/35">
+            <Link href="/privacy" className="underline underline-offset-2">
+              개인정보처리방침
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/terms" className="underline underline-offset-2">
+              이용약관
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/mypage/withdraw" className="underline underline-offset-2">
+              회원 탈퇴
+            </Link>
+          </div>
           <a
             href="/api/auth/logout"
             className="rounded-xl border border-black/10 px-5 py-2 text-sm text-text/70"
