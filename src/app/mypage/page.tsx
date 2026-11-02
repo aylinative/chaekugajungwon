@@ -197,7 +197,7 @@ export default async function MyPage() {
         <footer className="flex flex-col items-center gap-3 pt-2">
           <div className="flex items-center gap-2 whitespace-nowrap text-xs text-text/40">
             <Link href="/guide" className="underline underline-offset-2">
-              가이드
+              이용가이드
             </Link>
             <span aria-hidden>·</span>
             <a
