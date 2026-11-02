@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Splash from "@/components/Splash";
 import AppleSplashLinks from "@/components/AppleSplashLinks";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -99,6 +100,8 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {/* 서비스 워커 등록 — PWA 오프라인 지원 */}
+        <ServiceWorkerRegister />
         {/* iOS PWA(설치형) 네이티브 실행 스플래시(로고+서비스명 이미지) — React가 <head>로 hoist */}
         <AppleSplashLinks />
         {/* 인앱 스플래시 — 브라우저 접속의 로딩 화면(설치형 PWA는 네이티브가 있어 Splash가 스스로 생략) */}
