@@ -5,6 +5,9 @@ import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge, AGE_LABEL_FULL } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import { formatDate } from '@/lib/date'
+import { getBookDistribution } from '@/lib/distribution'
+import BookmarkButton from '@/components/BookmarkButton'
+import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostActionsMenu from '@/components/post/PostActionsMenu'
@@ -126,8 +129,39 @@ export default async function PostDetailPage({
   const isOwner = Boolean(user && user.id === post.user_id)
   const canModeratePost = isOwner || isOperator // 게시물 숨김 권한
 
-  // '나도 추천해요'·저장은 책 단위라 책 페이지(/book/[isbn])·홈 카드에서 한다.
-  // 기록 상세에서는 제외(2026.10 — 댓글 영역 제거와 함께) → 추천·저장 조회도 하지 않음.
+  // '나도 추천해요'·저장 — 책 단위(likes·bookmarks.book_id)라 책 페이지·홈 카드와 같은 데이터.
+  // 공유 링크로 들어온 사람이 바로 누를 수 있게 기록 상세에도 둔다(2026.11 재도입).
+  // 추천 수는 책 페이지와 동일하게 분포 모수(추천+기록자, 유저별 합집합)를 쓴다.
+  const bookId = post.book?.id
+  let recommendCount = 0
+  let likedByMe = false
+  let myGroups: string[] = []
+  let bookmarkedByMe = false
+  let hasMyRecord = isOwner
+  if (bookId) {
+    const [distribution, myLikeRes, myBookmarkRes, myRecordRes] = await Promise.all([
+      getBookDistribution(supabase, bookId),
+      user
+        ? supabase.from('likes').select('group_names').eq('user_id', user.id).eq('book_id', bookId).maybeSingle()
+        : Promise.resolve({ data: null }),
+      user
+        ? supabase.from('bookmarks').select('book_id').eq('user_id', user.id).eq('book_id', bookId).maybeSingle()
+        : Promise.resolve({ data: null }),
+      // 이 기록의 작성자가 아니어도 같은 책을 따로 기록했을 수 있다(책 페이지와 같은 판정)
+      user && !isOwner
+        ? supabase
+            .from('posts')
+            .select('*', { count: 'exact', head: true })
+            .eq('book_id', bookId)
+            .eq('user_id', user.id)
+        : Promise.resolve({ count: 0 }),
+    ])
+    recommendCount = distribution.totalVoters
+    likedByMe = Boolean(myLikeRes.data)
+    myGroups = (myLikeRes.data as { group_names: string[] | null } | null)?.group_names ?? []
+    bookmarkedByMe = Boolean((myBookmarkRes.data as { book_id: string } | null)?.book_id)
+    hasMyRecord = isOwner || (myRecordRes.count ?? 0) > 0
+  }
 
   const book = post.book
   const groups = sortGroupLabelsByAge((post.post_groups ?? []).map((g) => g.group_name))
@@ -172,45 +206,75 @@ export default async function PostDetailPage({
 
       <main className="mx-auto w-full max-w-md flex-1 px-4 pb-10 pt-4">
         {/* ① 책 정보 영역 */}
-        <section className="flex gap-4 rounded-2xl bg-surface p-4 shadow-sm">
-          <div className="h-32 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-surface-muted">
-            {book?.cover_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={book.cover_image_url}
-                alt={book.title ?? ''}
-                className="h-full w-full object-cover"
+        <section className="rounded-2xl bg-surface p-4 shadow-sm">
+          <div className="flex gap-4">
+            <div className="h-32 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-surface-muted">
+              {book?.cover_image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={book.cover_image_url}
+                  alt={book.title ?? ''}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-2xl">📖</div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-bold leading-snug text-text">
+                {book?.title ?? '(제목 없음)'}
+              </h1>
+              {book?.author && (
+                <p className="mt-1 text-sm text-text/70">{book.author}</p>
+              )}
+              {pubInfo && <p className="mt-0.5 text-xs text-text/50">{pubInfo}</p>}
+              {book?.is_out_of_print && (
+                <span className="mt-2 inline-block rounded-full bg-red-50 px-2 py-0.5 text-[11px] text-red-500">
+                  절판/품절
+                </span>
+              )}
+              {/* ⚠️ 아이 나이는 표시하지 않는다 — 기록 시점 기준이라 실제 읽은 시기와
+                  다를 수 있어 잘못된 정보가 된다. 시기 배지(②)가 그 역할을 한다. (10.1) */}
+              {book?.source_url && (
+                <a
+                  href={book.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-block text-xs text-main underline"
+                >
+                  책 정보 보기 ›
+                </a>
+              )}
+            </div>
+          </div>
+          {/* 나도 추천해요 + 저장 — 책 페이지 책 정보 영역과 동일(책 단위). 공유는 상단 ⋯ 메뉴 */}
+          {bookId && (
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/5 pt-3">
+              {hasMyRecord ? (
+                // 내가 기록한 책은 이미 추천한 것 — self-like 대신 비활성 표시(책 페이지와 동일)
+                <span className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-surface-muted px-2.5 py-1.5 text-xs text-text/40">
+                  <ThumbIcon filled size={14} />
+                  내가 추천한 책
+                </span>
+              ) : (
+                <RecommendButton
+                  bookId={bookId}
+                  initialLiked={likedByMe}
+                  initialCount={recommendCount}
+                  initialGroups={myGroups}
+                  isLoggedIn={Boolean(user)}
+                  variant="detail"
+                />
+              )}
+              <BookmarkButton
+                bookId={bookId}
+                initialBookmarked={bookmarkedByMe}
+                initialCount={book?.bookmark_count ?? 0}
+                isLoggedIn={Boolean(user)}
+                variant="detail"
               />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-2xl">📖</div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold leading-snug text-text">
-              {book?.title ?? '(제목 없음)'}
-            </h1>
-            {book?.author && (
-              <p className="mt-1 text-sm text-text/70">{book.author}</p>
-            )}
-            {pubInfo && <p className="mt-0.5 text-xs text-text/50">{pubInfo}</p>}
-            {book?.is_out_of_print && (
-              <span className="mt-2 inline-block rounded-full bg-red-50 px-2 py-0.5 text-[11px] text-red-500">
-                절판/품절
-              </span>
-            )}
-            {/* ⚠️ 아이 나이는 표시하지 않는다 — 기록 시점 기준이라 실제 읽은 시기와
-                다를 수 있어 잘못된 정보가 된다. 시기 배지(②)가 그 역할을 한다. (10.1) */}
-            {book?.source_url && (
-              <a
-                href={book.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-block text-xs text-main underline"
-              >
-                책 정보 보기 ›
-              </a>
-            )}
-          </div>
+            </div>
+          )}
         </section>
 
         {/* ② 작성자 추천 카드 영역 */}
