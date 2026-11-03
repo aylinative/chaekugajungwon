@@ -227,6 +227,10 @@ export default async function MyPage() {
                 <Link href="/admin/tags" className="underline underline-offset-2">
                   태그 관리
                 </Link>
+                <span aria-hidden>·</span>
+                <Link href="/admin/users" className="underline underline-offset-2">
+                  이용자
+                </Link>
               </>
             )}
           </div>

@@ -82,9 +82,10 @@ OAuth 2.0 (Supabase Auth 연동)
 
 
 운영자 전용 관리 페이지는 별도로 만들지 않는다. 권한 부여는 Supabase 관리 콘솔 또는 운영자 계정 내 설정으로 처리한다.
-  ※ 예외 2건 — 콘솔로 하기엔 불편·위험해 운영자에게만 보이는 일반 화면으로 둔다:
+  ※ 예외 — 콘솔로 하기엔 불편·위험해 운영자에게만 보이는 일반 화면으로 둔다:
     (1) /moderation(숨김 복구), (2) /admin/tags(주제 태그 관리 — 추가·개명·카테고리 이동·활성/비활성).
-    둘 다 getIsOperator 가드 + 마이페이지 운영자 링크로 진입. 권한 부여(is_operator) 자체는 여전히 콘솔로.
+    (3) /admin/users(이용자 현황 — 전체·오늘·7일·30일 신규, 첫 기록 완료율, 최근 14일 일별. 숫자만, 명단 없음. 2026.11.03)
+    모두 getIsOperator 가드 + 마이페이지 운영자 링크로 진입. 권한 부여(is_operator) 자체는 여전히 콘솔로.
 
 
 5. 화면 구조 (네비게이션)
@@ -685,6 +686,8 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
   supabase/taxonomy_v2_migration.sql      — 주제 태그 개편(태그 열·매핑·재분류 76건·피드 뷰 op_slugs·topic_suggestions) 2026.10.30
                                              (확인 taxonomy_v2_verify.sql, 되돌리기 taxonomy_v2_rollback.sql + 코드 revert)
   supabase/add_reports_blocks.sql         — 신고(reports)·차단(user_blocks) + 탈퇴 함수 갱신 2026.11.03
+  supabase/hide_kakao_id.sql              — users.kakao_id 외부 조회 차단(열 단위 권한) + my_kakao_id() 2026.11.03
+                                             ⚠️ users에 새 열을 추가하면 이 파일의 grant select 목록에도 추가할 것
   supabase/add_delete_account.sql         — 회원 탈퇴 함수 delete_my_account()(security definer, 본인만·운영자 불가) 2026.11.03
   supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 

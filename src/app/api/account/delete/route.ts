@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `'${CONFIRM_WORD}'를 입력해 주세요.` }, { status: 400 })
   }
 
-  const { data: me } = await supabase.from('users').select('kakao_id, is_operator').eq('id', user.id).maybeSingle()
+  const { data: me } = await supabase.from('users').select('is_operator').eq('id', user.id).maybeSingle()
   if ((me as { is_operator?: boolean } | null)?.is_operator) {
     return NextResponse.json({ error: '운영자 계정은 탈퇴할 수 없어요. 운영자 권한을 먼저 해제해 주세요.' }, { status: 403 })
   }
@@ -43,7 +43,13 @@ export async function POST(request: Request) {
   }
 
   // ② 카카오 연결 끊기 (Admin 키로 회원번호 지정) — 다시 가입할 때 동의 화면부터 새로 시작되게
-  const kakaoId = (me as { kakao_id?: string } | null)?.kakao_id
+  //    kakao_id는 외부 조회가 막혀 있어(supabase/hide_kakao_id.sql) 본인 것만 돌려주는 함수로 읽는다.
+  //    함수가 아직 없으면(SQL 실행 전) 로그인 정보의 카카오 연결 id로 대신한다.
+  const { data: storedKakaoId } = await supabase.rpc('my_kakao_id')
+  const kakaoId =
+    (typeof storedKakaoId === 'string' && storedKakaoId) ||
+    user.identities?.find((i) => i.provider === 'kakao')?.id ||
+    (user.user_metadata?.provider_id as string | undefined)
   const adminKey = process.env.KAKAO_ADMIN_KEY
   if (adminKey && kakaoId && /^\d+$/.test(kakaoId)) {
     try {
