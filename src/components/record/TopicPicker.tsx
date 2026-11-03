@@ -31,9 +31,10 @@ interface Props {
   bookTitle: string
   bookDescription: string // 카카오 책 소개 (수정 화면에서는 비어 있음 → 추천 줄 없음)
   bookKey: string | null
+  bookNames?: string[] // 출판사·저자 — 추천 매칭에서 제외(예: 출판사 노란돼지 → 돼지)
 }
 
-export default function TopicPicker({ taxonomy, picks, onChange, bookTitle, bookDescription, bookKey }: Props) {
+export default function TopicPicker({ taxonomy, picks, onChange, bookTitle, bookDescription, bookKey, bookNames }: Props) {
   const tags = useMemo(() => taxonomy?.tags ?? [], [taxonomy])
   const idx = useMemo(() => indexTags(tags), [tags])
   const [boxTopic, setBoxTopic] = useState<string | null>(null) // 세부 박스: 마지막으로 고른 세부 있는 주제
@@ -45,8 +46,8 @@ export default function TopicPicker({ taxonomy, picks, onChange, bookTitle, book
   )
 
   const matched = useMemo(
-    () => (tags.length ? matchTopics(tags, idx, bookTitle, bookDescription) : []),
-    [tags, idx, bookTitle, bookDescription]
+    () => (tags.length ? matchTopics(tags, idx, bookTitle, bookDescription, bookNames ?? []) : []),
+    [tags, idx, bookTitle, bookDescription, bookNames]
   )
 
   // 같은 책의 다른 양육자 선택 — 책이 바뀔 때만 불러옴 (보여주는 건 내가 하나 이상 고른 뒤)

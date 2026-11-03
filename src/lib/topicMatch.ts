@@ -4,6 +4,7 @@
 // - 제목에서 찾은 것이 소개보다 앞, 같은 곳이면 먼저 나온 순
 // - 세부까지 맞으면 세부(화면에서 주제+세부 칩), 아니면 주제. 최대 3개 (2026.10.28 운영자)
 // - 띄어쓰기는 지우지 않는다: 지우면 '이 모습'→'이모', '영등포 도림동'→'포도'처럼 단어 사이에서 엉뚱한 매칭이 생김
+// - 태그 이름은 제목에서만 매칭 / 소개 속 출판사·저자 이름은 지우고 매칭 (2026.11.03 운영자)
 // - 매칭어 형식: '^말' = 제목에서만 / '말>세부slug+세부slug' = 맞으면 그 세부들을 한 칩으로 (예: 사계절 → 봄·여름·가을·겨울)
 import type { TagIndex, TaxTag } from '@/lib/topics'
 
@@ -50,12 +51,37 @@ function parseKey(raw: string): Key {
   }
 }
 
-export function matchTopics(tags: TaxTag[], idx: TagIndex, title: string, contents: string): MatchItem[] {
-  const t = norm(title ?? '')
-  const c = norm(contents ?? '')
+// 출판사·저자 이름은 지운다 — 소개에 '노란돼지의 신간'처럼 나와 '돼지'가 잡히는 문제 (2026.11.03 운영자)
+function stripNames(text: string, names: string[]): string {
+  let out = text
+  for (const n of names) if ([...n.replace(/ /g, '')].length >= 2) out = out.split(n).join(' ')
+  return out
+}
+
+// 태그 이름 자체를 '제목에서만' 매칭어로 쓴다 — 제목의 단어는 대부분 핵심 주제 (2026.11.03 운영자).
+// 예: '아빠 자판기' → 아빠 (엄마·아빠·친구는 소개 매칭어를 일부러 비워 둠 — DECISIONS 10장 — 제목은 예외)
+// '집·농장 동물' → '농장 동물'처럼 '·'로 나눈 조각 중 2음절 이상만, '날씨 : 비·눈·바람' 같은 이름은 ':' 앞만
+const nameKeys = (name: string): string[] =>
+  name
+    .split(':')[0]
+    .split(/[·/]/)
+    .map((s) => s.trim())
+    .filter((s) => [...s.replace(/ /g, '')].length >= 2)
+    .map((s) => '^' + s)
+
+export function matchTopics(
+  tags: TaxTag[],
+  idx: TagIndex,
+  title: string,
+  contents: string,
+  bookNames: string[] = []
+): MatchItem[] {
+  const names = bookNames.map(norm).filter(Boolean)
+  const t = norm(title ?? '') // 제목은 그대로 — 출판사 이름과 겹치는 제목 단어(예: 사계절)까지 지우지 않게
+  const c = stripNames(norm(contents ?? ''), names)
   const hits: { topic: string; details: string[]; rank: number }[] = []
   for (const tag of tags) {
-    const keys = tag.intro.map(parseKey).filter(({ k }) => [...k.replace(/ /g, '')].length >= 2)
+    const keys = [...tag.intro, ...nameKeys(tag.name)].map(parseKey).filter(({ k }) => [...k.replace(/ /g, '')].length >= 2)
     if (keys.length === 0) continue
     const excl = tag.excl.map(norm).filter(Boolean)
     const topic = tag.parent ?? tag.slug

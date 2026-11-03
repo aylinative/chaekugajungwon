@@ -568,6 +568,24 @@ function RecommendCreateInner() {
                   책 변경
                 </button>
               )}
+              {/* 새 기록: 잘못 고른 책을 지우고 다시 검색 (2026.11.03) */}
+              {!isEdit && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedBook(null)
+                    setQuery('')
+                    setBooks([])
+                    document.getElementById('book-search')?.focus()
+                  }}
+                  aria-label="선택한 책 지우기"
+                  className="-mr-1 flex h-7 w-7 items-center justify-center rounded-full text-text/40 hover:bg-surface-muted"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
             </div>
             <div className="mt-2 flex gap-3">
               <BookCover
@@ -724,6 +742,7 @@ function RecommendCreateInner() {
             onChange={setTopicPicks}
             bookTitle={selectedBook?.title ?? ''}
             bookDescription={selectedBook?.description ?? ''}
+            bookNames={selectedBook ? [selectedBook.publisher, ...selectedBook.author.split(',')] : []}
             bookKey={selectedBook ? selectedBook.isbn13 || selectedBook.link || selectedBook.title : null}
           />
 

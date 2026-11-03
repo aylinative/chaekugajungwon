@@ -40,6 +40,16 @@ function looksLikeIsbn(q: string): boolean {
   return /^\d{9}[\dXx]$/.test(s) || /^\d{13}$/.test(s);
 }
 
+// '제목 1 - 부제', '제목 (양장)', '제목 2권' → '제목'
+function simplifyTitle(q: string): string {
+  return q
+    .replace(/\s+[-–:]\s+.*$/, '') // ' - 부제', ' : 부제'
+    .replace(/[([{].*?[)\]}]/g, ' ') // 괄호 안
+    .replace(/\s*(제?\s*\d+\s*(권|편|부)?|[ⅠⅡⅢⅣⅤ])\s*$/, '') // 끝의 권 번호
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function searchKakao(
   query: string,
   key: string,
@@ -79,9 +89,15 @@ export async function GET(request: NextRequest) {
   try {
     // 바코드 스캔 등 ISBN 문자열이면 target=isbn, 그 외에는 통합(제목+저자) 검색.
     const isIsbn = looksLikeIsbn(query);
-    const documents = isIsbn
+    let documents = isIsbn
       ? await searchKakao(query.replace(/[\s-]/g, ''), key, 'isbn')
       : await searchKakao(query, key);
+    // 결과가 없으면 권 번호·부제를 떼고 한 번 더 (2026.11.03 제보: 서점 표기 '방귀 요정 뿡뿌 1 - 복수의 독방귀'는
+    // 카카오 제목 '방귀 요정 뿡뿌'와 달라 0건이었다)
+    if (!isIsbn && documents.length === 0) {
+      const simpler = simplifyTitle(query);
+      if (simpler && simpler !== query) documents = await searchKakao(simpler, key);
+    }
 
     const mapped: BookItem[] = documents.map((d) => ({
       title: d.title,
