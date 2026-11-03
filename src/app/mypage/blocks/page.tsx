@@ -7,7 +7,10 @@ import UnblockButton from '@/components/report/UnblockButton'
 export const metadata: Metadata = { title: '차단 관리 | 책육아정원', robots: { index: false } }
 
 // 내가 차단한 사용자 목록 — 여기서 차단을 풀 수 있다 (애플 1.2, 2026.11.03)
-export default async function BlocksPage() {
+// ?from=/book/... 또는 /posts/... 로 들어오면(기록 커버의 '차단 해제') 상단 버튼이 그 페이지로 돌아가게 한다.
+export default async function BlocksPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
+  const { from } = await searchParams
+  const backTo = from && /^\/(book|posts)\//.test(from) ? from : null // 우리 사이트 안 경로만 허용
   const supabase = await createServerSupabase()
   const {
     data: { user },
@@ -24,14 +27,19 @@ export default async function BlocksPage() {
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-black/5 bg-bg/90 px-4 py-3 backdrop-blur">
-        <Link href="/mypage" className="text-sm text-main">
-          ‹ 마이
+        <Link href={backTo ?? '/mypage'} className="text-sm text-main">
+          {backTo ? '‹ 돌아가기' : '‹ 마이'}
         </Link>
         <span className="flex-1 text-base font-semibold text-text">차단 관리</span>
       </header>
 
       <main className="mx-auto w-full max-w-md flex-1 px-4 pb-16 pt-4">
-        <p className="mb-3 px-1 text-xs text-text/50">차단한 사람의 기록은 나에게만 보이지 않아요. 상대방은 차단 사실을 알 수 없어요.</p>
+        <p className="mb-3 px-1 text-xs text-text/50">차단한 사람의 기록은 나에게만 가려져요. 상대방은 차단 사실을 알 수 없어요.</p>
+        {backTo && (
+          <p className="mb-3 rounded-xl bg-main/10 px-3 py-2 text-xs text-main">
+            차단을 푼 뒤 &lsquo;‹ 돌아가기&rsquo;(또는 뒤로가기)를 누르면 보던 페이지로 돌아가요.
+          </p>
+        )}
         {rows.length === 0 ? (
           <p className="rounded-2xl bg-surface px-4 py-10 text-center text-sm text-text/50 shadow-sm">차단한 사용자가 없어요.</p>
         ) : (

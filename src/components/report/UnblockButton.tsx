@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { BLOCKS_CHANGED_KEY } from '@/components/report/BlockedCover'
 
 // 차단 해제 버튼 — 기록 상세의 '차단한 사용자' 안내·마이페이지 차단 목록 공용 (2026.11.03)
 export default function UnblockButton({ userId, className }: { userId: string; className?: string }) {
@@ -19,6 +20,9 @@ export default function UnblockButton({ userId, className }: { userId: string; c
           setPending(false)
           return
         }
+        try {
+          sessionStorage.setItem(BLOCKS_CHANGED_KEY, String(Date.now())) // 뒤로가기로 돌아간 화면이 새로 불러오게
+        } catch {}
         router.refresh()
       }}
       className={className ?? 'rounded-full bg-surface-muted px-4 py-1.5 text-xs font-medium text-text/70 disabled:opacity-50'}

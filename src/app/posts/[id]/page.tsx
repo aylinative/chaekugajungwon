@@ -11,7 +11,7 @@ import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostActionsMenu from '@/components/post/PostActionsMenu'
-import UnblockButton from '@/components/report/UnblockButton'
+import BlockedCover from '@/components/report/BlockedCover'
 
 const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.selectedClass])
@@ -292,9 +292,8 @@ export default async function PostDetailPage({
 
         {/* ② 작성자 추천 카드 영역 — 차단한 사용자의 기록이면 안내만 */}
         {isBlocked ? (
-          <section className="mt-4 flex flex-col items-center gap-3 rounded-2xl bg-surface p-6 text-center shadow-sm">
-            <p className="text-sm text-text/60">차단한 사용자의 기록이에요.</p>
-            <UnblockButton userId={post.user_id} />
+          <section className="mt-4 overflow-hidden rounded-2xl bg-surface shadow-sm">
+            <BlockedCover from={`/posts/${id}`} />
           </section>
         ) : (
         <section className="mt-4 space-y-4 rounded-2xl bg-surface p-4 shadow-sm">
