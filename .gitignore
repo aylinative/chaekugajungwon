@@ -42,3 +42,11 @@ next-env.d.ts
 
 # 바코드 인식 wasm (빌드 때 node_modules에서 복사 — scripts/copy-zxing-wasm.mjs)
 /public/zxing/
+
+# 앱 서명 키·인증서 — 절대 커밋 금지 (잃어버리면 앱 업데이트 불가, 유출되면 사칭 가능)
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+*.cer
