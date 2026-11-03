@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, AGE_LABEL_FULL } from '@/lib/groups'
 import { getGroupCards, fetchOperatorTags } from '@/lib/feed'
@@ -38,17 +38,6 @@ export default async function GroupPage({
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  // 첫 기록 게이트(11.4): 기록 0건이면 첫 기록 화면으로
-  if (user) {
-    const { count } = await supabase
-      .from('posts')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-    if ((count ?? 0) === 0) {
-      redirect('/recommend/create?first=1')
-    }
-  }
 
   const data = await getGroupCards(supabase, group, user?.id)
   if (!data) notFound()

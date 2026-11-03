@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { getFeedData } from '@/lib/feed'
 import { getMonths } from '@/lib/age'
@@ -77,13 +76,9 @@ export default async function Home({
   const showOnboarding =
     !meError && !(me as { onboarded_at: string | null } | null)?.onboarded_at
 
-  // 첫 기록 게이트(11.4): 기록 0건이면 피드 대신 첫 기록 화면으로 — 모든 유저는 1건 쓰고 시작한다.
-  // 단, 안내 팝업을 아직 안 본 신규 가입자는 홈에서 팝업을 먼저 보고, 팝업의 '첫 기록 남기러 가기'(또는 닫기)로
-  // 첫 기록 화면에 간다 (2026.11.03 운영자: 가입 → 닉네임·아이 → 홈 + 안내 팝업 → 첫 기록).
+  // 첫 기록은 권유만 한다(11.4, 2026.11.03 운영자: 의무 폐지 — 첫 방문엔 둘러볼 수 있게).
+  // 기록 0건 신규 가입자는 안내 팝업의 '첫 기록 남기러 가기'로 첫 기록 화면에 가고, 닫거나 뒤로가기하면 홈을 둘러본다.
   const needsFirstRecord = (myPostCount ?? 0) === 0
-  if (needsFirstRecord && !showOnboarding && !previewOnboarding) {
-    redirect('/recommend/create?first=1')
-  }
 
   // 로그인 후: 홈 피드
   const { operatorTags, sections } = await getFeedData(supabase, { tag, cat }, user.id)

@@ -426,14 +426,10 @@ function RecommendCreateInner() {
     <main className="min-h-screen bg-bg text-text">
       <div className="mx-auto max-w-md px-4 pb-10 pt-5">
         <header className="mb-4 flex items-center justify-between">
-          {/* 첫 기록 모드에서는 홈이 다시 이 화면으로 리다이렉트되므로 링크를 숨긴다 */}
-          {isFirst ? (
-            <div className="w-12" />
-          ) : (
-            <a href="/" className="text-sm text-main">
-              ← 홈으로
-            </a>
-          )}
+          {/* 첫 기록도 의무가 아니므로(11.4) 홈으로 돌아갈 수 있다 */}
+          <a href="/" className="text-sm text-main">
+            ← 홈으로
+          </a>
           <h1 className="text-lg font-semibold">
             {isEdit ? '기록 수정' : isFirst ? '첫 책 기록하기' : '책 기록하기'}
           </h1>
