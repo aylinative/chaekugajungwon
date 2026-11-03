@@ -1,0 +1,48 @@
+# Codemagic 클라우드 빌드 — Mac 없이 iOS 앱을 빌드해 TestFlight(App Store Connect)에 올린다.
+# 준비(한 번만, Codemagic 웹에서): docs/app-store/ios-build-guide.md 참고
+#   1) Teams → Integrations → App Store Connect 에 API 키 등록, 이름을 아래 integrations 값과 같게
+#   2) 이 저장소를 Codemagic에 연결 → 이 파일(codemagic.yaml)로 빌드
+#   3) 환경변수 APP_STORE_APPLE_ID = App Store Connect 앱의 'Apple ID'(숫자)
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: bookgardening-asc   # Codemagic에 등록한 API 키 이름
+    environment:
+      node: 22
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: kr.co.bookgardening.app
+      vars:
+        APP_STORE_APPLE_ID: "0000000000"     # ← App Store Connect 앱 정보의 Apple ID(숫자)로 교체
+        XCODE_PROJECT: ios/App/App.xcodeproj
+        XCODE_SCHEME: App
+    triggering:
+      events: []   # 자동 빌드 안 함 — Codemagic에서 'Start new build'를 눌러 수동 실행
+    scripts:
+      - name: 패키지 설치
+        script: npm ci
+      - name: Capacitor iOS 동기화
+        script: npx cap sync ios
+      - name: 서명 프로필 적용
+        script: xcode-project use-profiles
+      - name: 빌드 번호 자동 증가 (TestFlight 최신 번호 + 1)
+        script: |
+          cd ios/App
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          agvtool new-version -all $((LATEST + 1))
+      - name: IPA 빌드
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
