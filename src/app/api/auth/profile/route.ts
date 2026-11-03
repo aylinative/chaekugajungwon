@@ -39,16 +39,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
     }
 
-    // users 행이 없으면 생성, 있으면 닉네임 갱신 (콜백에서 생성 누락된 경우 대비)
-    const kakaoId = String(
-      user.user_metadata?.provider_id ?? user.user_metadata?.sub ?? user.id
-    )
-    const { error: nicknameError } = await supabase
+    // users 행이 있으면 닉네임 갱신, 없으면 생성 (콜백에서 생성 누락된 경우 대비)
+    // ⚠️ upsert(ON CONFLICT DO UPDATE) 금지 — kakao_id 열 읽기가 막혀 있어(supabase/hide_kakao_id.sql)
+    //    EXCLUDED.kakao_id를 읽는 upsert는 권한 오류가 난다. 갱신과 생성을 나눠서 한다.
+    const { data: updated, error: updateError } = await supabase
       .from('users')
-      .upsert(
-        { id: user.id, kakao_id: kakaoId, nickname: nickname.trim() },
-        { onConflict: 'id' }
+      .update({ nickname: nickname.trim() })
+      .eq('id', user.id)
+      .select('id')
+    let nicknameError = updateError
+    if (!updateError && (!updated || updated.length === 0)) {
+      const kakaoId = String(
+        user.user_metadata?.provider_id ?? user.user_metadata?.sub ?? user.id
       )
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({ id: user.id, kakao_id: kakaoId, nickname: nickname.trim() })
+      nicknameError = insertError
+    }
 
     if (nicknameError) {
       console.error('User upsert error:', nicknameError)

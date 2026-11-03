@@ -76,12 +76,11 @@ export async function POST(request: Request) {
       user.user_metadata?.name ||
       user.user_metadata?.full_name ||
       '책육아정원 사용자'
-    const { error: ensureUserError } = await supabase
-      .from('users')
-      .upsert(
-        { id: user.id, kakao_id: kakaoId, nickname },
-        { onConflict: 'id', ignoreDuplicates: true }
-      )
+    // upsert 대신 '있나 확인 → 없으면 생성' (kakao_id 읽기 차단 때문 — supabase/hide_kakao_id.sql)
+    const { data: existingUser } = await supabase.from('users').select('id').eq('id', user.id).maybeSingle()
+    const { error: ensureUserError } = existingUser
+      ? { error: null }
+      : await supabase.from('users').insert({ id: user.id, kakao_id: kakaoId, nickname })
     if (ensureUserError) {
       console.error('Ensure user row error:', ensureUserError)
       return NextResponse.json({ error: '사용자 정보 확인에 실패했습니다.' }, { status: 500 })
