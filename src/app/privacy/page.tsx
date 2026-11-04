@@ -15,7 +15,7 @@ export default function PrivacyPage() {
   return (
     <LegalDoc
       title="개인정보처리방침"
-      effectiveDate="2026년 11월 3일"
+      effectiveDate="2026년 11월 4일"
       intro={
         <p>
           책육아정원(이하 &lsquo;서비스&rsquo;)은 이용자의 개인정보를 소중히 다루며, 「개인정보 보호법」 등 관련 법령을
@@ -48,7 +48,10 @@ export default function PrivacyPage() {
                   </tr>
                   <tr>
                     <td>자동 생성</td>
-                    <td>로그인 유지를 위한 쿠키, 접속 기록(서버 로그), 기기에 저장되는 화면 설정값</td>
+                    <td>
+                      로그인 유지를 위한 쿠키, 접속 기록(서버 로그), 기기에 저장되는 화면 설정값, 방문 통계(본 페이지·유입 경로·기기
+                      종류 — 개인을 알아볼 수 없는 형태로 집계)
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -123,7 +126,7 @@ export default function PrivacyPage() {
                   </tr>
                   <tr>
                     <td>Vercel Inc. (미국)</td>
-                    <td>웹사이트 호스팅, 서버 실행 (서버 함수 위치: 대한민국 서울 리전)</td>
+                    <td>웹사이트 호스팅, 서버 실행 (서버 함수 위치: 대한민국 서울 리전), 방문 통계(Vercel Web Analytics)</td>
                   </tr>
                   <tr>
                     <td>㈜카카오</td>
@@ -168,7 +171,7 @@ export default function PrivacyPage() {
           body: (
             <p>
               로그인 상태를 유지하기 위해 쿠키를 사용하며, 안내 팝업을 이미 봤는지 같은 화면 설정을 기기에 저장합니다. 광고나
-              외부 분석 도구용 쿠키는 사용하지 않습니다. 브라우저 설정에서 쿠키를 지울 수 있지만, 지우면 다시 로그인해야
+              외부 분석 도구용 쿠키는 사용하지 않습니다. 방문 통계는 쿠키 없이 개인을 알아볼 수 없는 형태로 집계합니다. 브라우저 설정에서 쿠키를 지울 수 있지만, 지우면 다시 로그인해야
               합니다.
             </p>
           ),

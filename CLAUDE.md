@@ -923,6 +923,8 @@ supabase/*.sql
   □ [온보딩] 사용법 상설 페이지 /guide — 모달과 같은 내용 다시보기용(모달 못 본 사람 대비) + 마이페이지 진입 링크.
       모달 작업지시서엔 없어 이번 제외. 취지+사용법 전체를 넉넉히(스크롤). (2026.08.31)
   □ [측정] 추천 3탭 참여율 / 가입→첫기록 완료율 (출시 후)
+  ✅ [측정] 방문 통계 — Vercel Web Analytics 켬(2026.11.04, layout <Analytics/>, 쿠키 없음, 게스트 포함). /privacy에 명시.
+      가입자 수·첫 기록 완료율은 운영자 /admin/users.
   □ [측정] DAU/MAU·가입자 수 — 가입자는 Supabase(Authentication→Users / count(*) users)로 지금도 가능.
       DAU/MAU는 접속 이벤트 집계 필요(last_sign_in_at은 세션 유지로 부적합). 권장: PostHog(계정단위 DAU/MAU·리텐션·퍼널,
       identify(user.id)) / 간단: Vercel Web Analytics(방문자) / 자체: daily_active(user_id,date) upsert. 출시 후. (2026.08.31)

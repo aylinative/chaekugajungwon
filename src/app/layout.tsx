@@ -6,6 +6,7 @@ import AppleSplashLinks from "@/components/AppleSplashLinks";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import { LoginSheetHost } from "@/components/auth/LoginSheet";
 import WelcomeFromUrl from "@/components/onboarding/WelcomeFromUrl";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -116,6 +117,8 @@ export default function RootLayout({
         <LoginSheetHost />
         {/* 가입 직후 안내 팝업 — 홈이 아닌 화면으로 돌아갈 때 (?welcome=1) */}
         <WelcomeFromUrl />
+        {/* 방문 통계(Vercel Web Analytics) — 쿠키 없음, 게스트 포함 방문자 수·페이지·유입 경로 (2026.11.04). /privacy에 명시 */}
+        <Analytics />
       </body>
     </html>
   );
