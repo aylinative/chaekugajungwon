@@ -27,8 +27,14 @@
 ## App Store (iOS)
 - ☐ STEP I1. 🙋 App Store Connect: App ID(`kr.co.bookgardening.app`, Sign In with Apple 체크) + 앱 생성 + API 키(.p8)
 - ☐ STEP I2. 🙋 Codemagic 연결 → 첫 TestFlight 빌드 → 아이패드에서 확인 (🤖 빌드 오류 대응)
-- ☐ STEP I3. 🤖 애플 로그인 구현 + 🙋 Apple 키·Supabase 설정 (가이드라인 4.8)
-  - DB: users.kakao_id 필수 해제 + 로그인 수단 열, 탈퇴 시 애플 토큰 취소, 약관·개인정보처리방침 문구
+- ☐ STEP I3. 🤖 로그인 수단 추가 + 🙋 Apple·Google 키·Supabase 설정 (가이드라인 4.8)
+  - 확정(2026.11.04):
+    · 카카오 = 모든 곳, 큰 기본 버튼(주력)
+    · 애플 = **iOS 앱에서만**, 기본 로그인 창(Capacitor 플러그인 → Supabase signInWithIdToken). 웹용 A는 필요 시 추가(같은 계정 이어짐)
+    · 구글 = **Android 앱(TWA)·일반 브라우저만**. iOS 앱 웹뷰·카톡 등 인앱 브라우저에선 숨김(구글이 웹뷰 로그인 차단 disallowed_useragent)
+    · '지난번에 ○○로 로그인했어요' 표시 — 계정 쪼개짐 방지(이메일 미수집이라 자동 병합 불가)
+  - DB: users.kakao_id 필수 해제 + 로그인 수단 열(hide_kakao_id.sql grant 목록도), 탈퇴 시 카카오 연결끊기는 카카오 가입자만 + 애플 토큰 취소
+  - 약관·개인정보처리방침 '로그인 수단' 문구 갱신(CLAUDE.md 13.1 법률 문서 연동)
 - ☐ STEP I4. 🙋 새 빌드 → TestFlight 실기기 점검(로그인 2종·바코드·사진·바깥 링크·탈퇴)
 - ☐ STEP I5. 🤖 스토어 정보 초안 + 🙋 입력
   - 스크린샷 iPhone 6.9인치(1320×2868 또는 1290×2796) 3~10장 — Mac/아이폰 없으면 🤖 사이트 화면을 해당 크기로 캡처해 생성 가능
@@ -38,3 +44,4 @@
 
 ## 진행 로그
 - 2026.11.03 STEP 0 완료. 푸시 알림 v1.1로 보류.
+- 2026.11.04 로그인 구성 확정(STEP I3). 작업 공간을 로컬(PC)로 옮긴 뒤 이어서 진행.
