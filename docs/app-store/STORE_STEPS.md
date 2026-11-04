@@ -25,7 +25,7 @@
 - ☐ STEP A4. 🙋 프로덕션 출시 신청(14일 후, 설문 답변 🤖 초안) → 심사(보통 수일)
 
 ## App Store (iOS)
-- ☐ STEP I1. 🙋 App Store Connect: App ID(`kr.co.bookgardening.app`, Sign In with Apple 체크) + 앱 생성 + API 키(.p8)
+- ✅ STEP I1. 🙋 App Store Connect: App ID(`kr.co.bookgardening.app`, Sign In with Apple 체크) + 앱 생성 + API 키(.p8)
 - ☐ STEP I2. 🙋 Codemagic 연결 → 첫 TestFlight 빌드 → 아이패드에서 확인 (🤖 빌드 오류 대응)
 - ☐ STEP I3. 🤖 로그인 수단 추가 + 🙋 Apple·Google 키·Supabase 설정 (가이드라인 4.8)
   - 확정(2026.11.04):
@@ -45,5 +45,5 @@
 ## 진행 로그
 - 2026.11.03 STEP 0 완료. 푸시 알림 v1.1로 보류.
 - 2026.11.04 로그인 구성 확정(STEP I3). 작업 공간을 로컬(PC)로 옮긴 뒤 이어서 진행.
-- 2026.11.04 STEP I1 진행: App ID·앱 생성 완료, Apple ID를 codemagic.yaml에 반영. API 키 생성 확인되면 ✅.
+- 2026.11.04 STEP I1 완료: App ID·앱 생성·API 키(.p8) 완료, Apple ID를 codemagic.yaml에 반영.
 - 2026.11.04 STEP 2 점검: 이미지 규격·URL 통과, 설명문 초안 작성(`앱스토어/스토어_설명문_초안.md`, 저장소 밖). AAB 확보·스크린샷 재촬영 판단이 남아 ☐ 유지.
