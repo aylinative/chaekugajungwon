@@ -114,13 +114,15 @@ export function LoginSheetHost() {
     <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={copy.title}>
       <div className="absolute inset-0 bg-black/40" onClick={() => setReason(null)} aria-hidden />
       <div className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-[430px] rounded-t-3xl bg-surface px-5 pb-8 pt-6 shadow-lg">
-        <h2 className="text-center text-base font-semibold text-text">{copy.title}</h2>
-        <p className="mt-1.5 text-center text-sm leading-relaxed text-text/60">{copy.sub}</p>
-        <p className="mt-5 text-center text-xs font-medium text-text/50">로그인하고 계속하기</p>
+        <h2 className="text-balance break-keep text-center text-base font-semibold text-text">{copy.title}</h2>
+        {/* 화면 폭에 맞춰 글자 크기를 줄여 한 줄에 넣고(27 = 가장 긴 문구 폭 ÷ 글자 크기), 12px로도 넘치면 마지막 글자만 떨어지지 않게 나눈다 */}
+        <p className="mt-1.5 text-balance break-keep text-center text-[clamp(12px,calc((100vw_-_40px)/27),14px)] leading-relaxed tracking-tight text-text/60">
+          {copy.sub}
+        </p>
         {lastLogin && (
-          <p className="mt-1 text-center text-xs text-main">지난번에 {AUTH_PROVIDER_LABEL[lastLogin]}로 로그인했어요</p>
+          <p className="mt-4 text-center text-xs text-main">지난번에 {AUTH_PROVIDER_LABEL[lastLogin]}로 로그인했어요</p>
         )}
-        <div className="mt-3 space-y-2">
+        <div className={`${lastLogin ? 'mt-2' : 'mt-5'} space-y-2`}>
           <a href={oauthLoginUrl('kakao', next)} className={`${BUTTON} bg-[#FEE500] text-[#191919]`}>
             카카오로 계속하기
           </a>
