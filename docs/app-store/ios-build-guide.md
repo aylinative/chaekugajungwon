@@ -49,6 +49,7 @@
 ## 파일
 - `capacitor.config.ts` — 앱 설정(사이트 주소, 앱 안에서 열 도메인)
 - `capacitor-shell/index.html` — 사이트를 못 불러올 때 오프라인 안내
+- `ios/App/App/AppleLoginPlugin.swift`·`AppViewController.swift`·`App.entitlements` — Apple 기본 로그인 창(사이트 `src/lib/nativeApple.ts`가 호출). 플러그인이 없는 옛 앱 빌드에서는 Apple 버튼이 숨겨진다
 - `ios/` — Xcode 프로젝트(Capacitor 생성). 아이콘 `ios/App/App/Assets.xcassets/AppIcon.appiconset`(home_image.png 1024)
 - `codemagic.yaml` — 클라우드 빌드
 - ⚠️ 사이트 도메인을 바꾸면 `capacitor.config.ts`의 `server.url`·`allowNavigation`도 고치고 새로 빌드할 것
