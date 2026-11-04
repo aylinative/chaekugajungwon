@@ -50,3 +50,5 @@ next-env.d.ts
 *.p12
 *.mobileprovision
 *.cer
+signing-key-info.txt
+recovery-codes.txt

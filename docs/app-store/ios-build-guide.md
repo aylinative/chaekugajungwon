@@ -9,8 +9,8 @@
 
 ## 1. App Store Connect (appstoreconnect.apple.com)
 1. **Certificates, Identifiers & Profiles → Identifiers → +** → App IDs → App
-   - Bundle ID(Explicit): `kr.co.bookgardening.app`, 설명: 책육아정원
-   - Capabilities: **Sign In with Apple**, **Push Notifications** 체크(다음 단계에서 쓸 것)
+   - Bundle ID(Explicit): `kr.co.bookgardening.app`, 설명: `Bookgardening` (이 칸은 한글 불가 — 내부 관리용이라 사용자에게 안 보임)
+   - Capabilities: **Sign In with Apple** 체크 (Push Notifications는 v1.1에서 추가)
 2. **앱 → + → 신규 앱**: 플랫폼 iOS, 이름 '책육아정원', 기본 언어 한국어, 번들 ID 위에서 만든 것, SKU 예: `bookgardening-ios`
 3. 만든 앱의 **앱 정보 → 일반 정보 → Apple ID**(숫자 10자리)를 적어 둔다 → `codemagic.yaml`의 `APP_STORE_APPLE_ID`
 4. **사용자 및 액세스 → 통합 → App Store Connect API → 팀 키 +**

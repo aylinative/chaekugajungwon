@@ -17,7 +17,7 @@ workflows:
         distribution_type: app_store
         bundle_identifier: kr.co.bookgardening.app
       vars:
-        APP_STORE_APPLE_ID: "0000000000"     # ← App Store Connect 앱 정보의 Apple ID(숫자)로 교체
+        APP_STORE_APPLE_ID: "6830438312"     # App Store Connect 앱 정보의 Apple ID(숫자)
         XCODE_PROJECT: ios/App/App.xcodeproj
         XCODE_SCHEME: App
     triggering:
