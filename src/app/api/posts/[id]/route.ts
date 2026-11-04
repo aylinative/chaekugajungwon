@@ -134,6 +134,25 @@ export async function PATCH(
       effectiveBookId = insertedBook.id
     }
 
+    // 바꾸려는 책을 이미 다른 기록으로 남겼으면 막는다 — 한 사람당 책 1기록 (2026.11.04)
+    if (effectiveBookId && effectiveBookId !== post.book_id) {
+      const { data: otherPost } = await supabase
+        .from('posts')
+        .select('id')
+        .eq('user_id', post.user_id)
+        .eq('book_id', effectiveBookId)
+        .is('hidden_at', null)
+        .neq('id', postId)
+        .limit(1)
+        .maybeSingle()
+      if (otherPost) {
+        return NextResponse.json(
+          { error: '이미 기록한 책이에요. 그 기록을 수정해 주세요.', existingPostId: otherPost.id },
+          { status: 409 }
+        )
+      }
+    }
+
     // 책이 바뀌었으면 posts.book_id 갱신
     if (effectiveBookId && effectiveBookId !== post.book_id) {
       const { error: bookIdError } = await supabase

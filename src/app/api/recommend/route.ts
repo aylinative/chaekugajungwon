@@ -132,6 +132,22 @@ export async function POST(request: Request) {
 
     if (existingBook) {
       bookId = existingBook.id
+      // 같은 책을 이미 기록했으면 새로 만들지 않는다 — 한 사람당 책 1기록(삭제한 기록은 제외) (2026.11.04 운영자)
+      // 다시 읽은 내용은 기존 기록을 수정하도록 안내(폼이 existingPostId로 '내 기록 수정' 버튼을 띄운다)
+      const { data: myPost } = await supabase
+        .from('posts')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('book_id', bookId)
+        .is('hidden_at', null)
+        .limit(1)
+        .maybeSingle()
+      if (myPost) {
+        return NextResponse.json(
+          { error: '이미 기록한 책이에요. 기존 기록을 수정해 주세요.', existingPostId: myPost.id },
+          { status: 409 }
+        )
+      }
       // 보드북 여부(책 속성)를 기록자의 선택으로 반영 (첫 기록 이후에도 수정 가능)
       if (typeof payload.is_board_book === 'boolean') {
         await supabase

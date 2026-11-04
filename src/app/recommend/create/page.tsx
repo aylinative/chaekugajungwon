@@ -139,6 +139,7 @@ function RecommendCreateInner() {
   // 세션 없는 브라우저에서 URL로 직접 진입하면(예: 링크 공유) 폼이 그대로 떠서
   // 저장 시점에야 '로그인이 필요합니다'만 뜨고 로그인 수단이 없었다 → 홈(로그인 화면)으로 보낸다.
   const [authChecked, setAuthChecked] = useState(false)
+  const [myUserId, setMyUserId] = useState<string | null>(null)
   useEffect(() => {
     async function checkAuth() {
       const supabase = createClient()
@@ -150,6 +151,7 @@ function RecommendCreateInner() {
         router.replace(`/?login=record&next=${encodeURIComponent(window.location.pathname + window.location.search)}`)
         return
       }
+      setMyUserId(user.id)
       setAuthChecked(true)
     }
     checkAuth()
@@ -273,9 +275,40 @@ function RecommendCreateInner() {
     })
   }
 
+  // 이미 기록한 책인지 — 책을 고르는 즉시 확인해 안내 (한 사람당 책 1기록, 저장 API도 409로 막음. 2026.11.04 운영자)
+  // 책 식별자는 저장 API와 같은 규칙(ISBN13 → 링크 → 제목). 수정 중인 기록 자신은 제외.
+  const selectedKey = selectedBook ? selectedBook.isbn13 || selectedBook.link || selectedBook.title : null
+  const [duplicate, setDuplicate] = useState<{ key: string; postId: string } | null>(null)
+  useEffect(() => {
+    if (!selectedKey || !myUserId) return
+    let alive = true
+    let q = createClient()
+      .from('posts')
+      .select('id, books!inner(book_key)')
+      .eq('user_id', myUserId)
+      .eq('books.book_key', selectedKey)
+      .is('hidden_at', null)
+      .limit(1)
+    if (editId) q = q.neq('id', editId)
+    q.then(({ data }) => {
+      if (!alive) return
+      const id = (data as { id: string }[] | null)?.[0]?.id
+      setDuplicate(id ? { key: selectedKey, postId: id } : null)
+    })
+    return () => {
+      alive = false
+    }
+  }, [selectedKey, myUserId, editId])
+  const duplicatePostId = duplicate && duplicate.key === selectedKey ? duplicate.postId : null
+
   const handleSubmit = async () => {
     if (!selectedBook) {
       setSubmitError('책을 먼저 선택해주세요.')
+      return
+    }
+
+    if (duplicatePostId) {
+      setSubmitError('이미 기록한 책이에요. 기존 기록을 수정해 주세요.')
       return
     }
 
@@ -605,6 +638,20 @@ function RecommendCreateInner() {
                 </p>
               </div>
             </div>
+            {duplicatePostId && (
+              <div className="mt-3 rounded-xl bg-point/10 px-3 py-2.5 text-xs text-text/80">
+                <p className="font-medium">이미 기록한 책이에요.</p>
+                <p className="mt-0.5 text-text/60">다시 읽은 이야기는 기존 기록을 수정해서 더해 주세요.</p>
+                <div className="mt-2 flex gap-3">
+                  <a href={`/recommend/create?edit=${duplicatePostId}`} className="font-medium text-main underline underline-offset-2">
+                    기존 기록 수정하기
+                  </a>
+                  <a href={`/posts/${duplicatePostId}`} className="text-text/50 underline underline-offset-2">
+                    기록 보기
+                  </a>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
