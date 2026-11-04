@@ -23,7 +23,8 @@ create extension if not exists "pgcrypto";
 -- ---------- users (auth.users와 1:1) ----------
 create table if not exists public.users (
   id          uuid primary key references auth.users (id) on delete cascade,
-  kakao_id    varchar not null,
+  kakao_id    varchar,                                -- 카카오 가입자만 (add_login_providers.sql)
+  auth_provider text not null default 'kakao' check (auth_provider in ('kakao', 'google', 'apple')),
   nickname    text,
   is_operator boolean not null default false,
   created_at  timestamptz not null default now()

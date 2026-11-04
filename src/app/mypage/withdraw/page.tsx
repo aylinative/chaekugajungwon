@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 import WithdrawForm from '@/components/mypage/WithdrawForm'
+import { AUTH_PROVIDER_LABEL, authProviderOf } from '@/lib/authProvider'
 
 export const metadata: Metadata = { title: '회원 탈퇴 | 책육아정원', robots: { index: false } }
 
@@ -18,6 +19,8 @@ export default async function WithdrawPage() {
     getIsOperator(supabase, user.id),
     supabase.from('posts').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
   ])
+  const provider = authProviderOf(user)
+  const providerLabel = AUTH_PROVIDER_LABEL[provider]
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
@@ -39,10 +42,16 @@ export default async function WithdrawPage() {
             </li>
             <li>아이 정보, 닉네임</li>
             <li>나도 추천해요, 저장한 책, 주제 제안</li>
-            <li>카카오 로그인 연결</li>
+            {provider !== 'google' && <li>{providerLabel} 로그인 연결</li>}
           </ul>
+          {provider === 'apple' && (
+            <p className="mt-3 text-xs text-text/50">
+              탈퇴할 때 Apple 확인 창이 뜨면 확인해 주세요. 연결이 남아 있으면 iPhone 설정의 Apple 계정 &gt; Apple로
+              로그인에서 해제할 수 있어요.
+            </p>
+          )}
           <p className="mt-3 text-xs text-text/50">
-            같은 카카오 계정으로 다시 가입할 수 있지만, 지운 기록은 복구되지 않아요. 자세한 내용은{' '}
+            같은 {providerLabel} 계정으로 다시 가입할 수 있지만, 지운 기록은 복구되지 않아요. 자세한 내용은{' '}
             <Link href="/privacy" className="underline">
               개인정보처리방침
             </Link>
@@ -55,7 +64,7 @@ export default async function WithdrawPage() {
             운영자 계정은 탈퇴할 수 없어요. 운영자 권한을 먼저 해제해 주세요.
           </p>
         ) : (
-          <WithdrawForm />
+          <WithdrawForm isApple={provider === 'apple'} />
         )}
       </main>
     </div>

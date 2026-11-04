@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { newUserRow } from '@/lib/ensureUser'
 
 export async function POST(request: Request) {
   try {
@@ -49,12 +50,9 @@ export async function POST(request: Request) {
       .select('id')
     let nicknameError = updateError
     if (!updateError && (!updated || updated.length === 0)) {
-      const kakaoId = String(
-        user.user_metadata?.provider_id ?? user.user_metadata?.sub ?? user.id
-      )
       const { error: insertError } = await supabase
         .from('users')
-        .insert({ id: user.id, kakao_id: kakaoId, nickname: nickname.trim() })
+        .insert(newUserRow(user, nickname.trim()))
       nicknameError = insertError
     }
 

@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { revalidateFeed } from '@/lib/cacheTags'
+import { authProviderOf, kakaoIdOf, LAST_LOGIN_COOKIE } from '@/lib/authProvider'
+import { revokeAppleByCode } from '@/lib/appleRevoke'
 
 // 회원 탈퇴 (2026.11.03, A안 = 전부 삭제 — 개인정보처리방침 '보유 기간과 파기')
-// 순서: ① 사진 파일 삭제(Storage — SQL로 지우면 파일이 남음) ② 카카오 연결 끊기 ③ DB 삭제(delete_my_account)
-//       ④ 로그아웃 쿠키 정리. ①②가 실패해도 계정 삭제는 진행(사용자 의사 우선, 실패는 로그로 남김).
+// 순서: ① 사진 파일 삭제(Storage — SQL로 지우면 파일이 남음) ② 로그인 연결 끊기(카카오 가입자=카카오, Apple 가입자=Apple)
+//       ③ DB 삭제(delete_my_account) ④ 로그아웃 쿠키 정리. ①②가 실패해도 계정 삭제는 진행(사용자 의사 우선, 실패는 로그로 남김).
 // 운영자 계정은 탈퇴 불가 — 실수로 관리 권한을 잃지 않게.
 const BUCKET = 'post-images'
 const CONFIRM_WORD = '탈퇴'
@@ -17,7 +19,7 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
 
-  const body = (await request.json().catch(() => ({}))) as { confirm?: unknown }
+  const body = (await request.json().catch(() => ({}))) as { confirm?: unknown; appleAuthorizationCode?: unknown }
   if (body.confirm !== CONFIRM_WORD) {
     return NextResponse.json({ error: `'${CONFIRM_WORD}'를 입력해 주세요.` }, { status: 400 })
   }
@@ -43,30 +45,40 @@ export async function POST(request: Request) {
   }
 
   // ② 카카오 연결 끊기 (Admin 키로 회원번호 지정) — 다시 가입할 때 동의 화면부터 새로 시작되게
+  //    카카오 가입자만. ⚠️ 구글 식별값도 숫자라 구분 없이 보내면 다른 사람의 카카오 연결이 끊길 수 있다.
   //    kakao_id는 외부 조회가 막혀 있어(supabase/hide_kakao_id.sql) 본인 것만 돌려주는 함수로 읽는다.
   //    함수가 아직 없으면(SQL 실행 전) 로그인 정보의 카카오 연결 id로 대신한다.
-  const { data: storedKakaoId } = await supabase.rpc('my_kakao_id')
-  const kakaoId =
-    (typeof storedKakaoId === 'string' && storedKakaoId) ||
-    user.identities?.find((i) => i.provider === 'kakao')?.id ||
-    (user.user_metadata?.provider_id as string | undefined)
-  const adminKey = process.env.KAKAO_ADMIN_KEY
-  if (adminKey && kakaoId && /^\d+$/.test(kakaoId)) {
-    try {
-      const res = await fetch('https://kapi.kakao.com/v1/user/unlink', {
-        method: 'POST',
-        headers: {
-          Authorization: `KakaoAK ${adminKey}`,
-          'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
-        },
-        body: new URLSearchParams({ target_id_type: 'user_id', target_id: kakaoId }),
-      })
-      if (!res.ok) console.error('Account delete: kakao unlink failed', res.status, await res.text().catch(() => ''))
-    } catch (err) {
-      console.error('Account delete: kakao unlink error', err)
+  const fallbackKakaoId = kakaoIdOf(user)
+  if (fallbackKakaoId) {
+    const { data: storedKakaoId } = await supabase.rpc('my_kakao_id')
+    const kakaoId = (typeof storedKakaoId === 'string' && storedKakaoId) || fallbackKakaoId
+    const adminKey = process.env.KAKAO_ADMIN_KEY
+    if (adminKey && /^\d+$/.test(kakaoId)) {
+      try {
+        const res = await fetch('https://kapi.kakao.com/v1/user/unlink', {
+          method: 'POST',
+          headers: {
+            Authorization: `KakaoAK ${adminKey}`,
+            'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+          },
+          body: new URLSearchParams({ target_id_type: 'user_id', target_id: kakaoId }),
+        })
+        if (!res.ok) console.error('Account delete: kakao unlink failed', res.status, await res.text().catch(() => ''))
+      } catch (err) {
+        console.error('Account delete: kakao unlink error', err)
+      }
+    } else {
+      console.error('Account delete: kakao unlink skipped (admin key or kakao_id missing)')
     }
-  } else {
-    console.error('Account delete: kakao unlink skipped (admin key or kakao_id missing)')
+  }
+
+  // Apple 연결 끊기 — 탈퇴 직전 Apple 확인으로 받은 code로 토큰을 취소한다(토큰을 저장해 두지 않음).
+  if (authProviderOf(user) === 'apple') {
+    if (typeof body.appleAuthorizationCode === 'string' && body.appleAuthorizationCode) {
+      await revokeAppleByCode(body.appleAuthorizationCode)
+    } else {
+      console.error('Account delete: apple revoke skipped (no authorization code)')
+    }
   }
 
   // ③ DB: 기록·아이 정보·추천·저장·제안·계정 전부 (supabase/add_delete_account.sql)
@@ -81,5 +93,7 @@ export async function POST(request: Request) {
 
   revalidatePath('/', 'layout')
   revalidateFeed() // 탈퇴자의 기록이 홈에서 바로 빠지게
-  return NextResponse.json({ success: true })
+  const response = NextResponse.json({ success: true })
+  response.cookies.delete(LAST_LOGIN_COOKIE) // 탈퇴한 계정의 '지난번 로그인' 안내가 남지 않게
+  return response
 }

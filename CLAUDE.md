@@ -97,7 +97,10 @@ OAuth 2.0 (Supabase Auth 연동)
   ■ 로그인 필요(→ 로그인 바텀시트): 기록하기·마이(탭은 그 자리에서 시트, 주소 직접 진입은 홈 + /?login=record&next=…),
     나도 추천해요·저장, '우리 아이 시기 먼저' 토글(아이 기준 보기). 신고·차단은 로그인한 사람에게만 보임.
   ■ 시트: components/auth/LoginSheet.tsx — openLoginSheet(reason, next?), layout의 LoginSheetHost 하나. 행동별 제목,
-    '카카오로 계속하기' + '둘러보기 계속하기'. 홈 헤더 [로그인] 버튼(LoginButton).
+    수단별 버튼 + '둘러보기 계속하기'. 홈 헤더 [로그인] 버튼(LoginButton).
+  ■ 로그인 수단(2026.11 STEP I3): 카카오=모든 곳 / 구글=일반 브라우저·Android 앱(웹뷰·인앱 브라우저 숨김, lib/authProvider canUseGoogleLogin) /
+    Apple=iOS 앱에서 플러그인이 있을 때만(lib/nativeApple, signInWithIdToken → /auth/finish). 이메일 미수집 카카오와 구글·Apple은 계정이 합쳐지지 않으므로
+    '지난번에 ○○로 로그인했어요'(쿠키 last_login, 로그인 성공 시 서버가 남김)로 쪼개짐을 줄인다. Apple은 웹 미제공 → 출시 후 가입자 수 보고 결정.
   ■ 로그인 ≠ 가입: 시트에는 약관 문구 없음. 약관·개인정보 동의 문구는 가입 화면(/onboarding, 신규만 지남)의 '시작하기' 아래
     + 효용 문구('내 기록이 모여 다른 양육자에게 진짜 그림책 추천이 돼요'). 애플 1.2(글 올리기 전 약관 동의)도 여기서.
   ■ 원래 화면 복귀: /api/auth/kakao?next= → /auth/callback?next= → 기존 회원은 next로, 신규는 /onboarding?next= → next.
@@ -502,7 +505,7 @@ UI 레퍼런스: TripAdvisor 홈 피드 구조 참고
 11. 프로필 스펙
 11.1 기본 정보
 닉네임: 카카오 이름 기본값, 사용자가 직접 수정 가능
-로그인 수단: 카카오 로그인 (OAuth 2.0, Supabase Auth 연동)
+로그인 수단: 카카오·구글·Apple (Supabase Auth 연동, 5.1). 닉네임 기본값은 카카오만 — 구글·Apple 이름은 실명이라 가입 화면에서 직접 입력
 11.2 아이 정보
 아이 생년월일 다수 등록 가능
 십이지신 아이콘으로 시각적 구분
@@ -535,7 +538,8 @@ OO개월
 
 11.5 회원 탈퇴 (2026.11.03, A안 = 전부 삭제 — 스토어 심사 기준)
   - 진입: 마이페이지 하단 '회원 탈퇴' → /mypage/withdraw. 삭제 항목 안내 + '탈퇴' 입력해야 버튼 활성. 운영자 계정은 탈퇴 불가.
-  - 처리(/api/account/delete): ①사진 파일 삭제(Storage post-images/{user_id}/) ②카카오 연결 끊기(KAKAO_ADMIN_KEY, 회원번호)
+  - 처리(/api/account/delete): ①사진 파일 삭제(Storage post-images/{user_id}/) ②로그인 연결 끊기 — 카카오 가입자만 카카오(KAKAO_ADMIN_KEY, 회원번호. ⚠️ 구글 식별값도 숫자라 구분 필수),
+      Apple 가입자는 iOS 앱에서 Apple 확인을 다시 받아 토큰 취소(lib/appleRevoke, 토큰 저장 안 함. 환경변수 APPLE_TEAM_ID·APPLE_SIGNIN_KEY_ID·APPLE_SIGNIN_PRIVATE_KEY)
     ③DB 전부 삭제(rpc delete_my_account — 기록·아이·추천·저장·제안·계정·auth.users) ④로그아웃 → /?withdrawn=1 안내.
   - 앱 밖 삭제 요청: aylinative@gmail.com (개인정보처리방침에 명시 — 구글 요구사항).
   - 개인정보처리방침 /privacy, 이용약관 /terms (로그인 화면·마이페이지 하단 링크). 카카오 로그인 scope는 닉네임만(프로필 사진 제외).
@@ -646,7 +650,8 @@ Server Component의 setAll 쿠키 핸들러는 반드시 try/catch로 감쌀 것
 13.3 Supabase DB 스키마 & 저장 파이프라인 (2026.07 확정)
 ⚠️ 게시물은 단일 테이블이 아니라 정규화 구조다. (초기 코드가 존재하지 않는 'recommendations' 테이블에 저장하려다 실패 → 아래 구조로 수정 완료)
 주요 테이블/컬럼:
-  - users: id(uuid, auth.users와 동일), kakao_id(varchar NOT NULL), nickname, is_operator, created_at
+  - users: id(uuid, auth.users와 동일), kakao_id(카카오 가입자만, 그 외 NULL), auth_provider(kakao|google|apple, 외부 비공개), nickname, is_operator, created_at
+           ※ 행 생성은 lib/ensureUser.ts 한 곳에서 (kakao_id에 다른 서비스 식별값을 넣지 말 것)
   - children: id, user_id, label(기본 '아이'), birth_date, created_at
   - books: id, book_key(varchar NOT NULL UNIQUE, 보통 ISBN13·없으면 링크/제목 대체 / 구 aladin_item_id), title, author, publisher,
            published_date(date), cover_image_url, source_url(구 aladin_url), is_out_of_print, fetched_at,
@@ -715,6 +720,7 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
   supabase/hide_kakao_id.sql              — users.kakao_id 외부 조회 차단(열 단위 권한) + my_kakao_id() 2026.11.03
                                              ⚠️ users에 새 열을 추가하면 이 파일의 grant select 목록에도 추가할 것
   supabase/add_delete_account.sql         — 회원 탈퇴 함수 delete_my_account()(security definer, 본인만·운영자 불가) 2026.11.03
+  supabase/add_login_providers.sql        — users.kakao_id 필수 해제 + auth_provider 2026.11 (구글·Apple 로그인, 코드 배포 전 실행)
   supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 
 

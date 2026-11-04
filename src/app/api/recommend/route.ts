@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
 import { revalidateFeed } from '@/lib/cacheTags'
 import { resolveTagPicks, type TagPayload } from '@/lib/topicSave'
+import { ensureUserRow } from '@/lib/ensureUser'
 
 // post_groups.group_name CHECK 제약은 한글 라벨('씨앗' 등)만 허용.
 // 폼에서 넘어오는 그룹 값('seed' 등)을 한글 라벨로 변환.
@@ -68,19 +69,7 @@ export async function POST(request: Request) {
     }
 
     // --- users 행 self-heal: 콜백에서 생성이 누락된 경우 대비. 있으면 건드리지 않음. ---
-    const kakaoId = String(
-      user.user_metadata?.provider_id ?? user.user_metadata?.sub ?? user.id
-    )
-    const nickname =
-      user.user_metadata?.nickname ||
-      user.user_metadata?.name ||
-      user.user_metadata?.full_name ||
-      '책육아정원 사용자'
-    // upsert 대신 '있나 확인 → 없으면 생성' (kakao_id 읽기 차단 때문 — supabase/hide_kakao_id.sql)
-    const { data: existingUser } = await supabase.from('users').select('id').eq('id', user.id).maybeSingle()
-    const { error: ensureUserError } = existingUser
-      ? { error: null }
-      : await supabase.from('users').insert({ id: user.id, kakao_id: kakaoId, nickname })
+    const { error: ensureUserError } = await ensureUserRow(supabase, user)
     if (ensureUserError) {
       console.error('Ensure user row error:', ensureUserError)
       return NextResponse.json({ error: '사용자 정보 확인에 실패했습니다.' }, { status: 500 })

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { getZodiacEmoji, getAgeDisplay } from '@/lib/age'
 import { safeNext } from '@/lib/loginNext'
+import { authProviderOf } from '@/lib/authProvider'
 
 interface ChildInput {
   birth_date: string
@@ -13,6 +14,7 @@ interface ChildInput {
 export default function OnboardingPage() {
   const router = useRouter()
   const [nickname, setNickname] = useState('')
+  const [isKakao, setIsKakao] = useState(true)
   const [children, setChildren] = useState<ChildInput[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -30,11 +32,15 @@ export default function OnboardingPage() {
         return
       }
 
-      const defaultNickname =
-        user.user_metadata?.nickname ||
-        user.user_metadata?.name ||
-        user.user_metadata?.full_name ||
-        ''
+      // 닉네임은 공개된다 — 구글·Apple 이름은 실명이라 기본값으로 쓰지 않고 직접 입력받는다.
+      const kakao = authProviderOf(user) === 'kakao'
+      const defaultNickname = kakao
+        ? user.user_metadata?.nickname ||
+          user.user_metadata?.name ||
+          user.user_metadata?.full_name ||
+          ''
+        : ''
+      setIsKakao(kakao)
       setNickname(defaultNickname)
       setIsLoading(false)
     }
@@ -144,7 +150,9 @@ export default function OnboardingPage() {
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-main"
             />
             <p className="mt-1.5 text-xs text-text/40">
-              카카오 이름으로 자동 입력됩니다. 원하시면 수정하세요.
+              {isKakao
+                ? '카카오 이름으로 자동 입력됩니다. 원하시면 수정하세요.'
+                : '다른 양육자에게 보이는 이름이에요. 실명이 아니어도 괜찮아요.'}
             </p>
           </section>
 

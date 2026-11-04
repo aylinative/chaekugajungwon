@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { safeNext } from '@/lib/loginNext'
+import { authProviderOf } from '@/lib/authProvider'
+import { afterLoginPath, ensureUserRow, rememberLastLogin } from '@/lib/ensureUser'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -51,42 +53,16 @@ export async function GET(request: NextRequest) {
   }
 
   const user = userData.user
-  const nickname =
-    user.user_metadata?.nickname ||
-    user.user_metadata?.name ||
-    user.user_metadata?.full_name ||
-    '책육아정원 사용자'
 
-  // kakao_id는 users 테이블에서 NOT NULL. 카카오 provider id를 사용.
-  const kakaoId = String(
-    user.user_metadata?.provider_id ??
-      user.user_metadata?.sub ??
-      user.id
-  )
-
-  // 기존 유저 여부 확인 (있으면 returning, 없으면 신규)
-  const { data: existingUser } = await supabase
-    .from('users')
-    .select('id')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!existingUser) {
-    // 신규 유저: 기본 레코드 생성 후 온보딩으로 이동
-    const { error: insertError } = await supabase
-      .from('users')
-      .insert({ id: user.id, nickname, kakao_id: kakaoId })
-    if (insertError) {
-      console.error('User insert error:', insertError)
-    }
-    // 신규 유저: 닉네임·아이 등록 후 원래 보던 화면으로
-    const onboardingUrl = next === '/' ? '/onboarding' : `/onboarding?next=${encodeURIComponent(next)}`
-    return NextResponse.redirect(new URL(onboardingUrl, requestUrl.origin))
-  }
-
+  // 신규 유저: 기본 레코드 생성 후 온보딩으로 이동.
   // 기존 유저: 닉네임은 건드리지 않는다.
   // (사용자가 온보딩/프로필에서 직접 바꾼 닉네임을 로그인 때마다 카카오 이름으로
   //  덮어쓰던 버그 수정. 카카오 이름은 최초 가입 시 기본값으로만 사용.)
+  const { isNew, error: insertError } = await ensureUserRow(supabase, user)
+  if (insertError) {
+    console.error('User insert error:', insertError)
+  }
 
-  return NextResponse.redirect(new URL(next, requestUrl.origin))
+  const response = NextResponse.redirect(new URL(afterLoginPath(isNew, next), requestUrl.origin))
+  return rememberLastLogin(response, authProviderOf(user))
 }

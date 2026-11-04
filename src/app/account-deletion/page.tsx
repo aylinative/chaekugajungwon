@@ -16,7 +16,7 @@ export default function AccountDeletionPage() {
   return (
     <LegalDoc
       title="계정 삭제 안내"
-      effectiveDate="2026년 11월 3일"
+      effectiveDate="2026년 11월 5일"
       intro={<p>책육아정원(개발자: 서점 다니는 워킹맘) 계정과 데이터를 삭제하는 방법을 안내합니다.</p>}
       sections={[
         {
@@ -43,7 +43,7 @@ export default function AccountDeletionPage() {
             <>
               <p>탈퇴하면 아래 정보가 <b>모두 즉시 삭제</b>되며 되돌릴 수 없습니다. 따로 보관하는 정보는 없습니다.</p>
               <ul>
-                <li>계정 정보: 카카오 회원번호, 닉네임 (카카오 로그인 연결도 끊습니다)</li>
+                <li>계정 정보: 로그인 식별값(카카오 회원번호, 구글·Apple 계정 식별값), 이메일(구글·Apple 로그인 시), 닉네임 (카카오·Apple 로그인 연결도 끊습니다)</li>
                 <li>아이 정보: 띠·생년월일</li>
                 <li>책육아 기록과 참고사진</li>
                 <li>나도 추천해요, 저장한 책, 주제 제안, 신고·차단 내역</li>
