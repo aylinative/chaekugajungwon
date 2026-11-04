@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ONBOARDING_SLIDES as SLIDES } from '@/lib/onboardingSlides'
 import SlideImage from '@/components/onboarding/SlideImage'
+import { openLoginSheet } from '@/components/auth/LoginSheet'
 
 // 신규 가입자 온보딩 5장 캐러셀. 노출 여부는 계정 단위(users.onboarded_at)로 서버가 판단해
 // show prop으로 내려준다 — localStorage만으로 판단하면 기존 유저가 새 기기에서 다시 보게 된다.
@@ -14,14 +15,17 @@ const SWIPE_THRESHOLD = 50
 
 // preview: 개발 서버 확인용(/?onboarding=preview, 개발에서만) — 기기·계정 기록을 무시하고 열고, 닫아도 기록하지 않음
 // firstRecord: 기록 0건인 신규 가입자 — 버튼을 누르면 첫 기록 화면(?first=1)으로, 닫으면 홈 둘러보기(11.4, 의무 아님)
+// guest: 로그인 안 한 첫 방문자(홈에서만, 2026.11.04) — 이 기기에서 처음일 때만 열고, 버튼은 로그인 시트(첫 기록으로 복귀)
 export default function OnboardingModal({
   show,
   preview = false,
   firstRecord = false,
+  guest = false,
 }: {
   show: boolean
   preview?: boolean
   firstRecord?: boolean
+  guest?: boolean
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -32,13 +36,13 @@ export default function OnboardingModal({
   useEffect(() => {
     if (!show) return
     // 미리보기·기록 0건 신규 가입자는 기기 기록(localStorage)을 무시 — 탈퇴 후 같은 기기 재가입 등에서 안내·첫 기록을 건너뛰지 않게
-    if (preview || firstRecord) return setOpen(true)
+    if (preview || (firstRecord && !guest)) return setOpen(true)
     try {
       if (!localStorage.getItem(STORAGE_KEY)) setOpen(true)
     } catch {
       setOpen(true) // localStorage 접근 불가 환경이면 서버 판단만 따른다
     }
-  }, [show, preview, firstRecord])
+  }, [show, preview, firstRecord, guest])
 
   const FIRST_RECORD_URL = '/recommend/create?first=1'
   // 닫기 = 홈 둘러보기 (첫 기록 의무 폐지 2026.11.03)
@@ -54,6 +58,7 @@ export default function OnboardingModal({
       localStorage.setItem(STORAGE_KEY, '1')
     } catch {}
     setOpen(false)
+    if (guest) return Promise.resolve() // 게스트는 계정이 없어 기기 기록만
     // 계정 단위로 '봤음' 기록 — 다른 기기에서도 재노출 안 됨(best-effort)
     return fetch('/api/onboarding', { method: 'POST' }).then(
       () => undefined,
@@ -63,6 +68,10 @@ export default function OnboardingModal({
 
   const goCta = () => {
     if (preview) return setOpen(false)
+    if (guest) {
+      markSeen()
+      return openLoginSheet('record', FIRST_RECORD_URL) // 로그인(가입)하면 첫 기록 화면으로
+    }
     // '봤음' 저장이 끝난 뒤 이동 — 뒤로가기로 홈에 돌아왔을 때 팝업이 다시 뜨지 않게
     markSeen().finally(() => router.push(firstRecord ? FIRST_RECORD_URL : '/recommend/create'))
   }

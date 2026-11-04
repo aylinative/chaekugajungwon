@@ -6,6 +6,7 @@ import FeedHeader from '@/components/FeedHeader'
 import BottomTabBar from '@/components/BottomTabBar'
 import TopicFilterBar from '@/components/feed/TopicFilterBar'
 import OnboardingModal from '@/components/onboarding/OnboardingModal'
+import { LoginPromptFromUrl } from '@/components/auth/LoginSheet'
 import FeedSections from '@/components/feed/FeedSections'
 import type { Metadata } from 'next'
 
@@ -17,9 +18,9 @@ export const metadata: Metadata = {
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ tag?: string; cat?: string; onboarding?: string; withdrawn?: string }>
+  searchParams: Promise<{ tag?: string; cat?: string; onboarding?: string; withdrawn?: string; login?: string; next?: string }>
 }) {
-  const { tag, cat, onboarding, withdrawn } = await searchParams
+  const { tag, cat, onboarding, withdrawn, login, next } = await searchParams
   // 개발 서버에서만: /?onboarding=preview 로 온보딩 팝업 미리보기 (운영에서는 무시)
   const previewOnboarding = process.env.NODE_ENV === 'development' && onboarding === 'preview'
   const supabase = await createServerSupabase()
@@ -28,86 +29,54 @@ export default async function Home({
     data: { user },
   } = await supabase.auth.getUser()
 
-  // 로그인 전: 랜딩/로그인 화면
-  if (!user) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-bg px-6">
-        <div className="flex w-full max-w-[260px] flex-col items-center gap-10">
-          <div className="flex flex-col items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon-512.png" alt="책육아정원 로고" width={160} height={160} className="h-40 w-40" />
-            <h1 className="text-2xl font-bold text-main">책육아정원</h1>
-            <p className="text-sm text-text/60">그림책 추천 커뮤니티</p>
-          </div>
-          {withdrawn === '1' && (
-            <p className="-mt-4 rounded-xl bg-surface-muted px-4 py-2.5 text-center text-xs text-text/70">
-              탈퇴가 완료됐어요. 그동안 함께해 주셔서 고마워요.
-            </p>
-          )}
-          <a
-            href="/api/auth/kakao"
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] py-3 font-medium text-[#191919] transition-colors hover:bg-[#F5DC00]"
-          >
-            카카오로 시작하기
-          </a>
-          <p className="-mt-6 text-center text-[11px] leading-relaxed text-text/45">
-            시작하면{' '}
-            <a href="/terms" className="underline underline-offset-2">
-              이용약관
-            </a>
-            과{' '}
-            <a href="/privacy" className="underline underline-offset-2">
-              개인정보처리방침
-            </a>
-            에 동의하게 돼요.
-          </p>
-        </div>
-      </main>
-    )
+  // 로그인하지 않아도 홈 피드를 보여 준다 (2026.11.04 운영자 — 둘러보기는 로그인 없이, 기록·추천·저장·아이 기준 보기만 로그인).
+  // 로그인한 사람만: 안내 팝업 판단(users.onboarded_at — 계정 단위 1회, 조회 실패 시 안전하게 미노출) + '우리 아이 시기 먼저'용 아이 시기
+  let showOnboarding = false
+  let needsFirstRecord = false
+  let childGroups: string[] = []
+  if (user) {
+    const [{ data: me, error: meError }, { count: myPostCount }, { data: childRows }] = await Promise.all([
+      supabase.from('users').select('onboarded_at').eq('id', user.id).maybeSingle(),
+      supabase.from('posts').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('children').select('birth_date').eq('user_id', user.id).order('birth_date', { ascending: true }),
+    ])
+    showOnboarding = !meError && !(me as { onboarded_at: string | null } | null)?.onboarded_at
+    // 첫 기록은 권유만 (11.4) — 기록 0건이면 안내 팝업의 버튼이 첫 기록 화면으로
+    needsFirstRecord = (myPostCount ?? 0) === 0
+    // 아이들 현재 시기 value (첫째=생일 오름차순 첫 아이, 중복 제거)
+    childGroups = [
+      ...new Set(
+        ((childRows as { birth_date: string }[] | null) ?? []).map((c) => getGroupValueByMonths(getMonths(c.birth_date)))
+      ),
+    ]
   }
 
-  // 온보딩 노출 판단은 계정 단위(users.onboarded_at)로 — localStorage(기기별)로만 하면
-  // 기존 유저가 새 기기로 접속할 때 신규 온보딩이 다시 뜬다. NULL이면 아직 안 봄 → 노출.
-  // (컬럼 미생성 등 조회 실패 시 error가 세팅되므로 안전하게 미노출 처리 → 마이그레이션 후 정상 동작)
-  const [{ data: me, error: meError }, { count: myPostCount }] = await Promise.all([
-    supabase.from('users').select('onboarded_at').eq('id', user.id).maybeSingle(),
-    supabase.from('posts').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-  ])
-  const showOnboarding =
-    !meError && !(me as { onboarded_at: string | null } | null)?.onboarded_at
-
-  // 첫 기록은 권유만 한다(11.4, 2026.11.03 운영자: 의무 폐지 — 첫 방문엔 둘러볼 수 있게).
-  // 기록 0건 신규 가입자는 안내 팝업의 '첫 기록 남기러 가기'로 첫 기록 화면에 가고, 닫거나 뒤로가기하면 홈을 둘러본다.
-  const needsFirstRecord = (myPostCount ?? 0) === 0
-
-  // 로그인 후: 홈 피드
-  const { operatorTags, sections } = await getFeedData(supabase, { tag, cat }, user.id)
+  const { operatorTags, sections } = await getFeedData(supabase, { tag, cat }, user?.id)
   const filterLabel = tag ? operatorTags.find((t) => t.slug === tag || t.name === tag)?.name ?? tag : cat
   const hasAnyPost = sections.some((s) => s.cards.length > 0)
-
-  // '우리 아이 기준' 정렬용: 아이들 현재 시기 value (첫째=생일 오름차순 첫 아이, 중복 제거)
-  const { data: childRows } = await supabase
-    .from('children')
-    .select('birth_date')
-    .eq('user_id', user.id)
-    .order('birth_date', { ascending: true })
-  const childGroups = [
-    ...new Set(
-      ((childRows as { birth_date: string }[] | null) ?? []).map((c) =>
-        getGroupValueByMonths(getMonths(c.birth_date))
-      )
-    ),
-  ]
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       {/* 신규 가입자 온보딩 — 계정당 1회(users.onboarded_at). 새 기기에서도 재노출 안 됨 */}
-      <OnboardingModal
-        show={showOnboarding || previewOnboarding}
-        preview={previewOnboarding}
-        firstRecord={needsFirstRecord}
-      />
-      <FeedHeader />
+      {user ? (
+        <OnboardingModal
+          show={showOnboarding || previewOnboarding}
+          preview={previewOnboarding}
+          firstRecord={needsFirstRecord}
+        />
+      ) : (
+        // 첫 방문 게스트 — 이 기기에서 처음일 때 한 번 (홈에서만: 검색으로 들어온 책 페이지에 팝업을 띄우면
+        // 구글 모바일 '방해되는 전면 팝업' 감점 대상이라)
+        <OnboardingModal show preview={previewOnboarding} guest />
+      )}
+      {/* 로그인이 필요한 화면(기록하기·마이)에 바로 들어온 게스트: /?login=record&next=… → 로그인 시트 */}
+      <LoginPromptFromUrl reason={login} next={next} />
+      <FeedHeader isLoggedIn={Boolean(user)} />
+      {withdrawn === '1' && (
+        <p className="mx-4 mt-3 rounded-xl bg-surface-muted px-4 py-2.5 text-center text-xs text-text/70">
+          탈퇴가 완료됐어요. 그동안 함께해 주셔서 고마워요.
+        </p>
+      )}
       <TopicFilterBar tags={operatorTags} value={{ tag, cat }} />
 
       <main className="flex-1 pb-4">
@@ -127,7 +96,7 @@ export default async function Home({
             </a>
           </div>
         ) : (
-          <FeedSections sections={sections} childGroups={childGroups} isLoggedIn />
+          <FeedSections sections={sections} childGroups={childGroups} isLoggedIn={Boolean(user)} />
         )}
       </main>
 

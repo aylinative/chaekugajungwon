@@ -1,7 +1,13 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
+import { openLoginSheet, type LoginReason } from '@/components/auth/LoginSheet'
+
+// 로그인이 필요한 탭 — 게스트가 누르면 페이지로 가지 않고 바로 로그인 시트 (2026.11.04, 페이지 열었다 튕기는 깜빡임 방지)
+const LOGIN_TABS: Record<string, LoginReason> = { '/recommend/create': 'record', '/mypage': 'mypage' }
 
 const TABS = [
   {
@@ -36,6 +42,14 @@ const TABS = [
 
 export default function BottomTabBar() {
   const pathname = usePathname()
+  // 로그인 여부: 브라우저에 저장된 세션으로 바로 확인(네트워크 없음). 확인 전(null)엔 막지 않는다 — 페이지 가드가 처리
+  const [loggedIn, setLoggedIn] = useState<boolean | null>(null)
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data }) => setLoggedIn(Boolean(data.session)))
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setLoggedIn(Boolean(session)))
+    return () => sub.subscription.unsubscribe()
+  }, [])
 
   return (
     <nav className="sticky bottom-0 z-30 mt-auto flex border-t border-black/5 bg-bg/95 backdrop-blur">
@@ -46,6 +60,13 @@ export default function BottomTabBar() {
           <Link
             key={tab.href}
             href={tab.href}
+            onClick={(e) => {
+              const reason = LOGIN_TABS[tab.href]
+              if (reason && loggedIn === false) {
+                e.preventDefault()
+                openLoginSheet(reason, tab.href)
+              }
+            }}
             className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] ${
               active ? 'text-main' : 'text-text/40'
             }`}

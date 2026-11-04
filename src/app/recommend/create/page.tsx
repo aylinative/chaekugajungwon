@@ -146,7 +146,8 @@ function RecommendCreateInner() {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) {
-        router.replace('/') // 홈은 비로그인 시 카카오 로그인 화면을 노출
+        // 홈 피드 + 로그인 시트('기록을 남기려면…'), 로그인하면 이 화면으로 돌아온다 (2026.11.04)
+        router.replace(`/?login=record&next=${encodeURIComponent(window.location.pathname + window.location.search)}`)
         return
       }
       setAuthChecked(true)
@@ -454,6 +455,8 @@ function RecommendCreateInner() {
           <div className="mb-2 flex items-center justify-between">
             <label htmlFor="book-search" className="block text-sm font-medium">
               {changingBook ? '다른 책으로 바꾸기' : '책 제목으로 검색'}
+              {/* 단행본 지향 안내 (2026.11.04 운영자) — 검색 자체는 모든 책이 나오므로 '기록해요'로 안내 */}
+              <span className="ml-1 text-xs font-normal text-text/45">(전집 말고 단행본 그림책을 기록해요)</span>
             </label>
             {/* 변경 취소 → 원래 고른 책으로 복원 */}
             {changingBook && initialBook && (

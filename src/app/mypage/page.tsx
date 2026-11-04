@@ -34,7 +34,7 @@ export default async function MyPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) redirect('/')
+  if (!user) redirect('/?login=mypage&next=/mypage') // 홈 피드 + 로그인 시트 (2026.11.04)
 
   const [meRes, childRes, postRes, bookmarkRes] = await Promise.all([
     supabase.from('users').select('nickname, is_operator').eq('id', user.id).maybeSingle(),

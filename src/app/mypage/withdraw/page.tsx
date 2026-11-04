@@ -12,7 +12,7 @@ export default async function WithdrawPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/')
+  if (!user) redirect('/?login=mypage&next=/mypage/withdraw')
 
   const [isOperator, { count }] = await Promise.all([
     getIsOperator(supabase, user.id),

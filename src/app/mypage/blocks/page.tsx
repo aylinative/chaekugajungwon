@@ -15,7 +15,7 @@ export default async function BlocksPage({ searchParams }: { searchParams: Promi
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) redirect('/')
+  if (!user) redirect('/?login=mypage&next=/mypage/blocks')
 
   const { data } = await supabase
     .from('user_blocks')

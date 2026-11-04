@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { sortGroupLabelsByAge, LABEL_TO_EMOJI } from '@/lib/groups'
+import { openLoginSheet } from '@/components/auth/LoginSheet'
 import RecommendSheet, { type RecommendResult } from '@/components/post/RecommendSheet'
 
 // '나도 추천해요' 버튼 — 탭 시 바텀시트로 추천 시기 다중 선택.
@@ -53,7 +54,7 @@ export default function RecommendButton({
     e.preventDefault()
     e.stopPropagation()
     if (!isLoggedIn) {
-      window.location.href = '/api/auth/kakao'
+      openLoginSheet('recommend')
       return
     }
     setSheetOpen(true)

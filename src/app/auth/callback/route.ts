@@ -2,11 +2,13 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { safeNext } from '@/lib/loginNext'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') ?? '/'
+  // 로그인 시트를 연 화면으로 복귀 — 우리 사이트 경로만 (2026.11.04)
+  const next = safeNext(requestUrl.searchParams.get('next')) ?? '/'
 
   if (!code) {
     return NextResponse.redirect(new URL('/?error=auth', requestUrl.origin))
@@ -77,7 +79,9 @@ export async function GET(request: NextRequest) {
     if (insertError) {
       console.error('User insert error:', insertError)
     }
-    return NextResponse.redirect(new URL('/onboarding', requestUrl.origin))
+    // 신규 유저: 닉네임·아이 등록 후 원래 보던 화면으로
+    const onboardingUrl = next === '/' ? '/onboarding' : `/onboarding?next=${encodeURIComponent(next)}`
+    return NextResponse.redirect(new URL(onboardingUrl, requestUrl.origin))
   }
 
   // 기존 유저: 닉네임은 건드리지 않는다.

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { getZodiacEmoji, getAgeDisplay } from '@/lib/age'
+import { safeNext } from '@/lib/loginNext'
 
 interface ChildInput {
   birth_date: string
@@ -69,20 +70,31 @@ export default function OnboardingPage() {
     setIsSubmitting(true)
     setError('')
 
-    try {
-      const res = await fetch('/api/auth/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nickname: nickname.trim(), children }),
-      })
+    const params = new URLSearchParams(window.location.search)
+    // 개발 서버 전용 미리보기(/onboarding?preview=1&next=…): 저장하지 않고 이동만 — 기존 계정의 아이 정보를 지우지 않게
+    const previewOnly = process.env.NODE_ENV === 'development' && params.get('preview') === '1'
 
-      const data = await res.json()
-      if (!res.ok || data.error) {
-        throw new Error(data.error || '저장에 실패했습니다.')
+    try {
+      if (!previewOnly) {
+        const res = await fetch('/api/auth/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nickname: nickname.trim(), children }),
+        })
+
+        const data = await res.json()
+        if (!res.ok || data.error) {
+          throw new Error(data.error || '저장에 실패했습니다.')
+        }
       }
 
-      // 온보딩 다음은 홈 — 홈에서 안내 팝업을 본 뒤 '첫 기록 남기러 가기'로 첫 기록 (11.4, 2026.11.03 변경)
-      router.replace('/')
+      // 가입 다음은 로그인 시트를 연 화면(next), 없으면 홈 (2026.11.04).
+      // 홈이면 홈이 안내 팝업을 띄우고(onboarded_at), 다른 화면이면 ?welcome=1로 그 화면에서 띄운다(WelcomeFromUrl)
+      // ※ router.replace(화면 안 이동)로는 layout이 그대로라 WelcomeFromUrl이 주소를 다시 읽지 않는다 → 새로 불러온다
+      // 단, 기록하러 가던 길(팝업의 '첫 기록 남기러 가기' 등)이면 팝업을 다시 띄우지 않는다 — 방금 보고 기록하러 온 것
+      const next = safeNext(params.get('next'))
+      const welcome = next && !next.startsWith('/recommend/create')
+      window.location.replace(next ? (welcome ? next + (next.includes('?') ? '&' : '?') + 'welcome=1' : next) : '/')
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.')
       setIsSubmitting(false)
@@ -210,14 +222,33 @@ export default function OnboardingPage() {
           </p>
         )}
 
+        {/* 가입 동의 — 처음 가입하는 사람만 이 화면을 지난다(로그인 시트에는 두지 않음, 2026.11.04 운영자).
+            애플 1.2: 글을 올리기 전에 이용약관(부적절한 콘텐츠 금지) 동의 */}
+        <p className="mt-6 text-center text-xs leading-relaxed text-text/60">
+          아이와 함께 읽은 책을 기록해 주세요.
+          <br />
+          내 기록이 모여 다른 양육자에게 진짜 그림책 추천이 돼요.
+        </p>
+
         <button
           type="button"
           onClick={handleSubmit}
           disabled={isSubmitting}
-          className="mt-5 w-full rounded-2xl bg-main py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="mt-3 w-full rounded-2xl bg-main py-3.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           {isSubmitting ? '저장 중...' : '시작하기'}
         </button>
+        <p className="mt-2 text-center text-[11px] leading-relaxed text-text/40">
+          시작하면{' '}
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+            이용약관
+          </a>
+          과{' '}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+            개인정보처리방침
+          </a>
+          에 동의하게 돼요.
+        </p>
       </div>
     </main>
   )

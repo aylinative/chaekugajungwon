@@ -4,6 +4,8 @@ import "./globals.css";
 import Splash from "@/components/Splash";
 import AppleSplashLinks from "@/components/AppleSplashLinks";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import { LoginSheetHost } from "@/components/auth/LoginSheet";
+import WelcomeFromUrl from "@/components/onboarding/WelcomeFromUrl";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -110,6 +112,10 @@ export default function RootLayout({
         <div className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col">
           {children}
         </div>
+        {/* 로그인 바텀시트 — 계정이 필요한 행동을 할 때 openLoginSheet()로 연다 */}
+        <LoginSheetHost />
+        {/* 가입 직후 안내 팝업 — 홈이 아닌 화면으로 돌아갈 때 (?welcome=1) */}
+        <WelcomeFromUrl />
       </body>
     </html>
   );

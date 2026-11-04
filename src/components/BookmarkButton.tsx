@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { openLoginSheet } from '@/components/auth/LoginSheet'
 import { BOOKMARK_COUNT_MIN_DISPLAY } from '@/lib/constants'
 
 interface Props {
@@ -33,7 +34,7 @@ export default function BookmarkButton({
     e.stopPropagation()
 
     if (!isLoggedIn) {
-      window.location.href = '/api/auth/kakao'
+      openLoginSheet('bookmark')
       return
     }
     if (pending) return
