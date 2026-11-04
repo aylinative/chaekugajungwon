@@ -1,5 +1,5 @@
 // 책 제목·카카오 책 소개로 주제 찾기 (브라우저에서 처리, 서버 호출 없음 — DECISIONS 10장)
-// - 소개매칭어는 2음절 이상만 (한 글자는 '이별'→'별'처럼 오류가 나서 검색 별칭에만 씀)
+// - 한 글자 매칭어·태그 이름은 제목에서만 + 단어 단위로만 (소개에선 '이별'→'별'처럼 오류가 나서 안 씀. 2026.11.04)
 // - 소개제외어가 덮는 위치의 매칭은 무시 (예: 달 → '반달곰')
 // - 제목에서 찾은 것이 소개보다 앞, 같은 곳이면 먼저 나온 순
 // - 세부까지 맞으면 세부(화면에서 주제+세부 칩), 아니면 주제. 최대 3개 (2026.10.28 운영자)
@@ -20,11 +20,26 @@ export interface MatchItem {
 // 소문자 + 연속 공백을 한 칸으로 (공백 자체는 유지)
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase()
 
-function firstValidHit(text: string, keyword: string, excludes: string[]): number {
+// 한 글자 단어는 '단어 맨 앞 + 바로 뒤가 끝·띄어쓰기·문장부호·조사'일 때만 (2026.11.04 운영자)
+// 잡힘: 꽃이·봄이·달과·빵도둑·비다·달님 / 안 잡힘: 비행기·눈물·이별·산타·달아난('아·야'는 동사 활용과 겹쳐 제외)
+// 동사로 많이 쓰이는 글자(해 보자 등)는 태그의 소개 제외어로 막는다
+const WORD_CHAR = /[가-힣a-z0-9]/
+const PARTICLE = '이가을를은는과와도의에로으님다만랑'
+const isWordAt = (text: string, at: number, len: number) => {
+  if (at > 0 && WORD_CHAR.test(text[at - 1])) return false
+  const next = text[at + len]
+  return next === undefined || !WORD_CHAR.test(next) || PARTICLE.includes(next)
+}
+
+function firstValidHit(text: string, keyword: string, excludes: string[], wordOnly = false): number {
   for (let from = 0; ; ) {
     const at = text.indexOf(keyword, from)
     if (at < 0) return -1
     const end = at + keyword.length
+    if (wordOnly && !isWordAt(text, at, keyword.length)) {
+      from = at + 1
+      continue
+    }
     const covered = excludes.some((ex) => {
       for (let i = text.indexOf(ex); i >= 0; i = text.indexOf(ex, i + 1)) {
         if (i <= at && i + ex.length >= end) return true
@@ -60,14 +75,17 @@ function stripNames(text: string, names: string[]): string {
 
 // 태그 이름 자체를 '제목에서만' 매칭어로 쓴다 — 제목의 단어는 대부분 핵심 주제 (2026.11.03 운영자).
 // 예: '아빠 자판기' → 아빠 (엄마·아빠·친구는 소개 매칭어를 일부러 비워 둠 — DECISIONS 10장 — 제목은 예외)
-// '집·농장 동물' → '농장 동물'처럼 '·'로 나눈 조각 중 2음절 이상만, '날씨 : 비·눈·바람' 같은 이름은 ':' 앞만
-const nameKeys = (name: string): string[] =>
-  name
+// '집·농장 동물' → '농장 동물'처럼 '·'로 나눈 조각 중 2음절 이상만, '날씨 : 비·눈·바람' 같은 이름은 ':' 앞만.
+// 한 글자 이름(봄·잠·달·별·해·배…)은 이름 전체가 한 글자일 때만 — 조각의 한 글자('집' 동물)는 뜻이 달라 제외
+const nameKeys = (name: string): string[] => {
+  const parts = name
     .split(':')[0]
     .split(/[·/]/)
     .map((s) => s.trim())
-    .filter((s) => [...s.replace(/ /g, '')].length >= 2)
-    .map((s) => '^' + s)
+    .filter(Boolean)
+  return parts.filter((s) => parts.length === 1 || syllables(s) >= 2).map((s) => '^' + s)
+}
+const syllables = (s: string) => [...s.replace(/ /g, '')].length
 
 export function matchTopics(
   tags: TaxTag[],
@@ -81,13 +99,14 @@ export function matchTopics(
   const c = stripNames(norm(contents ?? ''), names)
   const hits: { topic: string; details: string[]; rank: number }[] = []
   for (const tag of tags) {
-    const keys = [...tag.intro, ...nameKeys(tag.name)].map(parseKey).filter(({ k }) => [...k.replace(/ /g, '')].length >= 2)
+    const keys = [...tag.intro, ...nameKeys(tag.name)].map(parseKey).filter(({ k }) => syllables(k) >= 1)
     if (keys.length === 0) continue
     const excl = tag.excl.map(norm).filter(Boolean)
     const topic = tag.parent ?? tag.slug
     for (const key of keys) {
-      let rank = firstValidHit(t, key.k, excl) // 제목: 0 ~
-      if (rank < 0 && !key.titleOnly) {
+      const oneChar = syllables(key.k) === 1 // 한 글자: 제목에서만, 단어 단위로만
+      let rank = firstValidHit(t, key.k, excl, oneChar) // 제목: 0 ~
+      if (rank < 0 && !key.titleOnly && !oneChar) {
         const inBody = firstValidHit(c, key.k, excl)
         if (inBody >= 0) rank = 100000 + inBody // 소개: 제목 뒤
       }
