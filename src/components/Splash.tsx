@@ -19,7 +19,8 @@ export default function Splash() {
     // 설치형 PWA면 네이티브 스플래시가 로딩을 덮으므로 인앱 스플래시는 즉시 제거(중복 방지).
     const isStandalone =
       window.matchMedia?.('(display-mode: standalone)').matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
+      /BookgardeningApp/.test(navigator.userAgent) // iOS 앱: 앱 자체 스플래시가 이미 떠서 제거
     if (isStandalone) {
       setRemoved(true)
       return
