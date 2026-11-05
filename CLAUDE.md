@@ -114,7 +114,8 @@ OAuth 2.0 (Supabase Auth 연동)
     구글은 앱 안 브라우저(스레드·인스타·카톡 등 웹뷰)의 로그인을 정책으로 막음(403 disallowed_useragent) → 버튼은 보이고,
     누르면 로그인 주소를 기본 브라우저로 넘김(lib/inAppBrowser.ts: 카톡 openExternal / 라인 openExternalBrowser / 안드로이드 intent:// /
     아이폰 x-safari-https://, 안 열리면 '⋯ → 브라우저로 열기' 안내). 로그인은 기본 브라우저에서 끝나고 그쪽에서 이어서 이용.
-    ⚠️ 우리 iOS 앱(BookgardeningApp)의 구글 버튼은 아직 숨김 — iOS 작업 때 시스템 로그인 창(ASWebAuthenticationSession)으로 연결할 것.
+    우리 iOS 앱(BookgardeningApp)의 구글 = 시스템 로그인 창(WebAuth 플러그인, lib/nativeWebAuth → /auth/finish). 플러그인이 없는 옛 앱 빌드에서는 숨김.
+    ⚠️ Supabase Redirect URLs에 kr.co.bookgardening.app://auth 필요. 앱 플러그인은 AppViewController에서 등록(앱 시작점은 SceneDelegate — storyboard 아님).
 
 탭
 아이콘

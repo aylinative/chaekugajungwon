@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { afterLoginPath, ensureUserRow, rememberLastLogin } from '@/lib/ensureUser'
 import { safeNext } from '@/lib/loginNext'
+import { authProviderOf } from '@/lib/authProvider'
 
-// iOS 앱의 Apple 로그인 마무리 — 브라우저에서 signInWithIdToken으로 세션을 만든 뒤 여기로 온다.
-// 카카오·구글의 /auth/callback과 같은 가입 처리를 한다.
+// iOS 앱의 Apple·구글 로그인 마무리 — 앱 웹뷰에서 세션을 만든 뒤 여기로 온다.
+// 웹 로그인의 /auth/callback과 같은 가입 처리를 한다.
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const next = safeNext(requestUrl.searchParams.get('next')) ?? '/'
@@ -18,5 +19,5 @@ export async function GET(request: Request) {
   if (error) console.error('User insert error:', error)
 
   const response = NextResponse.redirect(new URL(afterLoginPath(isNew, next), requestUrl.origin))
-  return rememberLastLogin(response, 'apple')
+  return rememberLastLogin(response, authProviderOf(user))
 }

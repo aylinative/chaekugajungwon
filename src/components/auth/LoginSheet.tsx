@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { appleFinishUrl, oauthLoginUrl, safeNext } from '@/lib/loginNext'
+import { nativeFinishUrl, oauthLoginUrl, safeNext } from '@/lib/loginNext'
 import {
   AUTH_PROVIDER_LABEL,
   canUseGoogleLogin,
@@ -12,6 +12,7 @@ import {
 } from '@/lib/authProvider'
 import { appleNativeAuth, isAppleCancel, isAppleLoginAvailable } from '@/lib/nativeApple'
 import { externalBrowserUrl, isInAppBrowser } from '@/lib/inAppBrowser'
+import { isNativeGoogleAvailable, nativeGoogleLogin } from '@/lib/nativeWebAuth'
 
 // 로그인 바텀시트 (2026.11.04 — 둘러보기는 로그인 없이, 계정이 필요한 행동을 할 때만 로그인)
 // 어디서든 openLoginSheet('bookmark')로 연다. layout에 LoginSheetHost가 하나 있다.
@@ -66,10 +67,11 @@ const BUTTON = 'flex min-h-[48px] w-full items-center justify-center gap-2 round
 export function LoginSheetHost() {
   const [reason, setReason] = useState<LoginReason | null>(null)
   const [next, setNext] = useState('/')
-  const [methods, setMethods] = useState({ google: false, apple: false, inApp: false })
+  const [methods, setMethods] = useState({ google: false, nativeGoogle: false, apple: false, inApp: false })
   const [externalHint, setExternalHint] = useState(false)
   const [lastLogin, setLastLogin] = useState<AuthProvider | null>(null)
   const [appleBusy, setAppleBusy] = useState(false)
+  const [googleBusy, setGoogleBusy] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -78,6 +80,7 @@ export function LoginSheetHost() {
       setNext(d?.next ?? window.location.pathname + window.location.search)
       setMethods({
         google: canUseGoogleLogin(navigator.userAgent),
+        nativeGoogle: isNativeGoogleAvailable(),
         apple: isAppleLoginAvailable(),
         inApp: isInAppBrowser(navigator.userAgent),
       })
@@ -102,6 +105,24 @@ export function LoginSheetHost() {
     setExternalHint(true)
   }
 
+  // iOS 앱: 시스템 로그인 창으로 구글 로그인 (lib/nativeWebAuth.ts)
+  const loginWithGoogleNative = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (googleBusy) return
+    setGoogleBusy(true)
+    setError('')
+    try {
+      await nativeGoogleLogin()
+      window.location.href = nativeFinishUrl(next)
+    } catch (err) {
+      if (!isAppleCancel(err)) {
+        console.error('Google login error:', err)
+        setError('구글 로그인에 실패했어요. 다시 시도해 주세요.')
+      }
+      setGoogleBusy(false)
+    }
+  }
+
   const loginWithApple = async () => {
     if (appleBusy) return
     setAppleBusy(true)
@@ -116,7 +137,7 @@ export function LoginSheetHost() {
         nonce: rawNonce,
       })
       if (signInError) throw signInError
-      window.location.href = appleFinishUrl(next)
+      window.location.href = nativeFinishUrl(next)
     } catch (err) {
       if (!isAppleCancel(err)) {
         console.error('Apple login error:', err)
@@ -155,10 +176,10 @@ export function LoginSheetHost() {
               {appleBusy ? '로그인 중…' : 'Apple로 계속하기'}
             </button>
           )}
-          {methods.google && (
+          {(methods.google || methods.nativeGoogle) && (
             <a
               href={oauthLoginUrl('google', next)}
-              onClick={methods.inApp ? loginWithGoogleOutside : undefined}
+              onClick={methods.nativeGoogle ? loginWithGoogleNative : methods.inApp ? loginWithGoogleOutside : undefined}
               className={`${BUTTON} border border-black/10 bg-white text-[#1F1F1F]`}
             >
               <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4">
@@ -167,7 +188,7 @@ export function LoginSheetHost() {
                 <path fill="#FBBC05" d="M5.84 14.11a6.6 6.6 0 0 1 0-4.22V7.05H2.18a11 11 0 0 0 0 9.9l3.66-2.84z" />
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.05l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z" />
               </svg>
-              구글로 계속하기
+              {googleBusy ? '로그인 중…' : '구글로 계속하기'}
             </a>
           )}
           {methods.google && methods.inApp && (

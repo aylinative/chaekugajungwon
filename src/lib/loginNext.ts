@@ -12,8 +12,8 @@ export const oauthLoginUrl = (provider: 'kakao' | 'google', next?: string | null
   return safe ? `/api/auth/${provider}?next=${encodeURIComponent(safe)}` : `/api/auth/${provider}`
 }
 
-// Apple 로그인 마무리 주소 (iOS 앱, /auth/finish)
-export const appleFinishUrl = (next?: string | null) => {
+// iOS 앱의 Apple·구글 로그인 마무리 주소 (/auth/finish)
+export const nativeFinishUrl = (next?: string | null) => {
   const safe = safeNext(next)
   return safe ? `/auth/finish?next=${encodeURIComponent(safe)}` : '/auth/finish'
 }
