@@ -11,11 +11,12 @@ import {
   type AuthProvider,
 } from '@/lib/authProvider'
 import { appleNativeAuth, isAppleCancel, isAppleLoginAvailable } from '@/lib/nativeApple'
+import { externalBrowserUrl, isInAppBrowser } from '@/lib/inAppBrowser'
 
 // 로그인 바텀시트 (2026.11.04 — 둘러보기는 로그인 없이, 계정이 필요한 행동을 할 때만 로그인)
 // 어디서든 openLoginSheet('bookmark')로 연다. layout에 LoginSheetHost가 하나 있다.
 // 로그인 후에는 지금 보던 화면으로 돌아온다(next). 약관 동의 문구는 여기 두지 않고 가입 화면(/onboarding)에 — 로그인≠가입
-// 수단: 카카오=모든 곳 / 구글=일반 브라우저·Android 앱 / Apple=iOS 앱 (docs/app-store/STORE_STEPS.md STEP I3)
+// 수단: 카카오=모든 곳 / 구글=모든 브라우저(앱 안 브라우저는 기본 브라우저로 넘겨서)·Android 앱 / Apple=iOS 앱 (docs/app-store/STORE_STEPS.md STEP I3)
 export type LoginReason = 'record' | 'recommend' | 'bookmark' | 'mypage' | 'child' | 'report' | 'default'
 
 const COPY: Record<LoginReason, { title: string; sub: string }> = {
@@ -65,7 +66,8 @@ const BUTTON = 'flex min-h-[48px] w-full items-center justify-center gap-2 round
 export function LoginSheetHost() {
   const [reason, setReason] = useState<LoginReason | null>(null)
   const [next, setNext] = useState('/')
-  const [methods, setMethods] = useState({ google: false, apple: false })
+  const [methods, setMethods] = useState({ google: false, apple: false, inApp: false })
+  const [externalHint, setExternalHint] = useState(false)
   const [lastLogin, setLastLogin] = useState<AuthProvider | null>(null)
   const [appleBusy, setAppleBusy] = useState(false)
   const [error, setError] = useState('')
@@ -74,7 +76,12 @@ export function LoginSheetHost() {
     const onOpen = (e: Event) => {
       const d = (e as CustomEvent<{ reason: LoginReason; next?: string }>).detail
       setNext(d?.next ?? window.location.pathname + window.location.search)
-      setMethods({ google: canUseGoogleLogin(navigator.userAgent), apple: isAppleLoginAvailable() })
+      setMethods({
+        google: canUseGoogleLogin(navigator.userAgent),
+        apple: isAppleLoginAvailable(),
+        inApp: isInAppBrowser(navigator.userAgent),
+      })
+      setExternalHint(false)
       setLastLogin(readLastLogin())
       setError('')
       setReason(d?.reason ?? 'default')
@@ -85,6 +92,15 @@ export function LoginSheetHost() {
 
   if (!reason) return null
   const copy = COPY[reason]
+
+  // 앱 안 브라우저(스레드·인스타·카톡 등): 구글이 그 안에서는 로그인을 막아서, 같은 로그인 주소를 기본 브라우저로 넘긴다.
+  // 로그인은 기본 브라우저에서 끝나고 그쪽에서 이어서 이용한다. 안 넘어가면 '⋯ → 브라우저로 열기' 안내.
+  const loginWithGoogleOutside = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const absolute = new URL(oauthLoginUrl('google', next), window.location.origin).toString()
+    window.location.href = externalBrowserUrl(absolute, navigator.userAgent)
+    setExternalHint(true)
+  }
 
   const loginWithApple = async () => {
     if (appleBusy) return
@@ -140,7 +156,11 @@ export function LoginSheetHost() {
             </button>
           )}
           {methods.google && (
-            <a href={oauthLoginUrl('google', next)} className={`${BUTTON} border border-black/10 bg-white text-[#1F1F1F]`}>
+            <a
+              href={oauthLoginUrl('google', next)}
+              onClick={methods.inApp ? loginWithGoogleOutside : undefined}
+              className={`${BUTTON} border border-black/10 bg-white text-[#1F1F1F]`}
+            >
               <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" />
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.65l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z" />
@@ -149,6 +169,13 @@ export function LoginSheetHost() {
               </svg>
               구글로 계속하기
             </a>
+          )}
+          {methods.google && methods.inApp && (
+            <p className="break-keep text-center text-[11px] leading-relaxed text-text/45">
+              {externalHint
+                ? "브라우저가 열리지 않으면 오른쪽 위 ⋯(더보기) → '브라우저로 열기'를 누른 뒤 다시 로그인해 주세요."
+                : '구글 로그인은 휴대폰 기본 브라우저에서 이어서 진행돼요.'}
+            </p>
           )}
         </div>
         {error && <p className="mt-2 text-center text-xs text-red-500">{error}</p>}

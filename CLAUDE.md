@@ -110,6 +110,11 @@ OAuth 2.0 (Supabase Auth 연동)
     버튼 → 로그인 시트(next=첫 기록) ②가입 직후 — 홈이면 users.onboarded_at으로, 다른 화면이면 ?welcome=1(WelcomeFromUrl, layout).
     기록하러 가던 길(next=/recommend/create…)엔 다시 안 띄움. 가입 화면은 끝나면 페이지를 새로 불러 이동(window.location).
   ■ 개발 확인용: /onboarding?preview=1&next=… (개발 서버만, 저장 안 함), /?onboarding=preview.
+  ■ 로그인 수단 원칙(2026.11.05 운영자): 카카오·구글 = 모든 브라우저·앱 / Apple = iOS 앱만.
+    구글은 앱 안 브라우저(스레드·인스타·카톡 등 웹뷰)의 로그인을 정책으로 막음(403 disallowed_useragent) → 버튼은 보이고,
+    누르면 로그인 주소를 기본 브라우저로 넘김(lib/inAppBrowser.ts: 카톡 openExternal / 라인 openExternalBrowser / 안드로이드 intent:// /
+    아이폰 x-safari-https://, 안 열리면 '⋯ → 브라우저로 열기' 안내). 로그인은 기본 브라우저에서 끝나고 그쪽에서 이어서 이용.
+    ⚠️ 우리 iOS 앱(BookgardeningApp)의 구글 버튼은 아직 숨김 — iOS 작업 때 시스템 로그인 창(ASWebAuthenticationSession)으로 연결할 것.
 
 탭
 아이콘

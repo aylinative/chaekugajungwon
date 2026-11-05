@@ -32,10 +32,10 @@ export function kakaoIdOf(user: Pick<User, 'app_metadata' | 'identities' | 'user
   return String(user.user_metadata?.provider_id ?? user.user_metadata?.sub ?? user.id)
 }
 
-// 구글은 앱 안 브라우저(웹뷰)의 로그인을 막는다(disallowed_useragent) → iOS 앱·카톡 등에서는 버튼을 숨긴다.
+// 구글은 앱 안 브라우저(웹뷰)의 로그인을 막는다(disallowed_useragent).
+// - 다른 앱 안 브라우저(스레드·인스타·카톡 등): 버튼은 보이고, 누르면 기본 브라우저로 넘겨서 로그인 (lib/inAppBrowser.ts, 2026.11.05)
+// - 우리 iOS 앱(BookgardeningApp): 시스템 로그인 창 연동 전까지 숨김 (iOS 작업 때 ASWebAuthenticationSession으로)
 // Android 앱(TWA)은 크롬으로 열려 일반 브라우저로 잡힌다.
-const WEBVIEW_UA = /BookgardeningApp|KAKAOTALK|NAVER|DaumApps|Instagram|FBAN|FBAV|FB_IAB|Line\/|Snapchat|; wv\)/i
-
 export function canUseGoogleLogin(userAgent: string): boolean {
-  return !WEBVIEW_UA.test(userAgent)
+  return !/BookgardeningApp/i.test(userAgent)
 }

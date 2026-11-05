@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import BookCardItem from './BookCard'
 import TopicFilter from '@/components/feed/TopicFilter'
 import { matchingSlugs, passesFilter, type TopicFilterValue } from '@/lib/topicDisplay'
@@ -17,7 +18,19 @@ import {
 // - 내 기록 제외 토글: 내가 이미 기록(posts)한 책 카드를 목록에서 뺀다.
 // - 정렬 드롭다운: 추천순(기본, 서버 랭킹 유지)/신간순/제목순. lib/feed.ts sortCardsBy 공용.
 // - 표지 3열 그리드(홈 카드 크기감).
+// - 토글·정렬·주제 필터는 주소(?mine=1&sort=…&cat=…&tag=…)에 남긴다 — 책을 보고 뒤로가기로 돌아와도 그대로 (2026.11.05 운영자)
 const SORT_OPTIONS: CardSort[] = ['recommend', 'published', 'title']
+
+// 주소 갱신만(화면 이동 없음) — 뒤로가기로 돌아오면 이 주소로 다시 그려진다
+function saveToUrl(state: { filter: TopicFilterValue; excludeMine: boolean; sort: CardSort }) {
+  const url = new URL(window.location.href)
+  const set = (k: string, v: string | undefined) => (v ? url.searchParams.set(k, v) : url.searchParams.delete(k))
+  set('mine', state.excludeMine ? '1' : undefined)
+  set('sort', state.sort === 'recommend' ? undefined : state.sort)
+  set('cat', state.filter.cat)
+  set('tag', state.filter.tag)
+  window.history.replaceState(window.history.state, '', url.pathname + url.search)
+}
 
 export default function GroupBrowser({
   cards,
@@ -32,9 +45,29 @@ export default function GroupBrowser({
   isLoggedIn: boolean
   showBoardBook: boolean
 }) {
-  const [filter, setFilter] = useState<TopicFilterValue>({})
-  const [excludeMine, setExcludeMine] = useState(false)
-  const [sort, setSort] = useState<CardSort>('recommend')
+  const params = useSearchParams()
+  const [filter, setFilterState] = useState<TopicFilterValue>(() => ({
+    cat: params.get('cat') ?? undefined,
+    tag: params.get('tag') ?? undefined,
+  }))
+  const [excludeMine, setExcludeMineState] = useState(() => params.get('mine') === '1')
+  const [sort, setSortState] = useState<CardSort>(() => {
+    const v = params.get('sort') as CardSort | null
+    return v && SORT_OPTIONS.includes(v) ? v : 'recommend'
+  })
+  const setFilter = (v: TopicFilterValue) => {
+    setFilterState(v)
+    saveToUrl({ filter: v, excludeMine, sort })
+  }
+  const setExcludeMine = (update: boolean | ((v: boolean) => boolean)) => {
+    const v = typeof update === 'function' ? update(excludeMine) : update
+    setExcludeMineState(v)
+    saveToUrl({ filter, excludeMine: v, sort })
+  }
+  const setSort = (v: CardSort) => {
+    setSortState(v)
+    saveToUrl({ filter, excludeMine, sort: v })
+  }
 
   const match = useMemo(() => matchingSlugs(filter, operatorTags), [filter, operatorTags])
   const mineSet = useMemo(() => new Set(myBookIds), [myBookIds])
