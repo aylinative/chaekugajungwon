@@ -37,8 +37,12 @@ async function createDetector(): Promise<Detector> {
 
 function cameraErrorMessage(err: unknown): string {
   const name = (err as { name?: string })?.name
-  if (name === 'NotAllowedError' || name === 'SecurityError')
+  if (name === 'NotAllowedError' || name === 'SecurityError') {
+    // iOS 앱은 브라우저가 아니므로 기기의 설정 앱으로 안내한다
+    if (/BookgardeningApp\/iOS/.test(navigator.userAgent))
+      return '카메라 권한이 꺼져 있어요. 설정 앱 > 책육아정원에서 카메라를 켠 뒤 다시 눌러 주세요.'
     return '카메라 권한이 꺼져 있어요. 브라우저 설정에서 이 사이트의 카메라를 허용한 뒤 다시 눌러 주세요.'
+  }
   if (name === 'NotFoundError' || name === 'OverconstrainedError') return '사용할 수 있는 카메라를 찾지 못했어요.'
   return '카메라를 켜지 못했어요. 책 제목으로 검색해 주세요.'
 }
