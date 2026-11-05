@@ -145,14 +145,50 @@ function RecommendCreateInner() {
   const [authStep, setAuthStep] = useState('시작')
   const [authError, setAuthError] = useState('')
   const [authSlow, setAuthSlow] = useState(false)
+  const [authInfo, setAuthInfo] = useState<string[]>([])
   useEffect(() => {
-    const slow = setTimeout(() => setAuthSlow(true), 6000)
+    const t0 = Date.now()
+    const note = (s: string) => setAuthInfo((prev) => [...prev, `${((Date.now() - t0) / 1000).toFixed(1)}s ${s}`])
+    const slow = setTimeout(async () => {
+      setAuthSlow(true)
+      // 6초가 지나도 안 끝나면: 로그인 잠금(lock)을 누가 쥐고 있는지, 쿠키 크기
+      try {
+        const q = await navigator.locks?.query?.()
+        note(`잠금 보유 ${q?.held?.map((l) => l.name).join(',') || '없음'} / 대기 ${q?.pending?.length ?? 0}`)
+      } catch (e) {
+        note(`잠금 조회 실패 ${String(e)}`)
+      }
+      const sb = document.cookie.split('; ').filter((c) => c.startsWith('sb-'))
+      note(`로그인 쿠키 ${sb.length}개 ${sb.reduce((n, c) => n + c.length, 0)}자`)
+    }, 6000)
     checkAuth()
       .catch((err) => setAuthError(err instanceof Error ? `${err.name}: ${err.message}` : String(err)))
       .finally(() => clearTimeout(slow))
     async function checkAuth() {
-      setAuthStep('로그인 확인(getUser)')
       const supabase = createClient()
+      setAuthStep('초기화(initialize)')
+      await supabase.auth.initialize()
+      note('초기화 끝')
+      setAuthStep('세션 읽기(getSession)')
+      const { data: s } = await supabase.auth.getSession()
+      const exp = s.session?.expires_at
+      note(`세션 ${s.session ? '있음' : '없음'}${exp ? `, 만료까지 ${Math.round(exp - Date.now() / 1000)}초` : ''}`)
+      if (s.session) {
+        setAuthStep('인증 서버 직접 확인(/user)')
+        try {
+          const r = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`, {
+            headers: {
+              apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+              Authorization: `Bearer ${s.session.access_token}`,
+            },
+            signal: AbortSignal.timeout(8000),
+          })
+          note(`인증 서버 응답 ${r.status}`)
+        } catch (e) {
+          note(`인증 서버 요청 실패 ${String(e)}`)
+        }
+      }
+      setAuthStep('로그인 확인(getUser)')
       const {
         data: { user },
         error: userError,
@@ -478,6 +514,12 @@ function RecommendCreateInner() {
             <p className="font-medium text-text">기록하기 화면을 여는 중 멈췄어요 (진단 정보)</p>
             <p className="mt-2">멈춘 단계: {authStep}</p>
             {authError && <p className="mt-1 break-all text-red-500">오류: {authError}</p>}
+            {authInfo.map((line, i) => (
+              <p key={i} className="mt-1 break-all text-text/60">
+                {line}
+              </p>
+            ))}
+            <p className="mt-1 break-all text-text/30">{typeof navigator !== 'undefined' ? navigator.userAgent : ''}</p>
             <p className="mt-2 text-text/40">이 화면을 캡처해서 알려 주세요.</p>
           </div>
         )}
