@@ -18,6 +18,7 @@
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		B00C0A012FF0000100AB0001 /* AppViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00C0A022FF0000100AB0001 /* AppViewController.swift */; };
 		B00C0A032FF0000100AB0001 /* AppleLoginPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00C0A042FF0000100AB0001 /* AppleLoginPlugin.swift */; };
+		B00C0A062FF0000100AB0001 /* WebAuthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00C0A072FF0000100AB0001 /* WebAuthPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +34,7 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		B00C0A022FF0000100AB0001 /* AppViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewController.swift; sourceTree = "<group>"; };
 		B00C0A042FF0000100AB0001 /* AppleLoginPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleLoginPlugin.swift; sourceTree = "<group>"; };
+		B00C0A072FF0000100AB0001 /* WebAuthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthPlugin.swift; sourceTree = "<group>"; };
 		B00C0A052FF0000100AB0001 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -72,6 +74,7 @@
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				B00C0A022FF0000100AB0001 /* AppViewController.swift */,
 				B00C0A042FF0000100AB0001 /* AppleLoginPlugin.swift */,
+				B00C0A072FF0000100AB0001 /* WebAuthPlugin.swift */,
 				B00C0A052FF0000100AB0001 /* App.entitlements */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
@@ -170,6 +173,7 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				B00C0A012FF0000100AB0001 /* AppViewController.swift in Sources */,
 				B00C0A032FF0000100AB0001 /* AppleLoginPlugin.swift in Sources */,
+				B00C0A062FF0000100AB0001 /* WebAuthPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

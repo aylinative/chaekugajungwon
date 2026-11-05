@@ -49,6 +49,7 @@
 - 2026.11.04 심사 로그인 방식 확정: 애플·구글 계정(STEP 1).
 - 2026.11.04 STEP I1 완료: App ID·앱 생성·API 키(.p8) 완료, Apple ID를 codemagic.yaml에 반영.
 - 2026.11.04 STEP 2 점검: 이미지 규격·URL 통과, 설명문 초안 작성(`앱스토어/스토어_설명문_초안.md`, 저장소 밖). 스크린샷 재촬영 판단이 남아 ☐ 유지.
+- 2026.11.06 STEP I4 1차: Apple 버튼 미표시 원인 = SceneDelegate가 AppViewController를 쓰지 않음 → 수정. 구글 시스템 로그인(WebAuthPlugin) 추가. Supabase Redirect URLs에 kr.co.bookgardening.app://auth 필요. 재빌드 후 재확인.
 - 2026.11.05 STEP I2 진행: Codemagic 연결, 첫 빌드의 컴파일·서명·업로드·처리 성공. 외부 베타 제출은 끔(내부 테스트 사용). 기기 확인 후 ✅.
 - 2026.11.05 STEP I3 진행: 웹 배포(master 6297480, 구글 로그인 확인 완료), DB·Google·Supabase·Apple 키·Vercel 설정 완료, Email 로그인 끔. iOS 플러그인 코드 추가 — Codemagic 빌드와 TestFlight 확인 후 ✅.
 - 2026.11.05 AAB 확보(`앱스토어/플레이 스토어 패키지/책육아정원.aab`): 패키지명·사이트 주소 일치, 서명 지문이 assetlinks.json과 일치 확인. 첫 업로드 후 Play 앱 서명 키 지문을 assetlinks.json에 추가해야 함.
