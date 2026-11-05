@@ -10,6 +10,7 @@ const config: CapacitorConfig = {
   webDir: 'capacitor-shell',
   server: {
     url: 'https://bookgardening.co.kr',
+    errorPath: 'index.html', // 사이트를 못 불러올 때 capacitor-shell의 오프라인 안내를 띄운다
     // 여기 없는 도메인으로 이동하면 앱 밖(사파리)으로 나간다 → 로그인 쿠키가 끊기므로
     // 로그인 경로(Supabase·카카오·애플)는 반드시 앱 안에서 열리게 허용.
     allowNavigation: [
