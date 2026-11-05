@@ -45,4 +45,4 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
+        submit_to_testflight: false   # 내부 테스트만 사용. true는 외부 베타 심사 제출(테스트 정보 입력 필요)
