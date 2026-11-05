@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import BookCardItem from './BookCard'
 import TopicFilter from '@/components/feed/TopicFilter'
+import { openLoginSheet } from '@/components/auth/LoginSheet'
 import { matchingSlugs, passesFilter, type TopicFilterValue } from '@/lib/topicDisplay'
 import {
   sortCardsBy,
@@ -71,11 +72,6 @@ export default function GroupBrowser({
 
   const match = useMemo(() => matchingSlugs(filter, operatorTags), [filter, operatorTags])
   const mineSet = useMemo(() => new Set(myBookIds), [myBookIds])
-  const hasMineInGroup = useMemo(
-    () => isLoggedIn && cards.some((c) => mineSet.has(c.bookId)),
-    [isLoggedIn, cards, mineSet]
-  )
-
   const visible = useMemo(() => {
     const filtered = cards.filter(
       (c) =>
@@ -93,12 +89,13 @@ export default function GroupBrowser({
       </div>
       {/* 내 기록 제외 토글 + 정렬 드롭다운 (한 줄) */}
       <div className="flex items-center justify-between gap-2 py-2">
-        {hasMineInGroup ? (
-          <button
+        {/* 항상 보여 준다 (2026.11.05 운영자 — 이 시기에 내 기록이 없으면 숨겨서 '토글이 사라졌다'로 보였다).
+            로그인 안 했으면 누를 때 로그인 시트 */}
+        <button
             type="button"
             role="switch"
             aria-checked={excludeMine}
-            onClick={() => setExcludeMine((v) => !v)}
+            onClick={() => (isLoggedIn ? setExcludeMine((v) => !v) : openLoginSheet('default'))}
             className="flex items-center gap-2"
           >
             <span
@@ -118,9 +115,6 @@ export default function GroupBrowser({
               />
             </span>
           </button>
-        ) : (
-          <span />
-        )}
 
         <select
           value={sort}
