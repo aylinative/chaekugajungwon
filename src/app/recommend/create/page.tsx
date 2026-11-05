@@ -33,8 +33,6 @@ const GROUP_LABEL_TO_VALUE: Record<string, string> = Object.fromEntries(
 function RecommendCreateInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  // 첫 기록 모드(11.4): 온보딩 직후 또는 기록 0건 상태에서 진입. 배너 + 완료 후 홈 이동.
-  const isFirst = searchParams.get('first') === '1'
   // 편집 모드(?edit=<postId>): 내 기록 수정. 책은 고정, 시기·반응·글밥량·주제·일기만 편집.
   const editId = searchParams.get('edit')
   const isEdit = Boolean(editId)
@@ -140,6 +138,9 @@ function RecommendCreateInner() {
   // 저장 시점에야 '로그인이 필요합니다'만 뜨고 로그인 수단이 없었다 → 홈(로그인 화면)으로 보낸다.
   const [authChecked, setAuthChecked] = useState(false)
   const [myUserId, setMyUserId] = useState<string | null>(null)
+  // 첫 기록 안내 레이어 (2026.11.05 운영자): 기록 0건인 사람이 들어올 때마다(경로 무관) 띄우고, 닫을 수 있다.
+  // 예전 '첫 기록 모드'(?first=1) 화면은 없앰 — 기록하기 화면은 하나, 안내는 기록 수로만 판단.
+  const [showFirstGuide, setShowFirstGuide] = useState(false)
   useEffect(() => {
     async function checkAuth() {
       const supabase = createClient()
@@ -152,6 +153,14 @@ function RecommendCreateInner() {
         return
       }
       setMyUserId(user.id)
+      if (!editId) {
+        const { count } = await supabase
+          .from('posts')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .is('hidden_at', null)
+        setShowFirstGuide((count ?? 0) === 0)
+      }
       setAuthChecked(true)
     }
     checkAuth()
@@ -434,11 +443,7 @@ function RecommendCreateInner() {
       }
 
       setSubmitSuccess('기록을 남겼어요.')
-      // 첫 기록이면 홈(피드)으로 입장, 이후 기록은 상세 페이지로
-      if (isFirst) {
-        router.push('/')
-        return
-      }
+      // 첫 기록이든 아니든 방금 쓴 기록 상세로 (2026.11.05)
       if (data.postId) {
         router.push(`/posts/${data.postId}`)
         return
@@ -460,27 +465,33 @@ function RecommendCreateInner() {
     <main className="min-h-screen bg-bg text-text">
       <div className="mx-auto max-w-md px-4 pb-10 pt-5">
         <header className="mb-4 flex items-center justify-between">
-          {/* 첫 기록도 의무가 아니므로(11.4) 홈으로 돌아갈 수 있다 */}
           <a href="/" className="text-sm text-main">
             ← 홈으로
           </a>
           <h1 className="text-lg font-semibold">
-            {isEdit ? '기록 수정' : isFirst ? '첫 책 기록하기' : '책 기록하기'}
+            {isEdit ? '기록 수정' : '책 기록하기'}
           </h1>
           <div className="w-12" />
         </header>
 
-        {/* 첫 기록 웰컴 배너 (11.4) */}
-        {isFirst && (
-          <section className="mb-4 rounded-2xl bg-main/10 p-4">
-            <p className="text-sm font-semibold text-main">
-              🌿 책육아정원은 기록으로 시작해요
-            </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-text/70">
-              아이와 함께 읽었던 책 한 권을 먼저 기록해주세요.
-              이런 기록들이 모여 우리 아이 시기에 맞는 그림책 추천이 됩니다.
-            </p>
-          </section>
+        {/* 첫 기록 안내 레이어 — 기록 0건일 때만, 닫으면 아래 기록하기 화면 그대로 */}
+        {showFirstGuide && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6" role="dialog" aria-modal="true" aria-label="첫 기록 안내">
+            <div className="w-full max-w-sm rounded-3xl bg-surface p-6 text-center shadow-lg">
+              <p className="text-base font-semibold text-main">🌿 책육아정원은 기록으로 시작해요</p>
+              <p className="mt-3 break-keep text-sm leading-relaxed text-text/70">
+                아이와 함께 읽었던 책 한 권을 먼저 기록해주세요.
+                이런 기록들이 모여 우리 아이 시기에 맞는 그림책 추천이 됩니다.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowFirstGuide(false)}
+                className="mt-5 w-full rounded-2xl bg-main py-3 text-sm font-semibold text-white"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
         )}
 
         {(!isEdit || changingBook) && (
@@ -866,9 +877,7 @@ function RecommendCreateInner() {
                 : '수정 완료'
               : isSubmitting
                 ? '기록 중...'
-                : isFirst
-                  ? '첫 기록 남기고 시작하기'
-                  : '기록 남기기'}
+                : '기록 남기기'}
           </button>
         </section>
       </div>

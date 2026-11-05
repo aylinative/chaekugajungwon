@@ -14,7 +14,7 @@ const STORAGE_KEY = 'chaekugajungwon_onboarding_v1'
 const SWIPE_THRESHOLD = 50
 
 // preview: 개발 서버 확인용(/?onboarding=preview, 개발에서만) — 기기·계정 기록을 무시하고 열고, 닫아도 기록하지 않음
-// firstRecord: 기록 0건인 신규 가입자 — 버튼을 누르면 첫 기록 화면(?first=1)으로, 닫으면 홈 둘러보기(11.4, 의무 아님)
+// firstRecord: 기록 0건인 신규 가입자 — 기기 기록과 무관하게 연다. 버튼은 공통 기록하기 화면으로(첫 기록 안내 레이어는 그 화면이 기록 수로 판단, 2026.11.05)
 // guest: 로그인 안 한 첫 방문자(홈에서만, 2026.11.04) — 이 기기에서 처음일 때만 열고, 버튼은 로그인 시트(첫 기록으로 복귀)
 export default function OnboardingModal({
   show,
@@ -44,7 +44,7 @@ export default function OnboardingModal({
     }
   }, [show, preview, firstRecord, guest])
 
-  const FIRST_RECORD_URL = '/recommend/create?first=1'
+  const RECORD_URL = '/recommend/create' // 첫 기록 전용 화면은 없앰 — 기록 0건이면 기록하기 화면이 안내 레이어를 띄운다
   // 닫기 = 홈 둘러보기 (첫 기록 의무 폐지 2026.11.03)
   const dismiss = () => {
     if (preview) return setOpen(false)
@@ -70,10 +70,10 @@ export default function OnboardingModal({
     if (preview) return setOpen(false)
     if (guest) {
       markSeen()
-      return openLoginSheet('record', FIRST_RECORD_URL) // 로그인(가입)하면 첫 기록 화면으로
+      return openLoginSheet('record', RECORD_URL) // 로그인(가입)하면 기록하기 화면으로
     }
     // '봤음' 저장이 끝난 뒤 이동 — 뒤로가기로 홈에 돌아왔을 때 팝업이 다시 뜨지 않게
-    markSeen().finally(() => router.push(firstRecord ? FIRST_RECORD_URL : '/recommend/create'))
+    markSeen().finally(() => router.push(RECORD_URL))
   }
 
   const isLast = index === SLIDES.length - 1
