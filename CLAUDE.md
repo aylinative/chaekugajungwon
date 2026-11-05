@@ -651,6 +651,8 @@ SNS 공유
 13.2 카카오 로그인 (Supabase Auth 연동)
 scope: profile_nickname만 (2026.11.03 프로필 사진 제외 — 카카오 콘솔 동의항목 '프로필 사진'도 '사용 안 함'). 로그인 흐름은 5.1
 PKCE 쿠키는 NextResponse.redirect()에 수동으로 배열 수집 후 적용
+⚠️ 세션 갱신은 src/middleware.ts가 매 요청 supabase.auth.getUser()로 처리(2026.11.06, @supabase/ssr 필수 구성) — 빼면 안 됨.
+  없을 때: 서버 화면이 만료 토큰을 갱신만 하고 쿠키에 못 써서 브라우저에 옛 토큰이 남음 → 브라우저 getUser가 멈춰 기록하기 빈 화면(휴대폰·운영자 계정 제보).
 Supabase URL Configuration에 등록된 Redirect URLs:
 http://localhost:3000/auth/callback
 http://localhost:3000/**
