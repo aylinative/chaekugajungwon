@@ -27,8 +27,8 @@
 
 ## App Store (iOS)
 - ✅ STEP I1. 🙋 App Store Connect: App ID(`kr.co.bookgardening.app`, Sign In with Apple 체크) + 앱 생성 + API 키(.p8)
-- ☐ STEP I2. 🙋 Codemagic 연결 → 첫 TestFlight 빌드 → 아이패드에서 확인 (🤖 빌드 오류 대응)
-- ☐ STEP I3. 🤖 로그인 수단 추가 + 🙋 Apple·Google 키·Supabase 설정 (가이드라인 4.8)
+- ✅ STEP I2. 🙋 Codemagic 연결 → 첫 TestFlight 빌드 → 아이패드에서 확인 (🤖 빌드 오류 대응)
+- ✅ STEP I3. 🤖 로그인 수단 추가 + 🙋 Apple·Google 키·Supabase 설정 (가이드라인 4.8)
   - 확정(2026.11.04):
     · 카카오 = 모든 곳, 큰 기본 버튼(주력)
     · 애플 = **iOS 앱에서만**, 기본 로그인 창(Capacitor 플러그인 → Supabase signInWithIdToken). 웹용 A는 필요 시 추가(같은 계정 이어짐)
@@ -49,6 +49,7 @@
 - 2026.11.04 심사 로그인 방식 확정: 애플·구글 계정(STEP 1).
 - 2026.11.04 STEP I1 완료: App ID·앱 생성·API 키(.p8) 완료, Apple ID를 codemagic.yaml에 반영.
 - 2026.11.04 STEP 2 점검: 이미지 규격·URL 통과, 설명문 초안 작성(`앱스토어/스토어_설명문_초안.md`, 저장소 밖). 스크린샷 재촬영 판단이 남아 ☐ 유지.
+- 2026.11.06 STEP I2·I3 완료. 아이패드에서 Apple·구글 로그인, 닉네임, 지난 로그인 표시, 탈퇴, 재가입 확인. 앱을 켜 둔 채 사이트를 배포하면 완전히 재시작해야 반영될 수 있음. '이메일 가리기'는 Apple 기본 동작대로 두고 별도 안내 없음(운영자 결정). I4는 바깥 링크·비행기 모드·스플래시 중복 확인이 남음.
 - 2026.11.06 STEP I4 1차: Apple 버튼 미표시 원인 = SceneDelegate가 AppViewController를 쓰지 않음 → 수정. 구글 시스템 로그인(WebAuthPlugin) 추가. Supabase Redirect URLs에 kr.co.bookgardening.app://auth 필요. 재빌드 후 재확인.
 - 2026.11.05 STEP I2 진행: Codemagic 연결, 첫 빌드의 컴파일·서명·업로드·처리 성공. 외부 베타 제출은 끔(내부 테스트 사용). 기기 확인 후 ✅.
 - 2026.11.05 STEP I3 진행: 웹 배포(master 6297480, 구글 로그인 확인 완료), DB·Google·Supabase·Apple 키·Vercel 설정 완료, Email 로그인 끔. iOS 플러그인 코드 추가 — Codemagic 빌드와 TestFlight 확인 후 ✅.
