@@ -141,59 +141,12 @@ function RecommendCreateInner() {
   // 첫 기록 안내 레이어 (2026.11.05 운영자): 기록 0건인 사람이 들어올 때마다(경로 무관) 띄우고, 닫을 수 있다.
   // 예전 '첫 기록 모드'(?first=1) 화면은 없앰 — 기록하기 화면은 하나, 안내는 기록 수로만 판단.
   const [showFirstGuide, setShowFirstGuide] = useState(false)
-  // 진단(2026.11.06): 휴대폰·운영자 계정에서 빈 화면 제보 — 어느 단계에서 멈추는지 화면에 보이게 한다(원인 확인 후 정리)
-  const [authStep, setAuthStep] = useState('시작')
-  const [authError, setAuthError] = useState('')
-  const [authSlow, setAuthSlow] = useState(false)
-  const [authInfo, setAuthInfo] = useState<string[]>([])
   useEffect(() => {
-    const t0 = Date.now()
-    const note = (s: string) => setAuthInfo((prev) => [...prev, `${((Date.now() - t0) / 1000).toFixed(1)}s ${s}`])
-    const slow = setTimeout(async () => {
-      setAuthSlow(true)
-      // 6초가 지나도 안 끝나면: 로그인 잠금(lock)을 누가 쥐고 있는지, 쿠키 크기
-      try {
-        const q = await navigator.locks?.query?.()
-        note(`잠금 보유 ${q?.held?.map((l) => l.name).join(',') || '없음'} / 대기 ${q?.pending?.length ?? 0}`)
-      } catch (e) {
-        note(`잠금 조회 실패 ${String(e)}`)
-      }
-      const sb = document.cookie.split('; ').filter((c) => c.startsWith('sb-'))
-      note(`로그인 쿠키 ${sb.length}개 ${sb.reduce((n, c) => n + c.length, 0)}자`)
-    }, 6000)
-    checkAuth()
-      .catch((err) => setAuthError(err instanceof Error ? `${err.name}: ${err.message}` : String(err)))
-      .finally(() => clearTimeout(slow))
     async function checkAuth() {
       const supabase = createClient()
-      setAuthStep('초기화(initialize)')
-      await supabase.auth.initialize()
-      note('초기화 끝')
-      setAuthStep('세션 읽기(getSession)')
-      const { data: s } = await supabase.auth.getSession()
-      const exp = s.session?.expires_at
-      note(`세션 ${s.session ? '있음' : '없음'}${exp ? `, 만료까지 ${Math.round(exp - Date.now() / 1000)}초` : ''}`)
-      if (s.session) {
-        setAuthStep('인증 서버 직접 확인(/user)')
-        try {
-          const r = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`, {
-            headers: {
-              apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-              Authorization: `Bearer ${s.session.access_token}`,
-            },
-            signal: AbortSignal.timeout(8000),
-          })
-          note(`인증 서버 응답 ${r.status}`)
-        } catch (e) {
-          note(`인증 서버 요청 실패 ${String(e)}`)
-        }
-      }
-      setAuthStep('로그인 확인(getUser)')
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError) setAuthError(`getUser: ${userError.message}`)
       if (!user) {
         // 홈 피드 + 로그인 시트('기록을 남기려면…'), 로그인하면 이 화면으로 돌아온다 (2026.11.04)
         router.replace(`/?login=record&next=${encodeURIComponent(window.location.pathname + window.location.search)}`)
@@ -201,18 +154,16 @@ function RecommendCreateInner() {
       }
       setMyUserId(user.id)
       if (!editId) {
-        setAuthStep('기록 수 확인(posts count)')
-        const { count, error: countError } = await supabase
+        const { count } = await supabase
           .from('posts')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', user.id)
           .is('hidden_at', null)
-        if (countError) setAuthError(`posts count: ${countError.message}`)
         setShowFirstGuide((count ?? 0) === 0)
       }
-      setAuthStep('완료')
       setAuthChecked(true)
     }
+    checkAuth()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -358,6 +309,27 @@ function RecommendCreateInner() {
     }
   }, [selectedKey, myUserId, editId])
   const duplicatePostId = duplicate && duplicate.key === selectedKey ? duplicate.postId : null
+
+  // 이 책에 '나도 추천해요'로 고른 시기가 있으면 시기 칩에 그대로 체크 (2026.11.06 운영자 — 안내 문구 없이 체크만).
+  // 내가 이미 한 판단이라 프리셋 금지(10.3, 남의 판단 앵커링 방지)와 무관. 이미 고른 시기가 있으면 건드리지 않음. 새 기록에서만.
+  useEffect(() => {
+    if (!selectedKey || !myUserId || editId) return
+    let alive = true
+    createClient()
+      .from('likes')
+      .select('group_names, books!inner(book_key)')
+      .eq('user_id', myUserId)
+      .eq('books.book_key', selectedKey)
+      .limit(1)
+      .then(({ data }) => {
+        const labels = (data as { group_names: string[] | null }[] | null)?.[0]?.group_names ?? []
+        const values = labels.map((l) => GROUP_LABEL_TO_VALUE[l]).filter(Boolean)
+        if (alive && values.length) setSelectedGroups((current) => (current.length ? current : values))
+      })
+    return () => {
+      alive = false
+    }
+  }, [selectedKey, myUserId, editId])
 
   const handleSubmit = async () => {
     if (!selectedBook) {
@@ -507,25 +479,9 @@ function RecommendCreateInner() {
 
   // 로그인 확인 전에는 폼을 그리지 않는다 (비로그인 진입 시 폼 깜빡임·오작동 방지)
   if (!authChecked) {
-    return (
-      <main className="min-h-screen bg-bg px-6 pt-10 text-center text-xs text-text/50">
-        {(authSlow || authError) && (
-          <div className="mx-auto max-w-sm rounded-2xl bg-surface p-4 text-left shadow-sm">
-            <p className="font-medium text-text">기록하기 화면을 여는 중 멈췄어요 (진단 정보)</p>
-            <p className="mt-2">멈춘 단계: {authStep}</p>
-            {authError && <p className="mt-1 break-all text-red-500">오류: {authError}</p>}
-            {authInfo.map((line, i) => (
-              <p key={i} className="mt-1 break-all text-text/60">
-                {line}
-              </p>
-            ))}
-            <p className="mt-1 break-all text-text/30">{typeof navigator !== 'undefined' ? navigator.userAgent : ''}</p>
-            <p className="mt-2 text-text/40">이 화면을 캡처해서 알려 주세요.</p>
-          </div>
-        )}
-      </main>
-    )
+    return <main className="min-h-screen bg-bg" />
   }
+
 
   return (
     <main className="min-h-screen bg-bg text-text">

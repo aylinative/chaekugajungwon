@@ -652,7 +652,9 @@ SNS 공유
 scope: profile_nickname만 (2026.11.03 프로필 사진 제외 — 카카오 콘솔 동의항목 '프로필 사진'도 '사용 안 함'). 로그인 흐름은 5.1
 PKCE 쿠키는 NextResponse.redirect()에 수동으로 배열 수집 후 적용
 ⚠️ 세션 갱신은 src/middleware.ts가 매 요청 supabase.auth.getUser()로 처리(2026.11.06, @supabase/ssr 필수 구성) — 빼면 안 됨.
-  없을 때: 서버 화면이 만료 토큰을 갱신만 하고 쿠키에 못 써서 브라우저에 옛 토큰이 남음 → 브라우저 getUser가 멈춰 기록하기 빈 화면(휴대폰·운영자 계정 제보).
+  없을 때: 서버 화면이 만료 토큰을 갱신만 하고 쿠키에 못 써서 브라우저에 옛 토큰이 남음.
+⚠️ 브라우저 Supabase 클라이언트(lib/supabase.ts)는 '화면 안 잠금'(auth.lock = inTabLock) 사용(2026.11.06) — 기본 브라우저 전체 잠금(navigator.locks)으로 되돌리지 말 것.
+  원인 확정: 휴대폰 백그라운드에서 잠든 책육아정원 탭·앱이 로그인 잠금을 쥔 채 멈춰 기록하기의 getUser가 끝없이 대기 → 빈 화면(탭을 다 닫으니 해결).
 Supabase URL Configuration에 등록된 Redirect URLs:
 http://localhost:3000/auth/callback
 http://localhost:3000/**
