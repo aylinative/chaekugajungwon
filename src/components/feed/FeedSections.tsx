@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import GroupSection from './GroupSection'
 import { openLoginSheet } from '@/components/auth/LoginSheet'
 import {
@@ -12,8 +13,8 @@ import {
 
 // 홈 피드 섹션 정렬 컨트롤 (STEP 2 + 정렬 드롭다운).
 // - 섹션 순서: '우리 아이 시기 먼저' 토글 — OFF(기본) 연령 오름차순 고정(CLAUDE.md 7장),
-//   ON이면 아이 시기(첫째 순, 중복 제거) 먼저 → 나머지 오름차순. 로그인했는데 childGroups 비면 토글 숨김.
-//   로그인 안 했으면 토글을 보여 주고, 누르면 로그인 시트(아이 기준 보기는 로그인 필요 — 2026.11.04 운영자).
+//   ON이면 아이 시기(첫째 순, 중복 제거) 먼저 → 나머지 오름차순. 토글은 모두에게 보인다(2026.11.05 운영자):
+//   로그인 안 함 → 로그인 시트 / 아이 정보 없음 → 마이페이지에서 아이 등록 안내 / 아이 있음 → 켜고 끄기.
 // - 카드 정렬: 추천순(기본, 서버 랭킹 유지) / 신간순(출간일 최신) / 제목순. 각 섹션 카드에 적용.
 //   ※ 홈은 시기당 상위 12개 미리보기라 그 12개 안에서 재정렬된다(전체 정렬은 그룹 더보기).
 const SORT_OPTIONS: CardSort[] = ['recommend', 'published', 'title']
@@ -29,6 +30,7 @@ export default function FeedSections({
 }) {
   const [byChild, setByChild] = useState(false)
   const [sort, setSort] = useState<CardSort>('recommend')
+  const [needChildHint, setNeedChildHint] = useState(false)
   const hasChild = childGroups.length > 0
 
   const ordered =
@@ -44,12 +46,15 @@ export default function FeedSections({
   return (
     <>
       <div className="flex items-center justify-between gap-2 border-b border-black/5 px-4 py-2.5">
-        {hasChild || !isLoggedIn ? (
-          <button
+        <button
             type="button"
             role="switch"
             aria-checked={byChild}
-            onClick={() => (isLoggedIn ? setByChild((v) => !v) : openLoginSheet('child'))}
+            onClick={() => {
+              if (!isLoggedIn) return openLoginSheet('child')
+              if (!hasChild) return setNeedChildHint((v) => !v)
+              setByChild((v) => !v)
+            }}
             className="flex items-center gap-2"
           >
             <span className={`text-xs font-medium ${byChild ? 'text-main' : 'text-text/50'}`}>
@@ -67,9 +72,6 @@ export default function FeedSections({
               />
             </span>
           </button>
-        ) : (
-          <span />
-        )}
 
         <select
           value={sort}
@@ -84,6 +86,17 @@ export default function FeedSections({
           ))}
         </select>
       </div>
+      {needChildHint && (
+        <div className="flex items-center gap-2 border-b border-black/5 bg-main/5 px-4 py-2.5 text-xs text-text/70">
+          <span className="min-w-0 flex-1 break-keep">아이 생일을 등록하면 아이의 개월 수 시기에 해당하는 책을 먼저 보여 드려요.</span>
+          <Link href="/mypage" className="shrink-0 font-medium text-main underline underline-offset-2">
+            마이페이지에서 등록
+          </Link>
+          <button type="button" onClick={() => setNeedChildHint(false)} aria-label="안내 닫기" className="shrink-0 px-1 text-text/40">
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="divide-y divide-black/5">
         {ordered.map((s) => (
