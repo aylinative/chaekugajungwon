@@ -119,7 +119,7 @@ export default function OnboardingPage() {
 
   return (
     <main className="min-h-screen bg-bg">
-      <div className="mx-auto max-w-md px-4 pb-12 pt-10">
+      <div className="mx-auto max-w-md px-4 pb-12 pt-[calc(2.5rem+env(safe-area-inset-top))]">
         {/* 헤더 */}
         <div className="mb-8 text-center">
           <span className="text-5xl">🌱</span>

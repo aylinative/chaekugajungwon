@@ -4,7 +4,7 @@ import LoginButton from '@/components/auth/LoginButton'
 // 홈 피드 상단 고정 헤더: 로고 + (로그인 안 했으면 로그인 버튼) + 검색 아이콘
 export default function FeedHeader({ isLoggedIn = true }: { isLoggedIn?: boolean }) {
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/5 bg-bg/90 px-4 py-3 backdrop-blur">
+    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/5 bg-bg/90 px-4 pb-3 pt-safe-3 backdrop-blur">
       <Link href="/" className="flex items-center gap-1.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo-mark.png" alt="책육아정원 로고" width={24} height={24} className="h-6 w-6" />

@@ -58,3 +58,12 @@ body {
     font-size: 16px !important;
   }
 }
+
+/* 아이폰 앱(viewport-fit=cover, contentInset never)에서 상단 시계·하단 홈 막대와 겹치지 않게 (2026.11.13).
+   일반 브라우저·안드로이드는 env() 값이 0이라 그대로 py-3과 같다. */
+@utility pt-safe-3 {
+  padding-top: calc(0.75rem + env(safe-area-inset-top));
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}

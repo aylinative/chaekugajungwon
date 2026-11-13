@@ -26,7 +26,7 @@ export default async function BlocksPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
-      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-black/5 bg-bg/90 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-black/5 bg-bg/90 px-4 pb-3 pt-safe-3 backdrop-blur">
         <Link href={backTo ?? '/mypage'} className="text-sm text-main">
           {backTo ? '‹ 돌아가기' : '‹ 마이'}
         </Link>

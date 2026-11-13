@@ -149,7 +149,7 @@ export default function BarcodeScanner({ onDetected, onClose }: { onDetected: (i
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
-      <div className="flex items-center justify-between px-4 py-3 text-white">
+      <div className="flex items-center justify-between px-4 pb-3 pt-safe-3 text-white">
         <span className="text-sm font-medium">바코드로 책 찾기</span>
         <button type="button" onClick={onClose} aria-label="닫기" className="flex h-11 w-11 items-center justify-center text-2xl text-white/80">
           ×

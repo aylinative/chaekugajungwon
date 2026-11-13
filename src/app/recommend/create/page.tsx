@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
@@ -10,6 +10,9 @@ import type { TopicPick, TaxonomyData } from '@/lib/topics'
 import TopicPicker from '@/components/record/TopicPicker'
 import BarcodeScanner from '@/components/record/BarcodeScanner'
 import BookCover from '@/components/BookCover'
+import BottomTabBar from '@/components/BottomTabBar'
+import { setLeaveGuard, confirmLeave } from '@/lib/leaveGuard'
+import { rotateImage } from '@/lib/photoRotate'
 
 interface BookItem {
   title: string
@@ -29,6 +32,10 @@ const amountOptions = [0, 1, 2, 3, 4, 5] // 0 = 글 없는 그림책(바 채움 
 const GROUP_LABEL_TO_VALUE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.value])
 )
+
+const PHOTO_MAX = 3
+type PhotoItem = { key: string; url: string; file?: File; existing?: boolean; rotation: number }
+const newPhoto = (file: File): PhotoItem => ({ key: crypto.randomUUID(), url: URL.createObjectURL(file), file, rotation: 0 })
 
 function RecommendCreateInner() {
   const router = useRouter()
@@ -56,9 +63,15 @@ function RecommendCreateInner() {
   const [taxonomy, setTaxonomy] = useState<TaxonomyData | null>(null)
   const [isBoardBook, setIsBoardBook] = useState(false) // 보드북 여부(책 속성)
   const [memo, setMemo] = useState('')
-  // 사진: 실제 File을 들고 있다가 제출 시 Storage 업로드. preview는 blob URL(표시 전용).
-  const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([])
+  // 참고사진 (2026.11.06 — 새 기록·수정 모두에서 추가·촬영·회전·교체·삭제).
+  // 새 사진은 File + blob 미리보기, 이미 올린 사진은 public URL. 회전은 화면에선 CSS로, 저장할 때 실제로 돌려 다시 올린다.
+  const [photos, setPhotos] = useState<PhotoItem[]>([])
+  const [replaceIndex, setReplaceIndex] = useState<number | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const replaceInputRef = useRef<HTMLInputElement>(null)
   const [submitError, setSubmitError] = useState('')
+  const [editLoaded, setEditLoaded] = useState(false) // 수정 모드: 기존 기록 프리필 완료
   const [submitSuccess, setSubmitSuccess] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -193,7 +206,8 @@ function RecommendCreateInner() {
           `id, user_id, child_reaction, text_density, content,
            book:books ( title, author, publisher, published_date, cover_image_url, source_url, book_key, is_out_of_print, is_board_book ),
            post_groups ( group_name ),
-           post_tags ( operator_tags ( slug, is_active ) )`
+           post_tags ( operator_tags ( slug, is_active ) ),
+           post_images ( image_url, sort_order )`
         )
         .eq('id', editId)
         .is('hidden_at', null)
@@ -217,6 +231,7 @@ function RecommendCreateInner() {
         } | null
         post_groups: { group_name: string }[] | null
         post_tags: { operator_tags: { slug: string | null; is_active: boolean } | null }[] | null
+        post_images: { image_url: string; sort_order: number | null }[] | null
       } | null
 
       if (!row || row.user_id !== user.id) {
@@ -256,10 +271,54 @@ function RecommendCreateInner() {
           .map((slug) => ({ slug, source: 'existing' as const }))
       )
       setMemo(row.content ?? '')
+      setPhotos(
+        [...(row.post_images ?? [])]
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map((p) => ({ key: p.image_url, url: p.image_url, existing: true, rotation: 0 }))
+      )
+      setEditLoaded(true) // 이 시점 상태가 '수정 전' 기준(이탈 확인용)
     }
     loadPost()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId])
+
+  // 작성 중 이탈 확인 (lib/leaveGuard) — 입력한 게 있을 때만 묻는다.
+  // 새 기록: 책·반응·글밥량·주제·보드북·일기·사진 중 하나라도 있으면(시기는 자동 체크라 제외).
+  // 수정: 불러온 직후 상태와 달라졌으면.
+  const formSnapshot = JSON.stringify({
+    b: selectedBook ? selectedBook.isbn13 || selectedBook.title : null,
+    g: [...selectedGroups].sort(),
+    r: selectedReaction,
+    a: selectedAmount,
+    t: topicPicks,
+    bb: isBoardBook,
+    m: memo,
+    p: photos.map((p) => `${p.key}:${p.rotation}`),
+  })
+  const [editBaseline, setEditBaseline] = useState<string | null>(null)
+  if (editLoaded && editBaseline === null) setEditBaseline(formSnapshot) // 불러온 직후 1회(렌더 중 갱신 패턴)
+  const isDirty = isEdit
+    ? editBaseline !== null && formSnapshot !== editBaseline
+    : Boolean(selectedBook) ||
+      selectedReaction !== null ||
+      selectedAmount !== null ||
+      topicPicks.length > 0 ||
+      isBoardBook ||
+      memo.trim() !== '' ||
+      photos.length > 0
+  useEffect(() => {
+    if (!isDirty) return
+    setLeaveGuard(isEdit ? '수정한 내용이 저장되지 않아요. 나갈까요?' : '작성 중인 기록이 사라져요. 나갈까요?')
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => {
+      setLeaveGuard(null)
+      window.removeEventListener('beforeunload', onBeforeUnload)
+    }
+  }, [isDirty, isEdit])
 
   const toggleGroup = (groupValue: string) => {
     setSelectedGroups((current) =>
@@ -269,19 +328,51 @@ function RecommendCreateInner() {
     )
   }
 
+  // 촬영·파일 선택으로 추가 (교체 중이면 그 자리 사진을 바꾼다)
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || [])
-    const added = files.map((file) => ({ file, preview: URL.createObjectURL(file) }))
-    setPhotos((current) => [...current, ...added].slice(0, 3))
     event.target.value = '' // 같은 파일 다시 선택 가능하도록 초기화
+    if (files.length === 0) return
+    if (replaceIndex !== null) {
+      const idx = replaceIndex
+      setReplaceIndex(null)
+      setPhotos((current) => {
+        const old = current[idx]
+        if (old?.file) URL.revokeObjectURL(old.url)
+        return current.map((p, i) => (i === idx ? newPhoto(files[0]) : p))
+      })
+      return
+    }
+    setPhotos((current) => [...current, ...files.map(newPhoto)].slice(0, PHOTO_MAX))
   }
 
   const removePhoto = (index: number) => {
     setPhotos((current) => {
       const target = current[index]
-      if (target) URL.revokeObjectURL(target.preview)
+      if (target?.file) URL.revokeObjectURL(target.url)
       return current.filter((_, i) => i !== index)
     })
+  }
+
+  const rotatePhoto = (index: number) =>
+    setPhotos((current) => current.map((p, i) => (i === index ? { ...p, rotation: (p.rotation + 90) % 360 } : p)))
+
+  // 저장 직전: 새 사진·돌린 사진을 Storage(내 폴더)에 올리고, 바뀌지 않은 기존 사진은 URL 그대로 → 최종 URL 목록
+  const uploadPhotos = async (userId: string): Promise<string[]> => {
+    const supabase = createClient()
+    return Promise.all(
+      photos.map(async (p) => {
+        if (p.existing && p.rotation === 0) return p.url
+        const blob: Blob = p.rotation !== 0 ? await rotateImage(p.file ?? p.url, p.rotation) : p.file!
+        const ext = p.rotation !== 0 ? 'jpg' : p.file?.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const path = `${userId}/${crypto.randomUUID()}.${ext}`
+        const { error: upErr } = await supabase.storage
+          .from('post-images')
+          .upload(path, blob, { contentType: blob.type || undefined })
+        if (upErr) throw new Error('사진 업로드에 실패했습니다.')
+        return supabase.storage.from('post-images').getPublicUrl(path).data.publicUrl
+      })
+    )
   }
 
   // 이미 기록한 책인지 — 책을 고르는 즉시 확인해 안내 (한 사람당 책 1기록, 저장 API도 409로 막음. 2026.11.04 운영자)
@@ -375,6 +466,8 @@ function RecommendCreateInner() {
       // 편집 모드: 속성(시기·반응·글밥량·주제·일기) + 선택한 책을 PATCH.
       // 책을 바꾸면 백엔드가 book을 찾거나 새로 만들어 posts.book_id를 갱신한다. 사진은 그대로.
       if (isEdit && editId) {
+        // 참고사진 최종 목록(새·돌린 사진은 먼저 업로드)
+        const editPhotoUrls = myUserId ? await uploadPhotos(myUserId) : undefined
         const res = await fetch(`/api/posts/${editId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -393,6 +486,7 @@ function RecommendCreateInner() {
             tags: topicPicks.map((p) => ({ slug: p.slug, source: p.source })),
             is_board_book: isBoardBook,
             memo,
+            photo_urls: editPhotoUrls,
           }),
         })
         const data = await res.json()
@@ -413,22 +507,8 @@ function RecommendCreateInner() {
         return
       }
 
-      // 사진을 Storage에 업로드해 public URL 확보 (경로: {user_id}/{uuid}.{ext})
-      let uploadedUrls: string[] = []
-      if (photos.length > 0) {
-        const results = await Promise.all(
-          photos.map(async ({ file }) => {
-            const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-            const path = `${user.id}/${crypto.randomUUID()}.${ext}`
-            const { error: upErr } = await supabase.storage
-              .from('post-images')
-              .upload(path, file, { contentType: file.type || undefined })
-            if (upErr) throw new Error('사진 업로드에 실패했습니다.')
-            return supabase.storage.from('post-images').getPublicUrl(path).data.publicUrl
-          })
-        )
-        uploadedUrls = results
-      }
+      // 사진을 Storage에 업로드해 public URL 확보 (경로: {user_id}/{uuid}.{ext}, 돌린 사진은 실제로 돌려서)
+      const uploadedUrls = photos.length > 0 ? await uploadPhotos(user.id) : []
 
       const payload = {
         user_id: user.id,
@@ -484,17 +564,32 @@ function RecommendCreateInner() {
 
 
   return (
-    <main className="min-h-screen bg-bg text-text">
-      <div className="mx-auto max-w-md px-4 pb-10 pt-5">
-        <header className="mb-4 flex items-center justify-between">
-          <a href="/" className="text-sm text-main">
-            ← 홈으로
-          </a>
-          <h1 className="text-lg font-semibold">
-            {isEdit ? '기록 수정' : '책 기록하기'}
-          </h1>
-          <div className="w-12" />
-        </header>
+    <main className="flex min-h-screen flex-col bg-bg text-text">
+      {/* 다른 화면과 같은 상단 고정 헤더 — 아이폰 앱에서 시계와 겹치지 않게 pt-safe-3 (2026.11.13) */}
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/5 bg-bg/90 px-4 pb-3 pt-safe-3 backdrop-blur">
+        {/* 새 기록: 왼쪽 버튼 없음(홈은 하단 탭 바). 수정: 들어온 화면으로 돌아가기 —
+            iOS 앱은 뒤로 가기 제스처가 없어 버튼이 필요. 바로 열린 경우(기록 없음)엔 그 기록 상세로. */}
+        {isEdit ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (!confirmLeave()) return
+              if (window.history.length > 1) router.back()
+              else router.push(`/posts/${editId}`)
+            }}
+            className="w-16 py-1 text-left text-sm text-main"
+          >
+            ‹ 뒤로
+          </button>
+        ) : (
+          <div className="w-16" />
+        )}
+        <h1 className="text-base font-semibold">
+          {isEdit ? '기록 수정' : '책 기록하기'}
+        </h1>
+        <div className="w-16" />
+      </header>
+      <div className="mx-auto w-full max-w-md flex-1 px-4 pb-10 pt-4">
 
         {/* 첫 기록 안내 레이어 — 기록 0건일 때만, 닫으면 아래 기록하기 화면 그대로 */}
         {showFirstGuide && (
@@ -839,42 +934,81 @@ function RecommendCreateInner() {
               className="w-full rounded-2xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-main"
             />
 
-            {!isEdit && (
+            {/* 참고사진 — 새 기록·수정 모두 (2026.11.06): 촬영/파일 선택으로 추가, 사진마다 회전·교체·삭제 */}
             <div className="mt-3">
-              <label className="mb-2 block text-sm font-medium">참고사진 (선택 · 최대 3장)</label>
+              <label className="mb-2 block text-sm font-medium">참고사진 (선택 · 최대 {PHOTO_MAX}장)</label>
               <p className="mb-2 text-xs text-text/50">
                 기록에 꼭 필요하진 않아요. 책의 한 장면 등 참고할 사진이 있으면 올려주세요.
               </p>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePhotoUpload}
-                className="block w-full text-sm text-gray-500 file:mr-3 file:rounded-xl file:border-0 file:bg-main file:px-3 file:py-2 file:text-sm file:text-white"
-              />
+              {/* 숨긴 입력: 촬영(카메라 바로 열기) / 파일 선택(여러 장) / 교체(한 장) */}
+              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoUpload} className="hidden" />
+              <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
+              <input ref={replaceInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+              {photos.length < PHOTO_MAX && (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplaceIndex(null)
+                      cameraInputRef.current?.click()
+                    }}
+                    className="flex-1 rounded-xl bg-main px-3 py-2 text-sm text-white"
+                  >
+                    📷 촬영
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplaceIndex(null)
+                      fileInputRef.current?.click()
+                    }}
+                    className="flex-1 rounded-xl border border-main/40 px-3 py-2 text-sm text-main"
+                  >
+                    🖼 사진 선택
+                  </button>
+                </div>
+              )}
               {photos.length > 0 && (
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   {photos.map((photo, index) => (
-                    <div key={photo.preview} className="relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={photo.preview}
-                        alt={`업로드 이미지 ${index + 1}`}
-                        className="h-24 w-full rounded-xl object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removePhoto(index)}
-                        className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 text-xs text-white"
-                      >
-                        ×
-                      </button>
+                    <div key={photo.key}>
+                      <div className="relative h-24 w-full overflow-hidden rounded-xl bg-surface-muted">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={photo.url}
+                          alt={`참고사진 ${index + 1}`}
+                          style={{ transform: `rotate(${photo.rotation}deg)` }}
+                          className="h-full w-full object-contain transition-transform"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(index)}
+                          aria-label="사진 삭제"
+                          className="absolute right-1 top-1 rounded-full bg-black/60 px-1.5 text-xs text-white"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div className="mt-1 flex justify-center gap-3 text-[11px] text-text/60">
+                        <button type="button" onClick={() => rotatePhoto(index)} className="underline-offset-2 hover:underline">
+                          ↻ 회전
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReplaceIndex(index)
+                            replaceInputRef.current?.click()
+                          }}
+                          className="underline-offset-2 hover:underline"
+                        >
+                          교체
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            )}
           </div>
         </section>
 
@@ -903,15 +1037,23 @@ function RecommendCreateInner() {
           </button>
         </section>
       </div>
+      <BottomTabBar />
     </main>
   )
+}
+
+// 수정(?edit=)↔새 기록 사이를 오가면 폼을 새로 만든다 — 수정 화면에서 하단 '기록하기' 탭을 누르면
+// 같은 화면이 재사용돼, 옛 기록 내용이 남은 '새 기록' 폼으로 저장(중복 기록)되는 것을 막는다.
+function RecommendCreateKeyed() {
+  const editId = useSearchParams().get('edit')
+  return <RecommendCreateInner key={editId ?? 'new'} />
 }
 
 // useSearchParams는 Suspense 경계가 필요하다 (Next.js CSR bailout)
 export default function RecommendCreatePage() {
   return (
     <Suspense fallback={null}>
-      <RecommendCreateInner />
+      <RecommendCreateKeyed />
     </Suspense>
   )
 }

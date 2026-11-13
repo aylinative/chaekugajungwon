@@ -25,12 +25,21 @@ interface EditPayload {
   tags?: TagPayload[] // 고른 주제·세부 { slug, source } (2026.10 개편)
   is_board_book?: boolean
   memo?: string
+  photo_urls?: string[] // 수정 후 참고사진 전체(순서대로). 없으면 사진은 건드리지 않음(구버전 폼)
+}
+
+const PHOTO_MAX = 3
+// public URL → Storage 경로('{user_id}/{파일}') — 내 폴더 파일만
+function photoPath(url: string, userId: string): string | null {
+  const m = url.match(/\/object\/public\/post-images\/(.+)$/)
+  const path = m ? decodeURIComponent(m[1]) : null
+  return path && path.startsWith(`${userId}/`) ? path : null
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 // 내 기록 수정 — 작성자 본인만. 선택한 책(교체 가능)·시기(post_groups)·반응·
-// 글밥량·일기(posts)·주제(post_tags)를 갱신한다. 사진은 건드리지 않는다.
+// 글밥량·일기(posts)·주제(post_tags)·참고사진(post_images, 2026.11.06)을 갱신한다.
 // RLS: posts_update_own, post_groups/tags_write_own(ALL)로 작성자 UPDATE/DELETE 허용됨.
 export async function PATCH(
   request: Request,
@@ -258,6 +267,39 @@ export async function PATCH(
   if (tagInsertError) {
     console.error('Post tags insert error:', tagInsertError)
     return NextResponse.json({ error: '주제 수정에 실패했습니다.' }, { status: 500 })
+  }
+
+  // 참고사진: 폼이 보낸 최종 목록으로 교체 (삭제·회전·교체·추가 모두 '최종 목록'으로 받는다, 2026.11.06)
+  // 새·회전된 사진은 폼이 먼저 Storage(내 폴더)에 올리고 URL을 보낸다. 내 폴더 URL만 받는다.
+  if (Array.isArray(payload.photo_urls)) {
+    const nextUrls = payload.photo_urls
+      .filter((u): u is string => typeof u === 'string' && photoPath(u, user.id) !== null)
+      .slice(0, PHOTO_MAX)
+    const { data: oldRows } = await supabase.from('post_images').select('image_url').eq('post_id', postId)
+    const { error: imgDeleteError } = await supabase.from('post_images').delete().eq('post_id', postId)
+    if (imgDeleteError) {
+      console.error('Post images delete error:', imgDeleteError)
+      return NextResponse.json({ error: '사진 수정에 실패했습니다.' }, { status: 500 })
+    }
+    if (nextUrls.length > 0) {
+      const { error: imgInsertError } = await supabase
+        .from('post_images')
+        .insert(nextUrls.map((image_url, i) => ({ post_id: postId, image_url, sort_order: i })))
+      if (imgInsertError) {
+        console.error('Post images insert error:', imgInsertError)
+        return NextResponse.json({ error: '사진 수정에 실패했습니다.' }, { status: 500 })
+      }
+    }
+    // 빠진 사진 파일은 Storage에서도 지운다(실패해도 기록 수정은 성공으로 — 파일만 남음)
+    const removed = ((oldRows as { image_url: string }[] | null) ?? [])
+      .map((r) => r.image_url)
+      .filter((u) => !nextUrls.includes(u))
+      .map((u) => photoPath(u, user.id))
+      .filter((p): p is string => Boolean(p))
+    if (removed.length > 0) {
+      const { error: rmError } = await supabase.storage.from('post-images').remove(removed)
+      if (rmError) console.error('Post images storage remove error:', rmError)
+    }
   }
 
   // 홈·책 페이지·상세·마이페이지 캐시 반영

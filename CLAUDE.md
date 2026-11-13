@@ -72,7 +72,8 @@ OAuth 2.0 (Supabase Auth 연동)
   ※ 내 기록 수정/삭제(2026.08.20): 작성자 본인은 자기 기록을 수정·삭제 가능.
     수정 = 기록 폼 편집 모드(/recommend/create?edit=<id>) — 시기·반응·글밥량·주제·일기 프리필/편집,
       제출 시 PATCH /api/posts/[id](작성자 전용). RLS는 기존 posts_update_own·post_groups/tags_write_own(ALL)로 충족.
-      사진 편집은 v1 제외(편집 모드에선 사진 섹션 숨김).
+      참고사진(2026.11.06): 새 기록·수정 모두 촬영/사진 선택으로 추가(최대 3), 사진마다 회전·교체·삭제. 회전은 저장 때 실제로 돌려 재업로드(lib/photoRotate.ts).
+      수정 저장은 최종 URL 목록(photo_urls)으로 post_images 교체 + 빠진 파일은 Storage에서 삭제(PATCH /api/posts/[id]).
       ※ 책 교체(2026.09.15): 선택한 책도 수정 가능(기존 '책 고정' 폐지). '선택한 책' 카드의 '책 변경' 버튼→검색창 재노출,
         '취소'로 원본 복원(initialBook). PATCH가 book_key(ISBN13 우선)로 책을 찾거나 새로 만들어 posts.book_id 갱신 →
         기존 DB에 있는 책이면 그 책의 /book/[isbn]에 기록 카드가 누적 반영된다. 바뀐 책이 북마크에 있으면 자동 해제,
@@ -116,6 +117,14 @@ OAuth 2.0 (Supabase Auth 연동)
     아이폰 x-safari-https://, 안 열리면 '⋯ → 브라우저로 열기' 안내). 로그인은 기본 브라우저에서 끝나고 그쪽에서 이어서 이용.
     우리 iOS 앱(BookgardeningApp)의 구글 = 시스템 로그인 창(WebAuth 플러그인, lib/nativeWebAuth → /auth/finish). 플러그인이 없는 옛 앱 빌드에서는 숨김.
     ⚠️ Supabase Redirect URLs에 kr.co.bookgardening.app://auth 필요. 앱 플러그인은 AppViewController에서 등록(앱 시작점은 SceneDelegate — storyboard 아님).
+
+5.2 상단·하단 안전 여백 + 기록하기 이동 (2026.11.14)
+  ■ 아이폰 앱은 화면을 시계 영역까지 씀(viewport-fit=cover + 앱 contentInset never) → 상단 고정 헤더는 반드시 pt-safe-3(globals.css,
+    py-3 + env(safe-area-inset-top)), 하단 탭 바는 pb-safe. 새 화면의 상단 헤더도 같은 클래스를 쓸 것. 웹 변경이라 앱 심사 불필요.
+  ■ 기록하기(/recommend/create): 다른 화면과 같은 상단 고정 헤더 + 하단 탭 바. 새 기록은 왼쪽 버튼 없음(홈은 탭 바),
+    수정은 '‹ 뒤로'(들어온 화면으로, 기록 없으면 그 기록 상세). 수정↔새 기록 전환 시 폼 새로 생성(key) — 옛 내용으로 중복 저장 방지.
+  ■ 작성 중 이탈 확인(lib/leaveGuard.ts): 입력이 있으면 탭 바·'‹ 뒤로'·새로고침에서 확인창. 안드로이드/브라우저 뒤로 가기·iOS 밀기는 못 막음.
+  ■ iOS 앱 밀어 뒤로 가기: 앱 1.0.1(AppViewController allowsBackForwardNavigationGestures, 앱 브랜치) — 앱 업데이트·심사 필요.
 
 탭
 아이콘
@@ -843,7 +852,7 @@ supabase/*.sql
   □ [모더레이션] 운영자 무공지 삭제 투명화 — posts.hidden_by(작성자 self vs 운영자) 컬럼 추가,
       작성자 본인 마이페이지에 자기 숨겨진 기록을 '운영자가 숨김'으로 흐리게 표시. 커뮤니티 커지면. (2026.08.22)
   □ [홈 카드] 5줄 정보 밀도 다이어트 (2026.08.20)
-  □ [기록 폼] 참고사진 편집 — 수정 모드에서 기존 사진 삭제/추가(Storage 정리·재정렬). v2 (2026.08.20)
+  ✅ [기록 폼] 참고사진 편집 — 완료(2026.11.06): 수정에서도 추가·회전·교체·삭제, 빠진 파일 Storage 정리. 새 기록도 촬영/선택·회전.
   □ [주제 필수] 기록 시 운영자 태그 1개 필수 여부 — 데이터 위생상 가볍게 찬성했으나 미확정 (2026.08.20)
   □ [검색] 전체화면 오버레이(A, 우선순위 낮음) / [홈] 시기 섹션별 주제 서브 필터(6.2, 데이터 쌓이면)
   ✅ [운영자] 간이 태그 관리 UI — 완료(2026.09). /admin/tags(운영자 전용, getIsOperator 가드).

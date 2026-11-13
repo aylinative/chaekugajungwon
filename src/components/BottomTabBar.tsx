@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { openLoginSheet, type LoginReason } from '@/components/auth/LoginSheet'
+import { confirmLeave } from '@/lib/leaveGuard'
 
 // 로그인이 필요한 탭 — 게스트가 누르면 페이지로 가지 않고 바로 로그인 시트 (2026.11.04, 페이지 열었다 튕기는 깜빡임 방지)
 const LOGIN_TABS: Record<string, LoginReason> = { '/recommend/create': 'record', '/mypage': 'mypage' }
@@ -52,7 +53,7 @@ export default function BottomTabBar() {
   }, [])
 
   return (
-    <nav className="sticky bottom-0 z-30 mt-auto flex border-t border-black/5 bg-bg/95 backdrop-blur">
+    <nav className="pb-safe sticky bottom-0 z-30 mt-auto flex border-t border-black/5 bg-bg/95 backdrop-blur">
       {TABS.map((tab) => {
         const active =
           tab.href === '/' ? pathname === '/' : pathname.startsWith(tab.href)
@@ -61,6 +62,12 @@ export default function BottomTabBar() {
             key={tab.href}
             href={tab.href}
             onClick={(e) => {
+              // 작성 중인 기록이 있으면 먼저 확인 (lib/leaveGuard). 지금 화면 그대로면(새 기록 중 '기록하기') 묻지 않음
+              const here = window.location.pathname + window.location.search
+              if (tab.href !== here && !confirmLeave()) {
+                e.preventDefault()
+                return
+              }
               const reason = LOGIN_TABS[tab.href]
               if (reason && loggedIn === false) {
                 e.preventDefault()
