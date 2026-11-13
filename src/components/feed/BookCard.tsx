@@ -4,6 +4,7 @@ import { REACTION_BY_VALUE } from '@/lib/reactions'
 import BookmarkButton from '@/components/BookmarkButton'
 import { ThumbIcon } from '@/components/RecommendButton'
 import type { BookCard } from '@/lib/feedShared'
+import { saveBookNav, bookNavHref } from '@/lib/bookNav'
 
 // 홈 피드 카드 = 책 1권 (기록 집계). 탭 시 /book/[isbn]으로 이동.
 // 추천(👍)은 표시 전용 — 추천 행위는 책 페이지의 기록 카드·상세에서 한다.
@@ -38,15 +39,18 @@ export default function BookCardItem({
   isLoggedIn,
   fullWidth = false,
   showBoardBook = false,
+  navIsbns,
 }: {
   card: BookCard
   isLoggedIn: boolean
   fullWidth?: boolean // true=그리드 셀 꽉 채움(전체보기) / false=가로 스크롤 고정폭(홈)
   showBoardBook?: boolean // 씨앗·새싹 섹션에서만 보드북 배지 노출(0~18M에 유용한 물성)
+  navIsbns?: string[] // 이 카드가 속한 목록(보이는 순서) — 있으면 책 페이지에서 좌우로 넘기기 (lib/bookNav)
 }) {
   return (
     <Link
-      href={`/book/${encodeURIComponent(card.isbn)}`}
+      href={navIsbns ? bookNavHref(card.isbn) : `/book/${encodeURIComponent(card.isbn)}`}
+      onClick={navIsbns ? () => saveBookNav(navIsbns) : undefined}
       className={`flex flex-col gap-2 ${fullWidth ? 'w-full' : 'w-28 flex-shrink-0'}`}
     >
       {/* 표지 */}

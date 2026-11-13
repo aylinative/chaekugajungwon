@@ -29,6 +29,8 @@ export default function GroupSection({
   section: GroupSectionData
   isLoggedIn: boolean
 }) {
+  // 책 페이지에서 좌우로 넘길 목록 = 이 섹션에 보이는 순서 그대로
+  const navIsbns = section.cards.map((c) => c.isbn)
   return (
     <section className="pt-3 pb-2">
       {/* 섹션 헤더 */}
@@ -62,6 +64,7 @@ export default function GroupSection({
               card={card}
               isLoggedIn={isLoggedIn}
               showBoardBook={section.value === 'seed' || section.value === 'sprout'}
+              navIsbns={navIsbns}
             />
           ))}
         </div>

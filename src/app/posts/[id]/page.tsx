@@ -9,6 +9,7 @@ import { getBookDistribution } from '@/lib/distribution'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
+import PostPhotos from '@/components/post/PostPhotos'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostActionsMenu from '@/components/post/PostActionsMenu'
 import BlockedCover from '@/components/report/BlockedCover'
@@ -358,17 +359,7 @@ export default async function PostDetailPage({
 
           {/* 사진 */}
           {images.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {images.map((img, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={i}
-                  src={img.image_url}
-                  alt={`사진 ${i + 1}`}
-                  className="h-24 w-full rounded-xl object-cover"
-                />
-              ))}
-            </div>
+            <PostPhotos urls={images.map((img) => img.image_url)} />
           )}
 
           {/* 작성자 본인 — 이 기록 수정 (내용 바로 옆이라 직관적). 삭제/공유는 상단 ⋯ 메뉴. */}

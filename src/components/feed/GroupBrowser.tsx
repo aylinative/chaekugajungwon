@@ -80,6 +80,8 @@ export default function GroupBrowser({
     )
     return sortCardsBy(filtered, sort)
   }, [cards, match, excludeMine, mineSet, sort])
+  // 책 페이지에서 좌우로 넘길 목록 = 지금 보이는 순서(필터·정렬 반영)
+  const navIsbns = useMemo(() => visible.map((c) => c.isbn), [visible])
 
   return (
     <div>
@@ -143,6 +145,7 @@ export default function GroupBrowser({
               isLoggedIn={isLoggedIn}
               fullWidth
               showBoardBook={showBoardBook}
+              navIsbns={navIsbns}
             />
           ))}
         </div>

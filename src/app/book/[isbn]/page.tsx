@@ -3,23 +3,21 @@ import { cache } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createServerSupabase } from '@/lib/supabase-server'
-import { RECOMMEND_GROUPS, AGE_LABEL_FULL, sortGroupLabelsByAge } from '@/lib/groups'
-import { REACTION_BY_VALUE } from '@/lib/reactions'
+import { AGE_LABEL_FULL, sortGroupLabelsByAge } from '@/lib/groups'
 import { computeBookDistribution } from '@/lib/distribution'
-import { formatDate } from '@/lib/date'
 import {
   getDistributionSummary,
   MIN_VOTERS_FOR_DISTRIBUTION,
 } from '@/components/book/PeriodDistribution'
 import PeriodDistribution from '@/components/book/PeriodDistribution'
+import BookSwipeNav from '@/components/book/BookSwipeNav'
+import RecordCard from '@/components/book/RecordCard'
+import ExpandableRecords from '@/components/book/ExpandableRecords'
 import BookTopics, { type TopicLink } from '@/components/book/BookTopics'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import ShareButton from '@/components/ShareButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
-import HidePostButton from '@/components/post/HidePostButton'
-import ReportBlockActions from '@/components/report/ReportBlockActions'
-import BlockedCover from '@/components/report/BlockedCover'
 import BottomTabBar from '@/components/BottomTabBar'
 
 // 책 단위 페이지 (CLAUDE.md 19.2) — 같은 책의 모든 기록이 한 URL에 누적된다.
@@ -27,12 +25,6 @@ import BottomTabBar from '@/components/BottomTabBar'
 // 추천 시기 분포는 상시 노출 (바텀시트와 달리 이 페이지는 정보를 보러 온 사람용 — 19.2-4).
 // 댓글 기능은 오픈 전 제외(2026.10, CLAUDE.md 12장).
 
-const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
-  RECOMMEND_GROUPS.map((g) => [g.label, g.selectedClass])
-)
-const LABEL_TO_EMOJI_MAP: Record<string, string> = Object.fromEntries(
-  RECOMMEND_GROUPS.map((g) => [g.label, g.emoji])
-)
 
 interface BookRow {
   id: string
@@ -91,7 +83,7 @@ const getBookPosts = cache(async (bookId: string): Promise<BookPostRow[]> => {
     .select(POSTS_SELECT)
     .eq('book_id', bookId)
     .is('hidden_at', null)
-    .order('created_at', { ascending: true }) // 기록은 작성순으로 누적
+    .order('created_at', { ascending: false }) // 기록은 최신순 (2026.11.14 운영자 — 작성순에서 변경)
   return (data as unknown as BookPostRow[] | null) ?? []
 })
 
@@ -278,7 +270,8 @@ export default async function BookPage({
       </header>
 
       <main className="mx-auto w-full max-w-md flex-1 px-4 pb-10 pt-4">
-        {/* 책 정보 */}
+        {/* 책 정보 — 홈 시기 섹션·더보기에서 들어오면 좌우로 밀어 같은 목록의 이전/다음 책 */}
+        <BookSwipeNav isbn={isbn}>
         <section className="rounded-2xl bg-surface p-4 shadow-sm">
           <div className="flex gap-4">
             <div className="h-32 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-surface-muted">
@@ -359,6 +352,7 @@ export default async function BookPage({
             </div>
           </div>
         </section>
+        </BookSwipeNav>
 
         {/* 주제 — 이 책의 모든 기록에서 합산(빈도순). 없으면 렌더 안 함. 칩 클릭 시 홈 필터(?tag=) */}
         <BookTopics topics={topics} />
@@ -374,7 +368,7 @@ export default async function BookPage({
           </section>
         )}
 
-        {/* 책육아 기록 누적 (작성순) */}
+        {/* 책육아 기록 (최신순) — 처음엔 3개, 더 있으면 아래 '펼쳐보기' (2026.11.14) */}
         <section className="mt-4">
           <h2 className="mb-2 px-1 text-sm font-semibold text-text">
             책육아 기록 {posts.length > 0 && `${posts.length}`}
@@ -384,93 +378,17 @@ export default async function BookPage({
               <p className="text-sm text-text/50">아직 기록이 없어요.</p>
             </div>
           ) : (
-            <ul className="space-y-3">
-              {posts.map((p) => {
-                // 내가 차단한 사람의 기록: 자리는 남기고 내용 대신 커버(기록 수와 카드 수가 맞게)
-                if (blockedIds.has(p.user_id)) {
-                  return (
-                    <li key={p.id} className="overflow-hidden rounded-2xl bg-surface shadow-sm">
-                      <BlockedCover from={`/book/${encodeURIComponent(isbn)}`} />
-                    </li>
-                  )
-                }
-                const groups = sortGroupLabelsByAge(
-                  (p.post_groups ?? []).map((g) => g.group_name)
-                )
-                const reaction = REACTION_BY_VALUE[p.child_reaction]
-                return (
-                  <li
-                    key={p.id}
-                    className="overflow-hidden rounded-2xl bg-surface shadow-sm"
-                  >
-                    {/* 기록 카드 = 양육자의 평가 전용 (반응·시기·일기).
-                        글밥량은 책 정보 영역에, 추천(책·시기 판단)도 책 정보 영역에 (2026.08).
-                        세부 페이지(/posts/[id])는 일기 전문·사진·공유 링크용. */}
-                    <Link href={`/posts/${p.id}`} className="block p-4">
-                      <div className="flex items-center gap-2">
-                        <span className="flex items-center gap-2 text-sm font-medium text-text">
-                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-main/10 text-xs">
-                            🌿
-                          </span>
-                          {p.author?.nickname ?? '익명'}
-                        </span>
-                        <span className="ml-auto text-xs text-text/40">
-                          {formatDate(p.created_at)}
-                        </span>
-                      </div>
-
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        {groups.map((g) => (
-                          <span
-                            key={g}
-                            aria-label={g}
-                            className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${
-                              LABEL_TO_BADGE[g] ?? 'bg-surface-muted'
-                            }`}
-                          >
-                            {LABEL_TO_EMOJI_MAP[g] ?? g}
-                          </span>
-                        ))}
-                        {reaction && (
-                          <span className="text-[11px] font-medium text-point">
-                            {reaction.emoji} {reaction.label}
-                          </span>
-                        )}
-                      </div>
-
-                      {p.content && (
-                        <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-text/80">
-                          {p.content}
-                        </p>
-                      )}
-                    </Link>
-                    {/* 작성자 본인에게만 수정/삭제 (삭제는 소프트, stay=그 자리 새로고침) */}
-                    {/* 남의 기록: 신고·차단 (로그인한 경우) */}
-                    {user && user.id !== p.user_id && (
-                      <div className="flex justify-end gap-3 border-t border-black/5 px-4 py-1.5">
-                        <ReportBlockActions postId={p.id} authorId={p.user_id} authorNickname={p.author?.nickname ?? null} />
-                      </div>
-                    )}
-                    {user?.id === p.user_id && (
-                      <div className="flex justify-end gap-3 border-t border-black/5 px-4 py-1.5">
-                        <Link
-                          href={`/recommend/create?edit=${p.id}`}
-                          className="text-xs text-text/40"
-                        >
-                          수정
-                        </Link>
-                        <HidePostButton
-                          postId={p.id}
-                          label="삭제"
-                          confirmText="이 기록을 삭제할까요? 목록에서 보이지 않게 됩니다."
-                          stay
-                        />
-                      </div>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
+            <ExpandableRecords
+              items={posts.map((p) => (
+                <RecordCard
+                  key={p.id}
+                  post={p}
+                  viewerId={user?.id ?? null}
+                  blocked={blockedIds.has(p.user_id)}
+                  from={`/book/${encodeURIComponent(isbn)}`}
+                />
+              ))}
+            />
           )}
         </section>
 

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useSwipe } from '@/lib/useSwipe'
 
 // 책육아 기록 달력 — 기록(재독 포함)을 날짜축으로. created_at은 UTC라 서버에서 KST 날짜 문자열로 변환해 전달.
 // 날짜 셀: 그날 대표 표지 + '+N'(추가 기록 수). 탭 시 아래에 그날 기록 목록(→ /posts/[id]).
@@ -74,6 +75,7 @@ export default function ReadingCalendar({
   ]
 
   const selectedRecords = selected ? byDate.get(selected) ?? [] : []
+  const swipe = useSwipe({ onLeft: nextMonth, onRight: prevMonth })
 
   return (
     <section className="rounded-2xl bg-surface p-4 shadow-sm">
@@ -92,6 +94,8 @@ export default function ReadingCalendar({
         </button>
       </div>
 
+      {/* 요일+날짜 영역을 좌우로 밀어 달 넘기기 (2026.11.14) */}
+      <div {...swipe}>
       {/* 요일 */}
       <div className="grid grid-cols-7 text-center text-[10px] text-text/40">
         {WEEKDAYS.map((w) => (
@@ -147,6 +151,7 @@ export default function ReadingCalendar({
             </button>
           )
         })}
+      </div>
       </div>
 
       {/* 선택한 날의 기록 목록 */}

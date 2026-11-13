@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Splash from "@/components/Splash";
+import EdgeSwipeBack from "@/components/EdgeSwipeBack";
 import AppleSplashLinks from "@/components/AppleSplashLinks";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import { LoginSheetHost } from "@/components/auth/LoginSheet";
@@ -115,6 +116,7 @@ export default function RootLayout({
         </div>
         {/* 로그인 바텀시트 — 계정이 필요한 행동을 할 때 openLoginSheet()로 연다 */}
         <LoginSheetHost />
+        <EdgeSwipeBack />
         {/* 가입 직후 안내 팝업 — 홈이 아닌 화면으로 돌아갈 때 (?welcome=1) */}
         <WelcomeFromUrl />
         {/* 방문 통계(Vercel Web Analytics) — 쿠키 없음, 게스트 포함 방문자 수·페이지·유입 경로 (2026.11.04). /privacy에 명시 */}
