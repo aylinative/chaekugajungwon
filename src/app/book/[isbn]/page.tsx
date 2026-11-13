@@ -7,7 +7,10 @@ import { RECOMMEND_GROUPS, AGE_LABEL_FULL, sortGroupLabelsByAge } from '@/lib/gr
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import { computeBookDistribution } from '@/lib/distribution'
 import { formatDate } from '@/lib/date'
-import { getDistributionSummary } from '@/components/book/PeriodDistribution'
+import {
+  getDistributionSummary,
+  MIN_VOTERS_FOR_DISTRIBUTION,
+} from '@/components/book/PeriodDistribution'
 import PeriodDistribution from '@/components/book/PeriodDistribution'
 import BookTopics, { type TopicLink } from '@/components/book/BookTopics'
 import BookmarkButton from '@/components/BookmarkButton'
@@ -117,7 +120,7 @@ export async function generateMetadata({
 
   // 타이틀의 {시기}: 표 5개 이상이면 분포의 최빈 시기, 미만이면 작성자가 고른 시기 중 가장 어린 것 (19.2-4)
   let label: string | null = null
-  if (distribution.totalVoters >= 5) {
+  if (distribution.totalVoters >= MIN_VOTERS_FOR_DISTRIBUTION) {
     label = getDistributionSummary(distribution.votes, distribution.totalVoters).topLabel
   }
   if (!label) {
@@ -360,14 +363,16 @@ export default async function BookPage({
         {/* 주제 — 이 책의 모든 기록에서 합산(빈도순). 없으면 렌더 안 함. 칩 클릭 시 홈 필터(?tag=) */}
         <BookTopics topics={topics} />
 
-        {/* 추천 시기 분포 — 상시 노출 (19.2-4) */}
-        <section className="mt-4 rounded-2xl bg-surface p-4 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-text">추천 시기 분포</h2>
-          <PeriodDistribution
-            votes={distribution.votes}
-            totalVoters={distribution.totalVoters}
-          />
-        </section>
+        {/* 추천 시기 분포 — 추천한 사람(중복 제거)이 기준 수 이상일 때만 영역째 노출 (19.2-4) */}
+        {distribution.totalVoters >= MIN_VOTERS_FOR_DISTRIBUTION && (
+          <section className="mt-4 rounded-2xl bg-surface p-4 shadow-sm">
+            <h2 className="mb-1 text-sm font-semibold text-text">추천 시기 분포</h2>
+            <PeriodDistribution
+              votes={distribution.votes}
+              totalVoters={distribution.totalVoters}
+            />
+          </section>
+        )}
 
         {/* 책육아 기록 누적 (작성순) */}
         <section className="mt-4">

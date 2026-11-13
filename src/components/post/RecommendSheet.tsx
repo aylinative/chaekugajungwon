@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
-import PeriodDistribution from '@/components/book/PeriodDistribution'
+import PeriodDistribution, {
+  MIN_VOTERS_FOR_DISTRIBUTION,
+} from '@/components/book/PeriodDistribution'
 
 // '나도 추천해요' 바텀시트 (CLAUDE.md 10.3)
 // - 기본 선택값 없음(앵커링 방지). 재탭 시에만 기존 선택 표시.
@@ -91,7 +93,9 @@ export default function RecommendSheet({ bookId, initialGroups, onSaved, onClose
         {result ? (
           <>
             <p className="mb-3 text-center text-sm font-semibold text-text">
-              추천 완료! 지금까지의 추천 시기예요
+              {result.totalVoters >= MIN_VOTERS_FOR_DISTRIBUTION
+                ? '추천 완료! 지금까지의 추천 시기예요'
+                : '추천 완료!'}
             </p>
             <PeriodDistribution
               votes={result.distribution}
