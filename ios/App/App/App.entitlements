@@ -6,5 +6,10 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:bookgardening.co.kr</string>
+		<string>applinks:www.bookgardening.co.kr</string>
+	</array>
 </dict>
 </plist>
