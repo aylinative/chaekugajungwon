@@ -4,6 +4,7 @@ import { revalidateFeed } from '@/lib/cacheTags'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
 import { resolveTagPicks, type TagPayload } from '@/lib/topicSave'
+import { validDiaryDate } from '@/lib/diaryDate'
 
 // post_groups.group_name CHECK는 한글 라벨만 허용 — 폼 값('seed')을 라벨('씨앗')로 변환.
 const GROUP_VALUE_TO_LABEL: Record<string, string> = Object.fromEntries(
@@ -25,6 +26,7 @@ interface EditPayload {
   tags?: TagPayload[] // 고른 주제·세부 { slug, source } (2026.10 개편)
   is_board_book?: boolean
   memo?: string
+  diary_date?: string // 책육아 일기 날짜 'YYYY-MM-DD' (없으면 그대로 둠)
   photo_urls?: string[] // 수정 후 참고사진 전체(순서대로). 없으면 사진은 건드리지 않음(구버전 폼)
 }
 
@@ -81,6 +83,10 @@ export async function PATCH(
       { error: '읽어주면 좋은 시기를 하나 이상 골라주세요.' },
       { status: 400 }
     )
+  }
+  const diaryDate = payload.diary_date === undefined ? undefined : validDiaryDate(payload.diary_date)
+  if (diaryDate === null) {
+    return NextResponse.json({ error: '날짜는 오늘 이전으로 골라주세요.' }, { status: 400 })
   }
   if (payload.reading_amount == null) {
     // 0(글 없는 그림책)은 유효값 — null/undefined만 거부
@@ -190,6 +196,7 @@ export async function PATCH(
       reread: reaction === 3, // 하위 호환
       text_density: payload.reading_amount,
       content: payload.memo || null,
+      ...(diaryDate ? { diary_date: diaryDate } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq('id', postId)

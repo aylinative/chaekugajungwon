@@ -321,7 +321,9 @@ UI 레퍼런스: TripAdvisor 홈 피드 구조 참고
 운영자 태그(큰 분류 → 주제 → 세부)에서 선택. 직접 입력 없음 — 없는 주제는 '찾는 주제가 없나요?'로 제안 (8.2)
 책육아 일기
 자유 텍스트
-제한 없는 자유 메모란
+제한 없는 자유 메모란. ※ 일기 날짜(2026.11.17): 제목 줄 오른쪽 📅 칩(기본 오늘, 휴대폰 날짜 선택기, 미래 불가) = posts.diary_date.
+  마이 캘린더·통계·기록 상세·책 페이지 카드의 날짜는 이 값. 홈 '최근 3일' 정렬은 created_at 그대로.
+  아이 나이는 저장하지 않고 그 날짜로 계산해 '작성자 본인 화면'에만(기록하기·내 기록 상세·마이 캘린더, lib/age childAgesAt) — 남에게는 개인정보라 금지.
 참고사진 (선택)
 이미지 업로드
 최대 3장 (용량 제한). ※ 2026.08.20 '사진'→'참고사진(선택)'으로 표현 변경 — 책 추천 기록에 사진은 필수가 아니라 참고자료(육아일기보다 추천 커뮤니티 성격). 폼에 선택 안내 문구.
@@ -754,6 +756,7 @@ users 행 생성: 카카오 콜백에서 kakao_id 포함해 insert. 누락 대�
                                              ⚠️ users에 새 열을 추가하면 이 파일의 grant select 목록에도 추가할 것
   supabase/add_delete_account.sql         — 회원 탈퇴 함수 delete_my_account()(security definer, 본인만·운영자 불가) 2026.11.03
   supabase/add_login_providers.sql        — users.kakao_id 필수 해제 + auth_provider 2026.11 (구글·Apple 로그인, 코드 배포 전 실행)
+  supabase/add_diary_date.sql             — posts.diary_date(책육아 일기 날짜, 기본=기록한 날 KST, 기존 기록 채움) 2026.11.17 ⚠️코드 배포 전 실행
   supabase/seed_sample.sql / cleanup_sample.sql — 확인용 샘플 (⚠️ 배포 전 cleanup 실행 필수)
 
 

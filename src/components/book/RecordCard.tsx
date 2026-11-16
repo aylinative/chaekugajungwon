@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { RECOMMEND_GROUPS, sortGroupLabelsByAge } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
-import { formatDate } from '@/lib/date'
+import { formatYmd } from '@/lib/date'
 import HidePostButton from '@/components/post/HidePostButton'
 import PostPhotos from '@/components/post/PostPhotos'
 import ReportBlockActions from '@/components/report/ReportBlockActions'
@@ -24,6 +24,7 @@ export interface RecordCardPost {
   child_reaction: number
   content: string | null
   created_at: string
+  diary_date?: string | null // 책육아 일기 날짜(있으면 이걸 표시)
   author: { nickname: string | null } | null
   post_groups: { group_name: string }[] | null
   post_images?: { image_url: string; sort_order: number }[] | null
@@ -63,7 +64,7 @@ export default function RecordCard({
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-main/10 text-xs">🌿</span>
             {p.author?.nickname ?? '익명'}
           </span>
-          <span className="ml-auto text-xs text-text/40">{formatDate(p.created_at)}</span>
+          <span className="ml-auto text-xs text-text/40">{formatYmd(p.diary_date ?? p.created_at)}</span>
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">

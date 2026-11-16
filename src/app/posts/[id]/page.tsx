@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation'
 import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge, AGE_LABEL_FULL } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
-import { formatDate } from '@/lib/date'
+import { formatYmd } from '@/lib/date'
+import { childAgesAt } from '@/lib/age'
 import { getBookDistribution } from '@/lib/distribution'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
@@ -24,6 +25,7 @@ interface RawDetail {
   child_reaction: number
   content: string | null
   created_at: string
+  diary_date: string | null
   user_id: string
   book: {
     id: string
@@ -48,7 +50,7 @@ interface RawDetail {
   post_images: { image_url: string; sort_order: number }[] | null
 }
 
-const DETAIL_SELECT = `id, text_density, child_reaction, content, created_at, user_id,
+const DETAIL_SELECT = `id, text_density, child_reaction, content, created_at, diary_date, user_id,
   book:books ( id, title, author, publisher, published_date, cover_image_url, source_url, is_out_of_print, bookmark_count ),
   author:users!posts_user_id_fkey ( nickname ),
   post_groups ( group_name ),
@@ -174,6 +176,14 @@ export default async function PostDetailPage({
     myGroups = (myLikeRes.data as { group_names: string[] | null } | null)?.group_names ?? []
     bookmarkedByMe = Boolean((myBookmarkRes.data as { book_id: string } | null)?.book_id)
     hasMyRecord = isOwner || (myRecordRes.count ?? 0) > 0
+  }
+
+  // 일기 날짜 기준 아이 나이 — 작성자 본인에게만 (아이 정보는 개인정보, 10.1). 남에게는 계산도 안 해서 화면에 안 실린다
+  const diaryYmd = post.diary_date ?? post.created_at.slice(0, 10)
+  let ownerAges = ''
+  if (isOwner && user) {
+    const { data: kidRows } = await supabase.from('children').select('birth_date').eq('user_id', user.id).order('birth_date')
+    ownerAges = childAgesAt((kidRows as { birth_date: string }[] | null) ?? [], diaryYmd)
   }
 
   const book = post.book
@@ -305,8 +315,9 @@ export default async function PostDetailPage({
             <span className="text-sm font-medium text-text">
               {post.author?.nickname ?? '익명'}
             </span>
-            <span className="ml-auto text-xs text-text/40">
-              {formatDate(post.created_at)}
+            <span className="ml-auto flex flex-col items-end text-xs text-text/40">
+              {formatYmd(diaryYmd)}
+              {ownerAges && <span className="mt-0.5 text-[11px] text-text/45">{ownerAges}</span>}
             </span>
           </div>
 

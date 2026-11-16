@@ -45,6 +45,7 @@ interface BookPostRow {
   child_reaction: number
   content: string | null
   created_at: string
+  diary_date: string | null
   author: { nickname: string | null } | null
   post_groups: { group_name: string }[] | null
   post_tags:
@@ -56,7 +57,7 @@ interface BookPostRow {
     | null
 }
 
-const POSTS_SELECT = `id, user_id, text_density, child_reaction, content, created_at,
+const POSTS_SELECT = `id, user_id, text_density, child_reaction, content, created_at, diary_date,
   author:users!posts_user_id_fkey ( nickname ),
   post_groups ( group_name ),
   post_tags ( custom_tag, is_operator_tag, operator_tags ( id, slug, name, level, parent_id, tag_category ) )`

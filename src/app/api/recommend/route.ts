@@ -5,6 +5,7 @@ import { RECOMMEND_GROUPS } from '@/lib/groups'
 import { revalidateFeed } from '@/lib/cacheTags'
 import { resolveTagPicks, type TagPayload } from '@/lib/topicSave'
 import { ensureUserRow } from '@/lib/ensureUser'
+import { validDiaryDate } from '@/lib/diaryDate'
 
 // post_groups.group_name CHECK 제약은 한글 라벨('씨앗' 등)만 허용.
 // 폼에서 넘어오는 그룹 값('seed' 등)을 한글 라벨로 변환.
@@ -28,6 +29,7 @@ interface RecommendPayload {
   tags?: TagPayload[] // 고른 주제·세부 { slug, source } (2026.10 개편)
   is_board_book?: boolean // 보드북 여부(책 속성)
   memo?: string
+  diary_date?: string // 책육아 일기 날짜 'YYYY-MM-DD' — 없거나 잘못되면 DB 기본값(오늘, KST)
   photo_urls?: string[] // Storage 업로드 후 public URL (폼에서 업로드 완료된 것만)
 }
 
@@ -178,6 +180,7 @@ export async function POST(request: Request) {
         reread: reaction === 3, // '자꾸 꺼내봐요' = 재독 (하위 호환용)
         text_density: payload.reading_amount,
         content: payload.memo || null,
+        ...(validDiaryDate(payload.diary_date) ? { diary_date: validDiaryDate(payload.diary_date) } : {}),
       })
       .select('id')
       .single()

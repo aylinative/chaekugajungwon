@@ -10,6 +10,7 @@ import ReadingCalendar, { type CalendarRecord } from '@/components/mypage/Readin
 import { FEEDBACK_FORM_URL } from '@/lib/feedback'
 import { getFeedScale } from '@/lib/feed'
 import ScaleStatus from '@/components/mypage/ScaleStatus'
+import { childAgesAt } from '@/lib/age'
 
 export const metadata: Metadata = { title: '마이페이지 | 책육아정원' }
 
@@ -17,6 +18,7 @@ interface MyPostRow {
   id: string
   book_id: string
   created_at: string
+  diary_date: string | null
   book: { book_key: string | null; title: string | null; cover_image_url: string | null } | null
   post_tags:
     | { is_operator_tag: boolean; operator_tags: { name: string; tag_category: string | null } | null }[]
@@ -46,7 +48,7 @@ export default async function MyPage() {
     supabase
       .from('posts')
       .select(
-        `id, book_id, created_at, book:books ( book_key, title, cover_image_url ),
+        `id, book_id, created_at, diary_date, book:books ( book_key, title, cover_image_url ),
          post_tags ( is_operator_tag, operator_tags ( name, tag_category ) )`
       )
       .eq('user_id', user.id)
@@ -84,19 +86,25 @@ export default async function MyPage() {
   // 하단 요약: 총 누적(고정) · 올해(고정). '이번 달'은 보는 달 기준이라 캘린더가 계산.
   // 매일 기록 여부는 캘린더로 시각화되므로 '주'는 제외.
   let statYear = 0
-  for (const p of posts) {
+  // 통계·캘린더 날짜 = 책육아 일기 날짜(diary_date, 작성자가 바꿀 수 있음 — 2026.11.17). 없으면 기록한 날(KST)
+  const recordDate = (p: MyPostRow) => {
+    if (p.diary_date) return p.diary_date
     const k = new Date(new Date(p.created_at).getTime() + KST_MS)
-    if (k.getUTCFullYear() === curY) statYear++
+    return `${k.getUTCFullYear()}-${String(k.getUTCMonth() + 1).padStart(2, '0')}-${String(k.getUTCDate()).padStart(2, '0')}`
+  }
+  for (const p of posts) {
+    if (recordDate(p).startsWith(`${curY}-`)) statYear++
   }
   const statTotal = posts.length
 
   // 기록 달력용 — 각 기록을 KST 날짜 문자열로 (재독 포함, created_at desc 순서 유지)
   const todayStr = `${curY}-${String(curM + 1).padStart(2, '0')}-${String(nowKst.getUTCDate()).padStart(2, '0')}`
   const calendarRecords: CalendarRecord[] = posts.map((p) => {
-    const k = new Date(new Date(p.created_at).getTime() + KST_MS)
+    const date = recordDate(p)
     return {
       id: p.id,
-      date: `${k.getUTCFullYear()}-${String(k.getUTCMonth() + 1).padStart(2, '0')}-${String(k.getUTCDate()).padStart(2, '0')}`,
+      date,
+      ages: childAgesAt(children, date), // 그날 아이 나이 — 마이페이지는 본인만 보는 화면
       cover: p.book?.cover_image_url ?? null,
       title: p.book?.title ?? '(제목 없음)',
     }

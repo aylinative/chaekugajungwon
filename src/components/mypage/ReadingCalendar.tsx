@@ -11,6 +11,7 @@ export interface CalendarRecord {
   date: string // 'YYYY-MM-DD' (KST)
   cover: string | null
   title: string
+  ages?: string // 그날 아이 나이('🐯 47개월') — 본인 화면만
 }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
@@ -159,6 +160,9 @@ export default function ReadingCalendar({
         <div className="mt-3 border-t border-black/5 pt-3">
           <p className="mb-2 text-xs font-medium text-text/60">
             {selected.replace(/-/g, '.')} 기록 {selectedRecords.length}
+            {selectedRecords[0]?.ages && (
+              <span className="ml-2 font-normal text-text/45">{selectedRecords[0].ages}</span>
+            )}
           </p>
           <ul className="space-y-2">
             {selectedRecords.map((r) => (
