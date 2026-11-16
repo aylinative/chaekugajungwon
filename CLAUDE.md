@@ -129,6 +129,9 @@ OAuth 2.0 (Supabase Auth 연동)
   ■ 좌우 밀기(lib/useSwipe — 영역 안에서만, 왼쪽 끝 24px 무시): 기록 상세 참고사진 크게 보기(PostPhotos), 마이 캘린더 달 넘기기,
     책 정보 카드 → 같은 목록 이전/다음 책(BookSwipeNav + lib/bookNav: 홈 시기 섹션·더보기에서 누른 순서, ?nav=1일 때만).
   ■ 책 페이지 기록: 최신순, 3개 + 펼쳐보기(ExpandableRecords, 우리집 책장과 같은 방식). 카드는 components/book/RecordCard 공용.
+  ■ 아이폰 유니버설 링크(2026.11.15): 사이트 모든 화면 링크를 앱으로(/auth·/api 제외). /.well-known/apple-app-site-association → api 라우트(next.config rewrite,
+    팀 ID=APPLE_TEAM_ID). 앱: App.entitlements applinks + SceneDelegate가 받은 주소를 웹뷰에 띄움(앱 1.0.1, 앱 ID에 Associated Domains 필요).
+    카톡·스레드 등 앱 안 브라우저에선 앱으로 안 넘어갈 수 있음. 사파리 스마트 앱 배너(layout itunes appId 6830438312, 열기=앱 첫 화면).
 
 탭
 아이콘

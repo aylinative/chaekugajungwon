@@ -50,6 +50,9 @@ export const metadata: Metadata = {
     title: "책육아정원",
   },
   formatDetection: { telephone: false },
+  // 아이폰 사파리 맨 위 '책육아정원 앱 — 받기/열기' 배너(애플 스마트 앱 배너, 2026.11.15). 사파리에서만 보이고
+  // 우리 앱 안·카톡·스레드 브라우저에선 안 보인다. 앱이 있으면 '열기' = 앱 첫 화면(보던 화면 그대로 열기는 유니버설 링크가 담당).
+  itunes: { appId: "6830438312" },
   // manifest는 app/manifest.ts가 자동으로 <link rel="manifest"> 주입 (중복 방지 위해 수동 추가 안 함)
 };
 
