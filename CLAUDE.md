@@ -9,6 +9,7 @@ Claude Code가 매 작업 시작 시 이 파일을 먼저 읽고 프로젝트 �
 각 단계 완료 후 다음 단계로 자동 진행하지 말고, 완료 보고 후 대기할 것.
 성능·피드·DB 관련 작업 전에는 `node scripts/check-scale.mjs`(읽기 전용)로 서비스 규모를 점검하고, 🟡/🔴가 있으면 작업 전에 먼저 알릴 것. (기준·전환 방법: Deferred TODO [성능 단계 2])
 피드에 영향을 주는 새 쓰기 API(기록·추천·태그 등)를 만들면 반드시 revalidateFeed()(src/lib/cacheTags.ts)를 호출할 것 — 빠뜨리면 홈이 최대 60초 늦게 반영된다.
+워크트리 작업(2026.11.17~): 작업 시작 전 docs/WORKTREE_RULES.md를 읽고 따를 것 — 자기 담당 파일만 수정, 워크트리에서 CLAUDE.md 수정 금지(docs/worklog/<역할>.md에 기록), 합치기 전 node scripts/check-overlap.mjs.
 
 
 1. 서비스 개요
