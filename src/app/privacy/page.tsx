@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import LegalDoc from '@/components/legal/LegalDoc'
+import { bookSourcePhase } from '@/lib/bookSource'
 
 export const metadata: Metadata = {
   title: '개인정보처리방침 | 책육아정원',
@@ -9,18 +10,32 @@ export const metadata: Metadata = {
 // 개인정보처리방침 (2026.11 — Play 스토어 등록·회원 탈퇴 기능과 함께 작성)
 // ⚠️ 수집 항목·위탁 업체·탈퇴 처리 방식이 바뀌면 이 문서도 함께 고칠 것.
 //    특히 책 검색 API(지금 카카오)나 로그인 수단을 바꾸면 '처리 위탁' 표와 /terms '서비스 내용'을 같이 수정 (CLAUDE.md 13.1 메모)
+// 2026.11.17: 예스24 전환 — YES24_START_AT(lib/bookSource) 전에는 지금 표 + 변경 예정 공지, 그 뒤엔 예스24 줄 추가·새 시행일.
 const CONTACT = 'aylinative@gmail.com'
 
+// 시행일이 지나면 새 문구로 바뀌도록 1시간마다 다시 만든다
+export const revalidate = 3600
+
 export default function PrivacyPage() {
+  const { phase, startLabel } = bookSourcePhase()
+  const active = phase === 'active'
   return (
     <LegalDoc
       title="개인정보처리방침"
-      effectiveDate="2026년 11월 5일"
+      effectiveDate={active ? startLabel : '2026년 11월 5일'}
       intro={
-        <p>
-          책육아정원(이하 &lsquo;서비스&rsquo;)은 이용자의 개인정보를 소중히 다루며, 「개인정보 보호법」 등 관련 법령을
-          지킵니다. 이 방침은 서비스가 어떤 개인정보를 왜 수집하고, 어떻게 보관·삭제하는지 알려 드립니다.
-        </p>
+        <>
+          {phase === 'upcoming' && (
+            <p className="mb-3 rounded-xl bg-main/10 p-3 text-xs">
+              📢 <b>{startLabel}</b>부터 책 정보 검색을 <b>㈜예스이십사</b>에 맡깁니다(검색어 전달, 예스24 장애 시에는
+              ㈜카카오). 바뀌는 곳: 처리 위탁과 국외 이전.
+            </p>
+          )}
+          <p>
+            책육아정원(이하 &lsquo;서비스&rsquo;)은 이용자의 개인정보를 소중히 다루며, 「개인정보 보호법」 등 관련 법령을
+            지킵니다. 이 방침은 서비스가 어떤 개인정보를 왜 수집하고, 어떻게 보관·삭제하는지 알려 드립니다.
+          </p>
+        </>
       }
       sections={[
         {
@@ -141,8 +156,18 @@ export default function PrivacyPage() {
                   </tr>
                   <tr>
                     <td>㈜카카오</td>
-                    <td>카카오 로그인, 책 정보 검색(검색어 전달)</td>
+                    <td>
+                      {active
+                        ? '카카오 로그인, 책 정보 검색(예스24 장애 시, 검색어 전달)'
+                        : '카카오 로그인, 책 정보 검색(검색어 전달)'}
+                    </td>
                   </tr>
+                  {active && (
+                    <tr>
+                      <td>㈜예스이십사</td>
+                      <td>책 정보 검색(검색어 전달)</td>
+                    </tr>
+                  )}
                   <tr>
                     <td>Google LLC (미국)</td>
                     <td>구글 로그인</td>

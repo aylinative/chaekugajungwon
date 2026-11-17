@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import LegalDoc from '@/components/legal/LegalDoc'
+import { bookSourcePhase } from '@/lib/bookSource'
 
 export const metadata: Metadata = {
   title: '이용약관 | 책육아정원',
@@ -8,19 +9,34 @@ export const metadata: Metadata = {
 }
 
 // 이용약관 (2026.11 — 개인 운영 무료 서비스 기준)
-// ⚠️ '서비스 내용'과 '책임의 한계'에 책 정보 출처(지금 카카오 책 검색)가 적혀 있음 — 알라딘 등으로 API를 바꾸면 함께 수정 (CLAUDE.md 13.1 메모)
+// ⚠️ '서비스 내용'과 '책임의 한계'·'서비스의 변경과 중단'에 책 정보 출처가 적혀 있음 — 검색 API를 바꾸면 함께 수정 (CLAUDE.md 13.1 메모)
+// 2026.11.17: 예스24 전환 — YES24_START_AT(lib/bookSource) 전에는 지금 문구 + 변경 예정 공지, 그 뒤엔 새 문구·새 시행일.
 const CONTACT = 'aylinative@gmail.com'
 
+// 시행일이 지나면 새 문구로 바뀌도록 1시간마다 다시 만든다
+export const revalidate = 3600
+
 export default function TermsPage() {
+  const { phase, startLabel } = bookSourcePhase()
+  const active = phase === 'active'
+  const bookSource = active ? '예스24(장애 시 카카오 책 검색)' : '카카오 책 검색'
   return (
     <LegalDoc
       title="이용약관"
-      effectiveDate="2026년 11월 5일"
+      effectiveDate={active ? startLabel : '2026년 11월 5일'}
       intro={
-        <p>
-          이 약관은 책육아정원(이하 &lsquo;서비스&rsquo;)을 이용하는 조건과 절차, 이용자와 운영자의 권리·의무를 정합니다.
-          서비스는 개인(서점 다니는 워킹맘)이 운영하는 무료 서비스입니다.
-        </p>
+        <>
+          {phase === 'upcoming' && (
+            <p className="mb-3 rounded-xl bg-main/10 p-3 text-xs">
+              📢 <b>{startLabel}</b>부터 책 정보(제목·표지·출판사·소개 등)를 받아 오는 곳이 카카오 책 검색에서 <b>예스24</b>로
+              바뀝니다(예스24 장애 시에는 카카오 책 검색). 바뀌는 조항: 서비스 내용, 서비스의 변경과 중단, 책임의 한계.
+            </p>
+          )}
+          <p>
+            이 약관은 책육아정원(이하 &lsquo;서비스&rsquo;)을 이용하는 조건과 절차, 이용자와 운영자의 권리·의무를 정합니다.
+            서비스는 개인(서점 다니는 워킹맘)이 운영하는 무료 서비스입니다.
+          </p>
+        </>
       }
       sections={[
         {
@@ -28,7 +44,7 @@ export default function TermsPage() {
           body: (
             <p>
               서비스는 아이와 함께 읽은 그림책을 기록하는 &lsquo;책육아 일기&rsquo;와, 기록이 모여 만들어지는 시기별 그림책
-              추천·검색 기능을 제공합니다. 책 정보(제목·표지·출판사 등)는 카카오 책 검색에서 받아 보여줍니다.
+              추천·검색 기능을 제공합니다. 책 정보(제목·표지·출판사 등)는 {bookSource}에서 받아 보여줍니다.
             </p>
           ),
         },
@@ -83,7 +99,7 @@ export default function TermsPage() {
             <ul>
               <li>서비스는 무료로 제공되며, 더 나은 서비스를 위해 기능을 바꾸거나 추가·종료할 수 있습니다.</li>
               <li>
-                점검·장애·외부 서비스(카카오, 구글, Apple, 호스팅 업체 등) 문제로 일시 중단될 수 있습니다. 서비스를 완전히 종료할 때는 최소
+                점검·장애·외부 서비스({active ? '카카오, 예스24' : '카카오'}, 구글, Apple, 호스팅 업체 등) 문제로 일시 중단될 수 있습니다. 서비스를 완전히 종료할 때는 최소
                 30일 전에 알리고, 기록을 내려받거나 정리할 수 있는 방법을 안내합니다.
               </li>
             </ul>
@@ -96,7 +112,7 @@ export default function TermsPage() {
               <li>
                 기록과 추천은 이용자들의 경험을 모은 참고 정보입니다. 아이에게 맞는 책인지는 보호자가 판단해 주세요.
               </li>
-              <li>책 정보는 카카오 책 검색에서 받아 오며, 내용이 틀리거나 바뀔 수 있습니다.</li>
+              <li>책 정보는 {bookSource}에서 받아 오며, 내용이 틀리거나 바뀔 수 있습니다.</li>
               <li>이용자 사이의 다툼이나 이용자가 올린 게시물로 생긴 문제에 대해 운영자는 고의나 중대한 과실이 없는 한 책임지지 않습니다.</li>
             </ul>
           ),

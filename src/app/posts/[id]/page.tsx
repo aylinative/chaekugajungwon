@@ -8,6 +8,8 @@ import { formatYmd } from '@/lib/date'
 import { childAgesAt } from '@/lib/age'
 import { getBookDistribution } from '@/lib/distribution'
 import BookmarkButton from '@/components/BookmarkButton'
+import BookIntro from '@/components/book/BookIntro'
+import { isYes24Book } from '@/lib/bookSource'
 import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
 import PostPhotos from '@/components/post/PostPhotos'
@@ -37,6 +39,7 @@ interface RawDetail {
     source_url: string | null
     is_out_of_print: boolean | null
     bookmark_count: number
+    description?: string | null // 책 소개 — books.description 칸이 생긴 뒤부터 (2026.11.17)
   } | null
   author: { nickname: string | null } | null
   post_groups: { group_name: string }[] | null
@@ -51,7 +54,7 @@ interface RawDetail {
 }
 
 const DETAIL_SELECT = `id, text_density, child_reaction, content, created_at, diary_date, user_id,
-  book:books ( id, title, author, publisher, published_date, cover_image_url, source_url, is_out_of_print, bookmark_count ),
+  book:books ( * ),
   author:users!posts_user_id_fkey ( nickname ),
   post_groups ( group_name ),
   post_tags ( custom_tag, is_operator_tag, operator_tags ( id, name, level, parent_id ) ),
@@ -271,6 +274,12 @@ export default async function PostDetailPage({
               )}
             </div>
           </div>
+          {/* 책 소개 2줄 + 더보기, 예스24 책이면 출처 — 책 페이지와 같은 자리 (2026.11.17) */}
+          <BookIntro
+            description={book?.description ?? null}
+            sourceUrl={book?.source_url ?? null}
+            fromYes24={isYes24Book(book?.source_url)}
+          />
           {/* 나도 추천해요 + 저장 — 책 페이지 책 정보 영역과 동일(책 단위). 공유는 상단 ⋯ 메뉴 */}
           {bookId && (
             <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/5 pt-3">
