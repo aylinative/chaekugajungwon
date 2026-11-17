@@ -58,3 +58,22 @@ master에 합칠 때 CLAUDE.md로 옮기고, 옮긴 항목에는 (반영됨 커�
   공지 기간 7일을 채우려면 11.18 안에 master 합치기 + Vercel에 YES24_API_KEY·YES24_START_AT 등록 + 재배포.
 - 확인(2026.11.18, 로컬 3002 로그인 상태): (+) 시트 검색·담기→담음 ✓→닫으면 책장 맨 앞 반영, 기록 0건 책 페이지 열림,
   이미 기록한 책은 '읽은 책'. 시험으로 담은 『구름빵: 작아도 괜찮아』는 저장 해제(책 정보 행은 남음 — 기록 0건이라 어디에도 노출 안 됨).
+
+## [요청→data] 2026.11.18 — DB 주간 자동 백업 (운영자 요청: DB 소실 우려)
+배경: Supabase 무료 플랜은 자동 백업이 없다(일일 백업은 Pro 이상). 지금은 DB가 지워지면 되돌릴 방법이 없음.
+⚠️ GitHub 저장소 aylinative/chaekugajungwon은 공개(public) — 백업 파일은 반드시 암호화, 저장소에 커밋 금지.
+방식(권장, 비용 0): GitHub Actions 주 1회 예약 실행
+  1) .github/workflows/db-backup.yml — schedule cron '0 18 * * 0' (매주 월 03:00 KST) + workflow_dispatch(수동 실행)
+  2) pg_dump: 서버와 같은 주 버전 클라이언트(Supabase 대시보드 Settings→Infrastructure에서 Postgres 버전 확인, 예: postgres:17 이미지)
+     접속 = Supabase '세션 풀러' 연결 문자열(GitHub 러너는 IPv6 직접 연결 불가) → 저장소 Secret SUPABASE_DB_URL
+     명령: pg_dump --format=custom --no-owner --no-privileges --schema=public --schema=auth -f backup.dump "$SUPABASE_DB_URL"
+       (auth 스키마 포함 — 로그인 계정 users와 연결. storage 스키마는 메타데이터만이라 선택)
+  3) 암호화: gpg --batch --symmetric --cipher-algo AES256 --passphrase "$BACKUP_PASSPHRASE" → backup-YYYYMMDD.dump.gpg
+     Secret BACKUP_PASSPHRASE — 운영자가 따로 안전하게 보관(잃으면 백업을 못 엶).
+  4) actions/upload-artifact로 보관(retention-days: 90 → 최근 약 13주). 암호화된 파일만 올림.
+  5) 실패 시 GitHub가 운영자 메일로 알림(기본). 
+  6) 첫 실행 후 복원 시험 1회: 받은 파일 gpg 복호화 → 로컬/임시 DB에 pg_restore --list 로 테이블 목록 확인(운영 DB에 복원 금지).
+  7) 복원 절차를 docs에 짧게 기록(누가·어떻게 받고·풀고·복원하는지).
+빠지는 것: 참고사진(Storage post-images 파일)은 pg_dump에 안 들어감 → 필요하면 별도(용량 작으면 같은 작업에서 Storage API로 내려받아 암호화).
+대안: Supabase Pro($25/월) 일일 백업 7일 보관 — 비용 대신 손 안 가는 방법.
+운영자가 할 일: GitHub 저장소 Settings→Secrets에 SUPABASE_DB_URL, BACKUP_PASSPHRASE 등록(값은 채팅에 붙이지 말 것).
