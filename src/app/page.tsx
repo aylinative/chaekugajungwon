@@ -8,6 +8,8 @@ import TopicFilterBar from '@/components/feed/TopicFilterBar'
 import OnboardingModal from '@/components/onboarding/OnboardingModal'
 import { LoginPromptFromUrl } from '@/components/auth/LoginSheet'
 import FeedSections from '@/components/feed/FeedSections'
+import BookSourceNotice from '@/components/BookSourceNotice'
+import { bookSourcePhase } from '@/lib/bookSource'
 import type { Metadata } from 'next'
 
 // 홈 canonical을 실서비스 도메인 루트로 고정 (베타 도메인 중복 색인 방지, 브랜드 검색 대응)
@@ -54,6 +56,7 @@ export default async function Home({
   const { operatorTags, sections } = await getFeedData(supabase, { tag, cat }, user?.id)
   const filterLabel = tag ? operatorTags.find((t) => t.slug === tag || t.name === tag)?.name ?? tag : cat
   const hasAnyPost = sections.some((s) => s.cards.length > 0)
+  const sourceNotice = bookSourcePhase()
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
@@ -77,6 +80,8 @@ export default async function Home({
           탈퇴가 완료됐어요. 그동안 함께해 주셔서 고마워요.
         </p>
       )}
+      {/* 책 정보 제공처 변경(예스24) 공지 — 시행 전 공지 기간에만 (2026.11.17) */}
+      {sourceNotice.phase === 'upcoming' && <BookSourceNotice startLabel={sourceNotice.startLabel} />}
       <TopicFilterBar tags={operatorTags} value={{ tag, cat }} />
 
       <main className="flex-1 pb-4">

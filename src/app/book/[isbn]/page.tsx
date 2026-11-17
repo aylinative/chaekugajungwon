@@ -14,6 +14,8 @@ import BookSwipeNav from '@/components/book/BookSwipeNav'
 import RecordCard from '@/components/book/RecordCard'
 import ExpandableRecords from '@/components/book/ExpandableRecords'
 import BookTopics, { type TopicLink } from '@/components/book/BookTopics'
+import BookIntro from '@/components/book/BookIntro'
+import { isYes24Book } from '@/lib/bookSource'
 import BookmarkButton from '@/components/BookmarkButton'
 import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import ShareButton from '@/components/ShareButton'
@@ -36,6 +38,7 @@ interface BookRow {
   source_url: string | null
   is_out_of_print: boolean | null
   bookmark_count: number
+  description?: string | null // 책 소개 — books.description 칸이 생긴 뒤부터 (data 탭, 2026.11.17)
 }
 
 interface BookPostRow {
@@ -69,9 +72,8 @@ const getBook = cache(async (isbnParam: string): Promise<BookRow | null> => {
   const supabase = await createServerSupabase()
   const { data } = await supabase
     .from('books')
-    .select(
-      'id, title, author, publisher, published_date, cover_image_url, source_url, is_out_of_print, bookmark_count'
-    )
+    // '*' — description 칸이 아직 없는 DB에서도 오류 없이(있으면 함께) 읽기 위해
+    .select('*')
     .eq('book_key', isbn)
     .maybeSingle()
   return data as BookRow | null
@@ -319,6 +321,12 @@ export default async function BookPage({
               )}
             </div>
           </div>
+          {/* 책 소개 2줄 + 더보기, 예스24 책이면 출처 — 구분선 위(책 정보 묶음의 끝) (2026.11.17) */}
+          <BookIntro
+            description={book.description ?? null}
+            sourceUrl={book.source_url}
+            fromYes24={isYes24Book(book.source_url)}
+          />
           {/* 나도 추천해요(책·시기 판단) + 저장 — 둘 다 책 레벨이므로 책 정보 영역에 (2026.08) */}
           <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/5 pt-3">
             {hasMyRecord ? (

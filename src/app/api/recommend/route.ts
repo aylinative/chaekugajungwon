@@ -6,6 +6,7 @@ import { revalidateFeed } from '@/lib/cacheTags'
 import { resolveTagPicks, type TagPayload } from '@/lib/topicSave'
 import { ensureUserRow } from '@/lib/ensureUser'
 import { validDiaryDate } from '@/lib/diaryDate'
+import { insertBook, upgradeBookToYes24 } from '@/lib/bookUpsert'
 
 // post_groups.group_name CHECK 제약은 한글 라벨('씨앗' 등)만 허용.
 // 폼에서 넘어오는 그룹 값('seed' 등)을 한글 라벨로 변환.
@@ -23,6 +24,7 @@ interface RecommendPayload {
   book_link?: string
   book_isbn13?: string
   book_is_out_of_print?: boolean
+  book_description?: string // 책 소개(검색 결과) — books.description (2026.11.17)
   groups?: string[]
   child_reaction?: number // 1~3 (3=자꾸 꺼내봐요, 2=재밌어했어요, 1=그냥 봤어요)
   reading_amount?: number
@@ -32,8 +34,6 @@ interface RecommendPayload {
   diary_date?: string // 책육아 일기 날짜 'YYYY-MM-DD' — 없거나 잘못되면 DB 기본값(오늘, KST)
   photo_urls?: string[] // Storage 업로드 후 public URL (폼에서 업로드 완료된 것만)
 }
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export async function POST(request: Request) {
   try {
@@ -103,16 +103,22 @@ export async function POST(request: Request) {
     }
 
     // --- 1) 책 upsert: 같은 책이면 재사용, 없으면 신규 등록 ---
-    const publishedDate =
-      payload.book_pub_date && DATE_RE.test(payload.book_pub_date)
-        ? payload.book_pub_date
-        : null
+    const bookInput = {
+      title: payload.book_title ?? '',
+      author: payload.book_author,
+      publisher: payload.book_publisher,
+      pubDate: payload.book_pub_date,
+      cover: payload.book_cover,
+      link: payload.book_link,
+      isOutOfPrint: payload.book_is_out_of_print,
+      description: payload.book_description,
+    }
 
     let bookId: string
 
     const { data: existingBook, error: bookLookupError } = await supabase
       .from('books')
-      .select('id')
+      .select('id, source_url')
       .eq('book_key', bookKey)
       .maybeSingle()
 
@@ -146,22 +152,13 @@ export async function POST(request: Request) {
           .update({ is_board_book: payload.is_board_book })
           .eq('id', bookId)
       }
+      // 카카오로 저장된 옛 책을 예스24 검색으로 골랐으면 책 정보를 예스24 것으로 (2026.11.17)
+      await upgradeBookToYes24(supabase, bookId, existingBook.source_url, bookInput)
     } else {
-      const { data: insertedBook, error: bookInsertError } = await supabase
-        .from('books')
-        .insert({
-          book_key: bookKey,
-          title: payload.book_title,
-          author: payload.book_author || null,
-          publisher: payload.book_publisher || null,
-          published_date: publishedDate,
-          cover_image_url: payload.book_cover || null,
-          source_url: payload.book_link || null,
-          is_out_of_print: payload.book_is_out_of_print ?? false,
-          is_board_book: payload.is_board_book ?? false,
-        })
-        .select('id')
-        .single()
+      const { data: insertedBook, error: bookInsertError } = await insertBook(supabase, bookKey, {
+        ...bookInput,
+        isBoardBook: payload.is_board_book,
+      })
 
       if (bookInsertError || !insertedBook) {
         console.error('Book insert error:', bookInsertError)

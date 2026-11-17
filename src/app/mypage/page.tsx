@@ -10,6 +10,7 @@ import ReadingCalendar, { type CalendarRecord } from '@/components/mypage/Readin
 import { FEEDBACK_FORM_URL } from '@/lib/feedback'
 import { getFeedScale } from '@/lib/feed'
 import ScaleStatus from '@/components/mypage/ScaleStatus'
+import WishAdd from '@/components/mypage/WishAddSheet'
 import { childAgesAt } from '@/lib/age'
 
 export const metadata: Metadata = { title: '마이페이지 | 책육아정원' }
@@ -131,6 +132,12 @@ export default async function MyPage() {
     })
   }
 
+  // 읽고 싶은 책 담기 시트용 — 이미 담은 책·이미 기록한 책 표시 (book_key 기준)
+  const savedKeys = bookmarks.map((b) => b.book!.book_key).filter((k): k is string => Boolean(k))
+  const readKeys = Array.from(
+    new Set(posts.map((p) => p.book?.book_key).filter((k): k is string => Boolean(k)))
+  )
+
   const wishItems: ShelfItem[] = bookmarks.map((b) => ({
     href: `/book/${encodeURIComponent(b.book!.book_key ?? '')}`,
     cover: b.book!.cover_image_url,
@@ -198,8 +205,10 @@ export default async function MyPage() {
             >
               <path d="M19 21l-7-4.5L5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
             </svg>
+            {/* (+) 검색해서 담기 — 아직 기록이 없는 책도 (2026.11.17) */}
+            <WishAdd savedKeys={savedKeys} readKeys={readKeys} />
           </h2>
-          <Bookshelf items={wishItems} emptyText="아직 저장한 책이 없어요." />
+          <Bookshelf items={wishItems} emptyText="아직 담은 책이 없어요. ＋를 눌러 읽고 싶은 책을 담아 두세요." />
         </section>
 
         {/* 운영자 전용: 서비스 규모 경고(성능 구조 전환 시점 알림) */}

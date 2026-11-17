@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import BookCover from '@/components/BookCover'
 import { FEEDBACK_FORM_URL } from '@/lib/feedback'
+import { openLoginSheet } from '@/components/auth/LoginSheet'
 
 interface SearchItem {
   bookId: string
@@ -21,12 +22,19 @@ interface TopicGroup {
   books: { bookId: string; isbn: string; title: string; cover: string | null; recordCount: number }[]
 }
 
+// /api/books/search items[] — 저장(담기) 때 책 정보를 그대로 넘기므로 전체 필드
 interface CatalogItem {
   title: string
   author: string
+  publisher: string
+  pubDate: string
   cover: string
+  link: string
   isbn13: string
+  isOutOfPrint: boolean
 }
+
+type SaveState = 'saving' | 'saved' | 'read' | 'error'
 
 // 검색 화면 (12장 + DECISIONS 15장): 세 섹션.
 // ① 책육아 기록이 있는 책 — 제목·작가 (우리 DB) → /book/[isbn]
@@ -41,6 +49,38 @@ export default function SearchClient() {
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false) // 검색을 한 번이라도 수행했는지
   const inputRef = useRef<HTMLInputElement>(null)
+  // '아직 기록이 없는 책' 담기 상태 (isbn13별) — 2026.11.17
+  const [saveState, setSaveState] = useState<Record<string, SaveState>>({})
+
+  const saveToWish = async (item: CatalogItem) => {
+    const key = item.isbn13
+    setSaveState((s) => ({ ...s, [key]: 'saving' }))
+    try {
+      const res = await fetch('/api/bookmarks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ book: item }),
+      })
+      if (res.status === 401) {
+        setSaveState((s) => {
+          const next = { ...s }
+          delete next[key]
+          return next
+        })
+        openLoginSheet('bookmark', window.location.pathname + window.location.search)
+        return
+      }
+      const data = await res.json().catch(() => ({}))
+      if (res.status === 409 && data.alreadyRecorded) {
+        setSaveState((s) => ({ ...s, [key]: 'read' }))
+        return
+      }
+      if (!res.ok) throw new Error()
+      setSaveState((s) => ({ ...s, [key]: 'saved' }))
+    } catch {
+      setSaveState((s) => ({ ...s, [key]: 'error' }))
+    }
+  }
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -206,12 +246,32 @@ export default function SearchClient() {
                         )}
                         <p className="mt-1 text-xs text-text/35">책육아 기록 없음</p>
                       </div>
-                      <Link
-                        href={`/recommend/create?query=${encodeURIComponent(a.title)}`}
-                        className="flex-shrink-0 rounded-full bg-main px-3 py-1.5 text-xs font-medium text-white"
-                      >
-                        첫 기록 남기기
-                      </Link>
+                      <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
+                        <Link
+                          href={`/recommend/create?query=${encodeURIComponent(a.title)}`}
+                          className="rounded-full bg-main px-3 py-1.5 text-xs font-medium text-white"
+                        >
+                          첫 기록 남기기
+                        </Link>
+                        {/* 아직 안 읽은 책 → '아이와 읽고 싶은 책'에 담기 (2026.11.17) */}
+                        {saveState[a.isbn13] === 'read' ? (
+                          <span className="px-1 text-xs text-text/40">읽은 책</span>
+                        ) : saveState[a.isbn13] === 'saved' ? (
+                          <span className="flex items-center gap-1 px-1 text-xs font-medium text-main">
+                            <BookmarkIcon filled /> 담음
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={saveState[a.isbn13] === 'saving'}
+                            onClick={() => saveToWish(a)}
+                            className="flex items-center gap-1 px-1 py-0.5 text-xs text-text/60 disabled:opacity-50"
+                          >
+                            <BookmarkIcon filled={false} />
+                            {saveState[a.isbn13] === 'error' ? '다시 담기' : '담기'}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </li>
                 ))}
@@ -248,5 +308,21 @@ export default function SearchClient() {
         </>
       )}
     </div>
+  )
+}
+
+function BookmarkIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
+      <path d="M19 21l-7-4.5L5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+    </svg>
   )
 }

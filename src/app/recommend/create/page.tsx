@@ -25,7 +25,8 @@ interface BookItem {
   link: string
   isbn13: string
   isOutOfPrint: boolean
-  description?: string // 카카오 책 소개 — 주제 추천 매칭용 (수정 화면에서는 없음)
+  description?: string // 책 소개 — 주제 추천 매칭용 + 책에 저장(책 페이지 소개) (수정 화면에서는 없음)
+  isBoardBook?: boolean // 판형·제목으로 본 보드북 여부 — 체크 미리 켜기용
 }
 
 // 글밥량 = 페이지당 글 양(중립 속성). 별점 연상을 피해 게이지+부연으로 표시.
@@ -149,6 +150,9 @@ function RecommendCreateInner() {
     setShowDropdown(false)
     setBooks([])
     setChangingBook(false) // 새 책을 골랐으면 변경 모드 종료(편집 모드에서만 의미 있음)
+    // 판형이 '보드북'이거나 제목에 '보드북'이면 체크를 미리 켠다 — 확인만 하고 틀리면 끄면 된다 (2026.11.17)
+    // (판형 정보가 빠진 보드북이 많아 자동 판정으로 체크박스를 대신하지는 않는다)
+    if (book.isBoardBook) setIsBoardBook(true)
   }
 
   // 로그인 가드: 이 페이지는 클라이언트 컴포넌트라 서버 인증을 거치지 않는다.
@@ -495,6 +499,7 @@ function RecommendCreateInner() {
             book_link: selectedBook.link,
             book_isbn13: selectedBook.isbn13,
             book_is_out_of_print: selectedBook.isOutOfPrint,
+            book_description: selectedBook.description,
             groups: selectedGroups,
             child_reaction: selectedReaction,
             reading_amount: selectedAmount,
@@ -536,6 +541,7 @@ function RecommendCreateInner() {
         book_link: selectedBook.link,
         book_isbn13: selectedBook.isbn13,
         book_is_out_of_print: selectedBook.isOutOfPrint,
+        book_description: selectedBook.description,
         groups: selectedGroups,
         child_reaction: selectedReaction,
         reading_amount: selectedAmount,
