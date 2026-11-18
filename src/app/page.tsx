@@ -14,7 +14,22 @@ import type { Metadata } from 'next'
 
 // 홈 canonical을 실서비스 도메인 루트로 고정 (베타 도메인 중복 색인 방지, 브랜드 검색 대응)
 export const metadata: Metadata = {
-  alternates: { canonical: '/' },
+  alternates: {
+    canonical: '/',
+    // 네이버 서치어드바이저 RSS 제출용 피드(app/rss.xml)
+    types: { 'application/rss+xml': [{ url: '/rss.xml', title: '책육아정원 새 책육아 기록' }] },
+  },
+  // og:url — 네이버 '사이트 간단 체크' 항목. 홈에만(다른 화면이 홈 주소를 물려받지 않게)
+  openGraph: {
+    type: 'website',
+    siteName: '책육아정원',
+    title: '책육아정원',
+    description:
+      '우리 아이가 진짜 좋아한 그림책을 월령·연령별로 기록하고 아이가 좋아할 그림책을 추천받는 커뮤니티. 전집 말고 단행본 한 권도 충분한 책육아.',
+    locale: 'ko_KR',
+    url: '/',
+    images: ['/icon-512.png'],
+  },
 }
 
 export default async function Home({

@@ -39,7 +39,13 @@ export const metadata: Metadata = {
     title: "책육아정원",
     description: siteDescription,
     locale: "ko_KR",
+    // 공유·네이버 미리보기 기본 이미지(책·기록 페이지는 표지로 덮어씀)
+    images: ["/icon-512.png"],
   },
+  // 네이버 서치어드바이저 소유확인 메타 태그 — Vercel 환경변수 NAVER_SITE_VERIFICATION(content 값만)
+  ...(process.env.NAVER_SITE_VERIFICATION
+    ? { verification: { other: { "naver-site-verification": process.env.NAVER_SITE_VERIFICATION } } }
+    : {}),
   twitter: {
     card: "summary_large_image",
   },
