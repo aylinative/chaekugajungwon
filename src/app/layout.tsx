@@ -93,7 +93,11 @@ const jsonLd = [
     logo: `${siteUrl}/icon-512.png`,
     description: siteDescription,
     // 공식 SNS — '이 계정 = 책육아정원(서비스)' 엔티티 연결(옛 모임 글과 서비스 통합 신호)
-    sameAs: ["https://www.threads.com/@bookstore.workingmom"],
+    sameAs: [
+      "https://www.threads.com/@bookstore.workingmom",
+      // 네이버 블로그 — 네이버 이름 검색에서 블로그와 사이트를 같은 엔티티로 연결
+      "https://blog.naver.com/aylinative",
+    ],
   },
 ];
 
