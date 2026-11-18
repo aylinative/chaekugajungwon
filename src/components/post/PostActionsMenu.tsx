@@ -6,14 +6,12 @@ import { useRouter } from 'next/navigation'
 import ReportSheet from '@/components/report/ReportSheet'
 import { blockUser } from '@/components/report/ReportBlockActions'
 
-// 기록 상세 상단 우측 ⋯(점 3개) 메뉴 — 수정/공유/삭제(또는 숨김)를 접어둔다.
+// 기록 상세 상단 우측 ⋯(점 3개) 메뉴 — 삭제(또는 숨김)를 접어둔다.
+// 공유는 책 페이지처럼 책 정보 영역의 저장 버튼 옆으로 이동(2026.11.18).
 // 삭제/숨김은 소프트 삭제(hidden_at) 동일. 작성자='삭제', 운영자 타인글='숨김'.
 // 남의 기록이면 '신고하기'·'이 사용자 차단'(애플 1.2·구글 UGC 정책, 2026.11.03).
 export default function PostActionsMenu({
   postId,
-  sharePath,
-  shareTitle,
-  shareText,
   canEdit = false,
   canModerate = false,
   moderateLabel = '삭제',
@@ -21,9 +19,6 @@ export default function PostActionsMenu({
   report,
 }: {
   postId: string
-  sharePath: string
-  shareTitle: string
-  shareText: string
   canEdit?: boolean
   canModerate?: boolean
   moderateLabel?: string
@@ -34,25 +29,6 @@ export default function PostActionsMenu({
   const [open, setOpen] = useState(false)
   const [pending, setPending] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
-
-  const share = async () => {
-    setOpen(false)
-    const url = `${window.location.origin}${sharePath}`
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: shareTitle, text: shareText, url })
-      } catch {
-        /* 사용자가 취소 */
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(url)
-        alert('링크가 복사됐어요.')
-      } catch {
-        alert(url)
-      }
-    }
-  }
 
   const moderate = async () => {
     if (pending) return
@@ -71,6 +47,9 @@ export default function PostActionsMenu({
       setPending(false)
     }
   }
+
+  // 메뉴에 넣을 항목이 없으면(비로그인 등) ⋯ 버튼 자체를 그리지 않는다
+  if (!canEdit && !canModerate && !report) return null
 
   const itemClass =
     'block w-full px-4 py-2 text-left text-sm text-text hover:bg-surface-muted'
@@ -106,9 +85,6 @@ export default function PostActionsMenu({
                 수정
               </Link>
             )}
-            <button type="button" onClick={share} className={itemClass}>
-              공유
-            </button>
             {report && (
               <>
                 <button
