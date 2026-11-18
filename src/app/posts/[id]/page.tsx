@@ -5,12 +5,12 @@ import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge, AGE_LABEL_FULL } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import { formatYmd } from '@/lib/date'
-import { childAgesAt } from '@/lib/age'
 import { getBookDistribution } from '@/lib/distribution'
 import BookmarkButton from '@/components/BookmarkButton'
 import BookIntro from '@/components/book/BookIntro'
 import { isYes24Book } from '@/lib/bookSource'
 import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
+import ShareButton from '@/components/ShareButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
 import PostPhotos from '@/components/post/PostPhotos'
 import BottomTabBar from '@/components/BottomTabBar'
@@ -181,13 +181,8 @@ export default async function PostDetailPage({
     hasMyRecord = isOwner || (myRecordRes.count ?? 0) > 0
   }
 
-  // 일기 날짜 기준 아이 나이 — 작성자 본인에게만 (아이 정보는 개인정보, 10.1). 남에게는 계산도 안 해서 화면에 안 실린다
+  // 일기 날짜. 그날 아이 나이는 표시하지 않는다(2026.11.18 운영자 — 작성자 본인 화면에서도 삭제)
   const diaryYmd = post.diary_date ?? post.created_at.slice(0, 10)
-  let ownerAges = ''
-  if (isOwner && user) {
-    const { data: kidRows } = await supabase.from('children').select('birth_date').eq('user_id', user.id).order('birth_date')
-    ownerAges = childAgesAt((kidRows as { birth_date: string }[] | null) ?? [], diaryYmd)
-  }
 
   const book = post.book
   const groups = sortGroupLabelsByAge((post.post_groups ?? []).map((g) => g.group_name))
@@ -213,12 +208,9 @@ export default async function PostDetailPage({
           ‹ 홈
         </Link>
         <span className="flex-1 text-base font-semibold text-text">책육아 기록</span>
-        {/* 수정/공유/삭제(숨김)를 ⋯ 메뉴로 통합. 작성자='삭제', 운영자 타인글='숨김' */}
+        {/* ⋯ 메뉴 = 삭제(숨김)·신고·차단. 작성자='삭제', 운영자 타인글='숨김'. 공유는 책 정보 영역 */}
         <PostActionsMenu
           postId={post.id}
-          sharePath={`/posts/${id}`}
-          shareTitle={`${book?.title ?? '그림책'} | 책육아정원`}
-          shareText={`${book?.title ?? '그림책'} — 아이와 함께 읽은 기록`}
           canEdit={false}
           canModerate={canModeratePost}
           moderateLabel={isOwner ? '삭제' : '숨김'}
@@ -280,7 +272,7 @@ export default async function PostDetailPage({
             sourceUrl={book?.source_url ?? null}
             fromYes24={isYes24Book(book?.source_url)}
           />
-          {/* 나도 추천해요 + 저장 — 책 페이지 책 정보 영역과 동일(책 단위). 공유는 상단 ⋯ 메뉴 */}
+          {/* 나도 추천해요 + 저장 + 공유 — 책 페이지 책 정보 영역과 같은 줄(책 단위). 공유 링크는 이 기록 */}
           {bookId && (
             <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/5 pt-3">
               {hasMyRecord ? (
@@ -299,13 +291,20 @@ export default async function PostDetailPage({
                   variant="detail"
                 />
               )}
-              <BookmarkButton
-                bookId={bookId}
-                initialBookmarked={bookmarkedByMe}
-                initialCount={book?.bookmark_count ?? 0}
-                isLoggedIn={Boolean(user)}
-                variant="detail"
-              />
+              <div className="flex items-center gap-2">
+                <BookmarkButton
+                  bookId={bookId}
+                  initialBookmarked={bookmarkedByMe}
+                  initialCount={book?.bookmark_count ?? 0}
+                  isLoggedIn={Boolean(user)}
+                  variant="detail"
+                />
+                <ShareButton
+                  path={`/posts/${id}`}
+                  title={`${book?.title ?? '그림책'} | 책육아정원`}
+                  text={`${book?.title ?? '그림책'} — 아이와 함께 읽은 기록`}
+                />
+              </div>
             </div>
           )}
         </section>
@@ -324,10 +323,7 @@ export default async function PostDetailPage({
             <span className="text-sm font-medium text-text">
               {post.author?.nickname ?? '익명'}
             </span>
-            <span className="ml-auto flex flex-col items-end text-xs text-text/40">
-              {formatYmd(diaryYmd)}
-              {ownerAges && <span className="mt-0.5 text-[11px] text-text/45">{ownerAges}</span>}
-            </span>
+            <span className="ml-auto text-xs text-text/40">{formatYmd(diaryYmd)}</span>
           </div>
 
           {/* 추천 그룹 */}
@@ -382,7 +378,7 @@ export default async function PostDetailPage({
             <PostPhotos urls={images.map((img) => img.image_url)} />
           )}
 
-          {/* 작성자 본인 — 이 기록 수정 (내용 바로 옆이라 직관적). 삭제/공유는 상단 ⋯ 메뉴. */}
+          {/* 작성자 본인 — 이 기록 수정 (내용 바로 옆이라 직관적). 삭제는 상단 ⋯ 메뉴, 공유는 책 정보 영역. */}
           {isOwner && (
             <div className="flex justify-end pt-1">
               <Link
