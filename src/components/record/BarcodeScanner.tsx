@@ -70,6 +70,17 @@ function cropToGuide(video: HTMLVideoElement, guide: HTMLElement, canvas: HTMLCa
   return true
 }
 
+// 검색창 오른쪽 카메라 버튼 아이콘 — 기록하기·읽고 싶은 책 담기 공용 (2026.11.19 바코드 모양 → 카메라)
+// 바코드 모양은 '무슨 버튼인지' 잘 안 읽혀서, 누구나 아는 카메라로. 무엇을 찍는지는 스캔 화면이 안내한다.
+export function CameraIcon({ className = 'h-6 w-6' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden>
+      <path d="M4 8a2 2 0 0 1 2-2h1.5l1.2-1.8A1 1 0 0 1 9.5 3.8h5a1 1 0 0 1 .8.4L16.5 6H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      <circle cx="12" cy="12.5" r="3.5" />
+    </svg>
+  )
+}
+
 export default function BarcodeScanner({ onDetected, onClose }: { onDetected: (isbn: string) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const guideRef = useRef<HTMLDivElement>(null)
@@ -150,7 +161,7 @@ export default function BarcodeScanner({ onDetected, onClose }: { onDetected: (i
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
       <div className="flex items-center justify-between px-4 pb-3 pt-safe-3 text-white">
-        <span className="text-sm font-medium">바코드로 책 찾기</span>
+        <span className="text-sm font-medium">바코드 찍기</span>
         <button type="button" onClick={onClose} aria-label="닫기" className="flex h-11 w-11 items-center justify-center text-2xl text-white/80">
           ×
         </button>
@@ -162,17 +173,25 @@ export default function BarcodeScanner({ onDetected, onClose }: { onDetected: (i
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
             <div
               ref={guideRef}
-              className="h-36 w-[80%] max-w-sm rounded-2xl border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
-            />
+              className="flex h-36 w-[80%] max-w-sm items-center justify-center rounded-2xl border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
+            >
+              {!ready && (
+                <svg viewBox="0 0 64 32" className="h-14 w-28 text-white/50" fill="currentColor" aria-hidden>
+                  {[0, 3, 5, 9, 12, 14, 18, 20, 24, 27, 29, 33, 36, 38, 42, 45, 47, 51, 54, 56, 60, 62].map((x, i) => (
+                    <rect key={x} x={x} y="0" width={i % 3 === 0 ? 2 : 1} height="32" />
+                  ))}
+                </svg>
+              )}
+            </div>
             <p className="mt-4 px-6 text-center text-sm leading-relaxed text-white">
               {ready ? (
                 <>
-                  책 뒤표지 바코드가 네모를 가득 채우게
+                  책 뒤표지의 바코드를 찍어 주세요
                   <br />
-                  가까이 대 주세요
+                  <span className="text-white/70">네모를 가득 채우게 가까이 대면 잘 읽혀요</span>
                 </>
               ) : (
-                '카메라를 켜는 중…'
+                '책 뒤표지의 바코드를 찍어 주세요'
               )}
             </p>
           </div>

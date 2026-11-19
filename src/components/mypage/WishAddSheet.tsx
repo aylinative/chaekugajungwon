@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import BookCover from '@/components/BookCover'
-import BarcodeScanner from '@/components/record/BarcodeScanner'
+import BarcodeScanner, { CameraIcon } from '@/components/record/BarcodeScanner'
 
 // books.book_key와 같은 규칙(lib/bookUpsert bookKeyOf) — 서버 모듈을 브라우저로 끌고 오지 않게 여기 따로 둔다
 const bookKeyOf = (b: { isbn13: string; link: string; title: string }) => b.isbn13 || b.link || b.title
@@ -177,7 +177,7 @@ function WishAddSheet({
                   setSearched(false)
                 }
               }}
-              placeholder="책 제목이나 작가로 검색"
+              placeholder="제목, 작가, ISBN으로 검색"
               autoComplete="off"
               enterKeyHint="search"
               className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-12 text-sm outline-none focus:border-main"
@@ -189,13 +189,10 @@ function WishAddSheet({
                 <button
                   type="button"
                   onClick={() => setScanOpen(true)}
-                  aria-label="바코드로 책 찾기"
+                  aria-label="카메라로 바코드 찍어 찾기"
                   className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-text/60"
                 >
-                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                    <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" strokeLinecap="round" />
-                    <path d="M7 8v8M10 8v8M13 8v8M16 8v8" strokeLinecap="round" />
-                  </svg>
+                  <CameraIcon />
                 </button>
               )
             )}
