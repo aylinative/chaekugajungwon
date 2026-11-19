@@ -638,7 +638,7 @@ function RecommendCreateInner() {
         <section className={`rounded-2xl bg-surface p-4 shadow-sm ${isEdit ? 'mt-4' : ''}`}>
           <div className="mb-2 flex items-center justify-between">
             <label htmlFor="book-search" className="block text-sm font-medium">
-              {changingBook ? '다른 책으로 바꾸기' : '책 제목으로 검색'}
+              {changingBook ? '다른 책으로 바꾸기' : '책 검색'}
               {/* 단행본 지향 안내 (2026.11.04 운영자) — 검색 자체는 모든 책이 나오므로 '기록해요'로 안내 */}
               <span className="ml-1 text-xs font-normal text-text/45">(전집 말고 단행본 그림책을 기록해요)</span>
             </label>
