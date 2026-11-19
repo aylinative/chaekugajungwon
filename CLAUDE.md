@@ -664,6 +664,9 @@ SNS 공유
 ■ 표지 폴백: 표지 없거나 로딩 실패 시 '제목 카드'(src/components/BookCover.tsx). 전 화면 공용.
 
 검색 UX: 기록 폼은 입력 300ms 디바운스 후 자동 검색 → 자동완성 드롭다운(표지+제목)으로 선택.
+  ※ 책 검색창(기록하기·읽고 싶은 책 담기 공통, 2026.11.19): 제목 '책 검색', 안내 '제목, 작가, ISBN으로 검색'(ISBN 숫자 입력도 검색).
+    오른쪽 버튼은 카메라 아이콘(CameraIcon, components/record/BarcodeScanner 공용) → 바코드 스캔 화면이 '책 뒤표지의 바코드를 찍어 주세요'로 안내.
+    별도 안내 카드·팝업은 두지 않음(두 화면에 각각 넣어야 하고 흐름을 막음).
 구현 위치: src/app/api/books/search/route.ts
   ※ DB 컬럼도 카카오 전환에 맞춰 리네임(2026.08.26): aladin_item_id→book_key, aladin_url→source_url (supabase/rename_aladin_columns.sql). 라우트는 /api/books/search로 이동(구 /api/aladin/search 삭제).
     → 코드·DB·문서 현재상태에 'aladin' 표기 없음. 남은 언급은 변경이력(역사)뿐.
