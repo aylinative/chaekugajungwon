@@ -4,18 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import BookCover from '@/components/BookCover'
-import BarcodeScanner from '@/components/record/BarcodeScanner'
+import BarcodeScanner, { CameraIcon } from '@/components/record/BarcodeScanner'
 
 // books.book_key와 같은 규칙(lib/bookUpsert bookKeyOf) — 서버 모듈을 브라우저로 끌고 오지 않게 여기 따로 둔다
-function BarcodeIcon({ className }: { className: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" strokeLinecap="round" />
-      <path d="M7 8v8M10 8v8M13 8v8M16 8v8" strokeLinecap="round" />
-    </svg>
-  )
-}
-
 const bookKeyOf = (b: { isbn13: string; link: string; title: string }) => b.isbn13 || b.link || b.title
 
 // 마이페이지 '아이와 읽고 싶은 책' 제목 줄의 (+) → 책 검색 시트 (2026.11.17)
@@ -186,7 +177,7 @@ function WishAddSheet({
                   setSearched(false)
                 }
               }}
-              placeholder="책 제목, 작가, 바코드 옆 ISBN으로 검색"
+              placeholder="제목, 작가, ISBN으로 검색"
               autoComplete="off"
               enterKeyHint="search"
               className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-12 text-sm outline-none focus:border-main"
@@ -198,10 +189,10 @@ function WishAddSheet({
                 <button
                   type="button"
                   onClick={() => setScanOpen(true)}
-                  aria-label="바코드로 책 찾기"
+                  aria-label="카메라로 바코드 찍어 찾기"
                   className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-text/60"
                 >
-                  <BarcodeIcon className="h-6 w-6" />
+                  <CameraIcon />
                 </button>
               )
             )}
@@ -210,21 +201,6 @@ function WishAddSheet({
         </div>
 
         <div className="mt-3 flex-1 overflow-y-auto px-5 pb-safe">
-          {/* 바코드 안내 — 검색 전 빈 화면에서만, 누르면 바로 촬영(안내 = 실행 버튼). 카메라 없으면 안 그림 (2026.11.19) */}
-          {!searched && !loading && canScan && (
-            <button
-              type="button"
-              onClick={() => setScanOpen(true)}
-              className="mt-2 flex w-full items-center gap-3 rounded-xl border border-dashed border-main/30 bg-main/5 px-4 py-3 text-left active:bg-main/10"
-            >
-              <BarcodeIcon className="h-7 w-7 flex-shrink-0 text-main" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium text-text">바코드 찍어서 찾기</span>
-                <span className="block text-xs text-text/50">책 뒤표지 바코드를 비추면 바로 찾아요</span>
-              </span>
-              <span className="text-text/30" aria-hidden>›</span>
-            </button>
-          )}
           {!searched && !loading && (
             <p className="mt-8 text-center text-xs leading-relaxed text-text/40">
               어디선가 추천받은 책, 잊기 전에 담아 두세요.

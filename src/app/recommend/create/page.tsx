@@ -8,7 +8,7 @@ import { CHILD_REACTIONS } from '@/lib/reactions'
 import { densityHint } from '@/lib/density'
 import type { TopicPick, TaxonomyData } from '@/lib/topics'
 import TopicPicker from '@/components/record/TopicPicker'
-import BarcodeScanner from '@/components/record/BarcodeScanner'
+import BarcodeScanner, { CameraIcon } from '@/components/record/BarcodeScanner'
 import BookCover from '@/components/BookCover'
 import BottomTabBar from '@/components/BottomTabBar'
 import { setLeaveGuard, confirmLeave } from '@/lib/leaveGuard'
@@ -671,7 +671,7 @@ function RecommendCreateInner() {
                 if (books.length > 0) setShowDropdown(true)
               }}
               onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-              placeholder="예: 달님 안녕"
+              placeholder="제목, 작가, ISBN으로 검색"
               autoComplete="off"
               className="w-full rounded-xl border border-gray-200 py-2 pl-3 pr-12 text-sm outline-none focus:border-main"
             />
@@ -686,13 +686,10 @@ function RecommendCreateInner() {
                 <button
                   type="button"
                   onClick={() => setScanOpen(true)}
-                  aria-label="바코드로 책 찾기"
+                  aria-label="카메라로 바코드 찍어 찾기"
                   className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-text/60"
                 >
-                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                    <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" strokeLinecap="round" />
-                    <path d="M7 8v8M10 8v8M13 8v8M16 8v8" strokeLinecap="round" />
-                  </svg>
+                  <CameraIcon />
                 </button>
               )
             )}
