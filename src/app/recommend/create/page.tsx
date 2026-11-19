@@ -13,7 +13,7 @@ import BookCover from '@/components/BookCover'
 import BottomTabBar from '@/components/BottomTabBar'
 import { setLeaveGuard, confirmLeave } from '@/lib/leaveGuard'
 import { rotateImage } from '@/lib/photoRotate'
-import { todayKST, childAgesAt } from '@/lib/age'
+import { todayKST } from '@/lib/age'
 import { formatYmd } from '@/lib/date'
 
 interface BookItem {
@@ -68,7 +68,6 @@ function RecommendCreateInner() {
   const [memo, setMemo] = useState('')
   // 책육아 일기 날짜 — 기본 오늘(KST), 바꿀 수 있음. 마이 캘린더가 이 날짜 기준 (2026.11.17)
   const [diaryDate, setDiaryDate] = useState(() => todayKST())
-  const [kids, setKids] = useState<{ birth_date: string }[]>([]) // 내 아이들 — 일기 날짜 기준 나이 표시용(본인 화면만)
   // 참고사진 (2026.11.06 — 새 기록·수정 모두에서 추가·촬영·회전·교체·삭제).
   // 새 사진은 File + blob 미리보기, 이미 올린 사진은 public URL. 회전은 화면에선 CSS로, 저장할 때 실제로 돌려 다시 올린다.
   const [photos, setPhotos] = useState<PhotoItem[]>([])
@@ -175,12 +174,6 @@ function RecommendCreateInner() {
         return
       }
       setMyUserId(user.id)
-      supabase
-        .from('children')
-        .select('birth_date')
-        .eq('user_id', user.id)
-        .order('birth_date')
-        .then(({ data }) => setKids((data as { birth_date: string }[] | null) ?? []))
       if (!editId) {
         const { count } = await supabase
           .from('posts')
@@ -945,28 +938,23 @@ function RecommendCreateInner() {
           />
 
           <div>
-            {/* 제목 줄 오른쪽 = 일기 날짜(기본 오늘, 눌러서 휴대폰 날짜 선택기). 아래 작은 글씨 = 그날 아이 나이(본인만 보는 화면) */}
-            <div className="mb-2 flex items-start justify-between gap-2">
+            {/* 제목 줄 오른쪽 = 일기 날짜(기본 오늘, 눌러서 휴대폰 날짜 선택기). 그날 아이 나이는 표시 안 함(2026.11.19 운영자) */}
+            <div className="mb-2 flex items-center justify-between gap-2">
               <p className="text-sm font-medium">책육아 일기</p>
-              <div className="flex flex-col items-end">
-                <label className="relative flex items-center gap-1 rounded-full bg-surface-muted px-3 py-1 text-xs text-text/70">
-                  📅 {formatYmd(diaryDate)}
-                  {diaryDate === todayKST() && <span className="text-text/40">(오늘)</span>}
-                  <span className="text-text/40">›</span>
-                  <input
-                    type="date"
-                    value={diaryDate}
-                    max={todayKST()}
-                    min="2000-01-01"
-                    onChange={(e) => e.target.value && setDiaryDate(e.target.value)}
-                    aria-label="일기 날짜"
-                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  />
-                </label>
-                {kids.length > 0 && childAgesAt(kids, diaryDate) && (
-                  <span className="mt-1 text-[11px] text-text/45">{childAgesAt(kids, diaryDate)}</span>
-                )}
-              </div>
+              <label className="relative flex items-center gap-1 rounded-full bg-surface-muted px-3 py-1 text-xs text-text/70">
+                📅 {formatYmd(diaryDate)}
+                {diaryDate === todayKST() && <span className="text-text/40">(오늘)</span>}
+                <span className="text-text/40">›</span>
+                <input
+                  type="date"
+                  value={diaryDate}
+                  max={todayKST()}
+                  min="2000-01-01"
+                  onChange={(e) => e.target.value && setDiaryDate(e.target.value)}
+                  aria-label="일기 날짜"
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                />
+              </label>
             </div>
             <textarea
               value={memo}
