@@ -17,6 +17,7 @@ import BookTopics, { type TopicLink } from '@/components/book/BookTopics'
 import BookIntro from '@/components/book/BookIntro'
 import { isYes24Book } from '@/lib/bookSource'
 import BookmarkButton from '@/components/BookmarkButton'
+import WishMemoSticky from '@/components/book/WishMemoSticky'
 import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import ShareButton from '@/components/ShareButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
@@ -233,6 +234,17 @@ export default async function BookPage({
   const bookmarkedByMe = Boolean(
     (bookmarkRes.data as { book_id: string } | null)?.book_id
   )
+  // 저장한 책의 '추천이유' 메모(본인만) — 따로 조회해서, 칸이 없거나 실패해도 저장 표시는 그대로 (2026.11.20)
+  let myWishMemo = ''
+  if (user && bookmarkedByMe) {
+    const { data: memoRow } = await supabase
+      .from('bookmarks')
+      .select('memo')
+      .eq('book_id', book.id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    myWishMemo = (memoRow as { memo: string | null } | null)?.memo ?? ''
+  }
   const pubInfo = [book.publisher, book.published_date].filter(Boolean).join(' · ')
   const densityMode = posts.length > 0 ? modeOf(posts.map((p) => p.text_density)) : null
   const topics = aggregateTopics(posts)
@@ -277,18 +289,24 @@ export default async function BookPage({
         <BookSwipeNav isbn={isbn}>
         <section className="rounded-2xl bg-surface p-4 shadow-sm">
           <div className="flex gap-4">
-            <div className="h-32 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-surface-muted">
-              {book.cover_image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={book.cover_image_url}
-                  alt={book.title ?? ''}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-2xl">
-                  📖
-                </div>
+            <div className="relative h-32 w-24 flex-shrink-0">
+              <div className="h-full w-full overflow-hidden rounded-lg bg-surface-muted">
+                {book.cover_image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={book.cover_image_url}
+                    alt={book.title ?? ''}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-2xl">
+                    📖
+                  </div>
+                )}
+              </div>
+              {/* 저장한 본인에게만 — 표지에 붙인 '추천이유' 포스트잇 */}
+              {user && (
+                <WishMemoSticky bookId={book.id} initialBookmarked={bookmarkedByMe} initialMemo={myWishMemo} />
               )}
             </div>
             <div className="min-w-0 flex-1">

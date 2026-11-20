@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import BookCover from '@/components/BookCover'
 import BarcodeScanner, { CameraIcon } from '@/components/record/BarcodeScanner'
+import { saveWishMemo, WISH_MEMO_MAX } from '@/components/book/WishMemoSticky'
 
 // books.book_key와 같은 규칙(lib/bookUpsert bookKeyOf) — 서버 모듈을 브라우저로 끌고 오지 않게 여기 따로 둔다
 const bookKeyOf = (b: { isbn13: string; link: string; title: string }) => b.isbn13 || b.link || b.title
@@ -70,6 +71,10 @@ function WishAddSheet({
   const [searched, setSearched] = useState(false)
   const [error, setError] = useState('')
   const [scanOpen, setScanOpen] = useState(false)
+  // 이번에 담은 책의 '추천이유' 메모 (2026.11.20) — 담은 줄 아래 칸. 선택 사항
+  const [bookIds, setBookIds] = useState<Record<string, string>>({})
+  const [memos, setMemos] = useState<Record<string, string>>({})
+  const [memoState, setMemoState] = useState<Record<string, 'editing' | 'saving' | 'saved' | 'error'>>({})
   // 시트는 버튼을 누른 뒤(브라우저)에만 그려지므로 navigator·document를 바로 써도 된다
   const canScan = typeof navigator.mediaDevices?.getUserMedia === 'function'
   const [status, setStatus] = useState<Record<string, Status>>(() => {
@@ -147,9 +152,23 @@ function WishAddSheet({
       }
       if (!res.ok) throw new Error(data.error || '저장에 실패했습니다.')
       addedRef.current += 1
+      if (data.bookId) setBookIds((m) => ({ ...m, [key]: data.bookId }))
       setStatus((s) => ({ ...s, [key]: 'saved' }))
     } catch {
       setStatus((s) => ({ ...s, [key]: 'error' }))
+    }
+  }
+
+  const saveMemo = async (key: string) => {
+    const bookId = bookIds[key]
+    if (!bookId || !(memos[key] ?? '').trim()) return
+    setMemoState((m) => ({ ...m, [key]: 'saving' }))
+    try {
+      await saveWishMemo(bookId, memos[key])
+      addedRef.current += 1
+      setMemoState((m) => ({ ...m, [key]: 'saved' }))
+    } catch {
+      setMemoState((m) => ({ ...m, [key]: 'error' }))
     }
   }
 
@@ -216,28 +235,69 @@ function WishAddSheet({
               const key = bookKeyOf(item)
               const st = status[key]
               return (
-                <li key={key} className="flex items-center gap-3 py-2.5">
-                  <BookCover src={item.cover} title={item.title} size="sm" className="h-14 w-10 flex-shrink-0 rounded" />
-                  <div className="min-w-0 flex-1">
-                    <p className="line-clamp-2 text-sm font-medium text-text">{item.title}</p>
-                    <p className="truncate text-xs text-text/45">
-                      {[item.author, item.publisher].filter(Boolean).join(' · ')}
-                    </p>
-                    {st === 'error' && <p className="text-xs text-red-500">담지 못했어요. 다시 눌러 주세요.</p>}
+                <li key={key} className="py-2.5">
+                  <div className="flex items-center gap-3">
+                    <BookCover src={item.cover} title={item.title} size="sm" className="h-14 w-10 flex-shrink-0 rounded" />
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-sm font-medium text-text">{item.title}</p>
+                      <p className="truncate text-xs text-text/45">
+                        {[item.author, item.publisher].filter(Boolean).join(' · ')}
+                      </p>
+                      {st === 'error' && <p className="text-xs text-red-500">담지 못했어요. 다시 눌러 주세요.</p>}
+                    </div>
+                    {st === 'read' ? (
+                      <span className="flex-shrink-0 rounded-full bg-surface-muted px-3 py-1.5 text-xs text-text/40">읽은 책</span>
+                    ) : st === 'saved' ? (
+                      <span className="flex-shrink-0 rounded-full bg-main/10 px-3 py-1.5 text-xs font-medium text-main">담음 ✓</span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={st === 'saving'}
+                        onClick={() => add(item)}
+                        className="flex-shrink-0 rounded-full border border-main/40 px-3 py-1.5 text-xs font-medium text-main disabled:opacity-50"
+                      >
+                        {st === 'saving' ? '담는 중…' : '담기'}
+                      </button>
+                    )}
                   </div>
-                  {st === 'read' ? (
-                    <span className="flex-shrink-0 rounded-full bg-surface-muted px-3 py-1.5 text-xs text-text/40">읽은 책</span>
-                  ) : st === 'saved' ? (
-                    <span className="flex-shrink-0 rounded-full bg-main/10 px-3 py-1.5 text-xs font-medium text-main">담음 ✓</span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={st === 'saving'}
-                      onClick={() => add(item)}
-                      className="flex-shrink-0 rounded-full border border-main/40 px-3 py-1.5 text-xs font-medium text-main disabled:opacity-50"
-                    >
-                      {st === 'saving' ? '담는 중…' : '담기'}
-                    </button>
+                  {/* 담은 직후 — 추천받은 이유 메모(선택). 책 페이지 표지에 포스트잇으로 붙는다 */}
+                  {st === 'saved' && bookIds[key] && (
+                    <div className="ml-[52px] mt-2">
+                      {memoState[key] === 'saved' ? (
+                        <button
+                          type="button"
+                          onClick={() => setMemoState((m) => ({ ...m, [key]: 'editing' }))}
+                          className="text-left text-xs text-text/60"
+                        >
+                          <span className="font-medium text-text/70">추천이유 :</span> {memos[key]}{' '}
+                          <span className="text-text/35">· 고치기</span>
+                        </button>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <input
+                              value={memos[key] ?? ''}
+                              onChange={(e) => setMemos((m) => ({ ...m, [key]: e.target.value.slice(0, WISH_MEMO_MAX) }))}
+                              onKeyDown={(e) => e.key === 'Enter' && saveMemo(key)}
+                              placeholder="추천받은 이유 (선택)"
+                              enterKeyHint="done"
+                              className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-main"
+                            />
+                            <button
+                              type="button"
+                              disabled={!(memos[key] ?? '').trim() || memoState[key] === 'saving'}
+                              onClick={() => saveMemo(key)}
+                              className="rounded-lg bg-main px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-40"
+                            >
+                              {memoState[key] === 'saving' ? '저장 중' : '저장'}
+                            </button>
+                          </div>
+                          {memoState[key] === 'error' && (
+                            <p className="mt-1 text-xs text-red-500">메모를 저장하지 못했어요. 다시 눌러 주세요.</p>
+                          )}
+                        </>
+                      )}
+                    </div>
                   )}
                 </li>
               )

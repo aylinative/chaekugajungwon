@@ -27,6 +27,7 @@ interface MyPostRow {
 }
 
 interface MyBookmarkRow {
+  book_id: string
   book: { book_key: string | null; title: string | null; cover_image_url: string | null } | null
 }
 
@@ -57,7 +58,7 @@ export default async function MyPage() {
       .order('created_at', { ascending: false }),
     supabase
       .from('bookmarks')
-      .select(`book:books ( book_key, title, cover_image_url )`)
+      .select(`book_id, book:books ( book_key, title, cover_image_url )`)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
   ])
@@ -138,10 +139,20 @@ export default async function MyPage() {
     new Set(posts.map((p) => p.book?.book_key).filter((k): k is string => Boolean(k)))
   )
 
+  // '추천이유' 메모(본인만) — 따로 조회해서, 칸이 없거나 실패해도 책장은 그대로 (2026.11.20)
+  const { data: memoRows } = await supabase
+    .from('bookmarks')
+    .select('book_id, memo')
+    .eq('user_id', user.id)
+    .not('memo', 'is', null)
+  const memoByBook = new Map(
+    ((memoRows as { book_id: string; memo: string | null }[] | null) ?? []).map((m) => [m.book_id, m.memo ?? ''])
+  )
   const wishItems: ShelfItem[] = bookmarks.map((b) => ({
     href: `/book/${encodeURIComponent(b.book!.book_key ?? '')}`,
     cover: b.book!.cover_image_url,
     title: b.book!.title ?? '(제목 없음)',
+    note: memoByBook.get(b.book_id) || undefined,
   }))
 
   return (
