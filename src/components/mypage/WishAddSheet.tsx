@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import BookCover from '@/components/BookCover'
 import BarcodeScanner, { CameraIcon } from '@/components/record/BarcodeScanner'
-import { saveWishMemo, WISH_MEMO_MAX } from '@/components/book/WishMemoSticky'
+import { saveWishMemo, WISH_MEMO_MAX } from '@/components/book/WishMemoNote'
 
 // books.book_key와 같은 규칙(lib/bookUpsert bookKeyOf) — 서버 모듈을 브라우저로 끌고 오지 않게 여기 따로 둔다
 const bookKeyOf = (b: { isbn13: string; link: string; title: string }) => b.isbn13 || b.link || b.title

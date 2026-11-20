@@ -3,13 +3,21 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-// 읽고 싶은 책 '추천이유' 메모 — 책 표지에 붙인 포스트잇 (2026.11.20).
-// 저장(북마크)한 본인에게만 보인다(bookmarks.memo, 본인만 읽기). 공개 기록 카드와 다른 재질(메모지)로 '내 개인 메모'임을 드러내고,
-// 표지 위에 떠 있어 아래 버튼 줄을 밀지 않는다. ✕ = 표지 귀퉁이 '추천이유' 탭으로 접기 / 메모 글씨 = 시트에서 보기·고치기·지우기.
-// 부모(표지 감싸는 div)는 relative여야 한다. 저장 해제·재저장은 BookmarkButton의 'bookmark-change' 이벤트로 따라간다.
+// 읽고 싶은 책 '추천이유' 메모 (2026.11.20) — 저장(북마크)한 본인에게만(bookmarks.memo, 본인만 읽기).
+// 자리: 책 정보 오른쪽 칸('책 정보 보기' 아래 비어 있던 곳) — 표지·소개를 가리지 않고, 내용 길이만큼만 차지.
+// 모양: '저장됨' 버튼과 같은 초록 칩 + 북마크 아이콘 → '내가 저장한 책에 붙인 메모'로 읽힌다(기록·공개 정보와 구분).
+// 누르면 시트에서 보기·고치기·지우기. 메모 없으면 '+ 추천이유 메모' 글자 링크. 저장 해제·재저장은 'bookmark-change' 이벤트로 따라간다.
+// ⚠️ 표지 위 포스트잇(노랑·기울기·고정폭) 안은 기존 UI와 안 맞아 폐기(2026.11.20 운영자).
 
 export const WISH_MEMO_MAX = 200
-const PAPER = 'bg-[#FBEFB8] text-[#5A4A2A] shadow-[0_3px_8px_rgba(58,51,43,0.18)]' // 바랜 메모지 색 — 개인 메모 전용
+
+export function BookmarkMark({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden className="flex-shrink-0">
+      <path d="M19 21l-7-4.5L5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+    </svg>
+  )
+}
 
 export async function saveWishMemo(bookId: string, memo: string): Promise<string> {
   const res = await fetch(`/api/books/${bookId}/bookmark`, {
@@ -99,7 +107,7 @@ function MemoSheet({
   )
 }
 
-export default function WishMemoSticky({
+export default function WishMemoNote({
   bookId,
   initialBookmarked,
   initialMemo,
@@ -110,7 +118,6 @@ export default function WishMemoSticky({
 }) {
   const [bookmarked, setBookmarked] = useState(initialBookmarked)
   const [memo, setMemo] = useState(initialMemo)
-  const [folded, setFolded] = useState(false)
   const [sheet, setSheet] = useState(false)
 
   // 저장 버튼으로 해제하면 메모도 함께 사라지고(행 삭제), 다시 저장하면 빈 메모로 시작
@@ -120,7 +127,6 @@ export default function WishMemoSticky({
       if (d?.bookId !== bookId) return
       setBookmarked(d.bookmarked)
       if (!d.bookmarked) setMemo('')
-      setFolded(false)
     }
     window.addEventListener('bookmark-change', onChange)
     return () => window.removeEventListener('bookmark-change', onChange)
@@ -130,40 +136,27 @@ export default function WishMemoSticky({
 
   return (
     <>
-      {memo && !folded ? (
-        <div className={`absolute -bottom-3 left-2 z-10 w-44 -rotate-2 rounded-sm px-2.5 pb-2 pt-1.5 ${PAPER}`}>
-          {/* 테이프 */}
-          <span className="absolute -top-1.5 left-1/2 h-3 w-10 -translate-x-1/2 rotate-2 bg-white/60" aria-hidden />
-          <div className="flex items-start gap-1">
-            <button
-              type="button"
-              onClick={() => setSheet(true)}
-              aria-label="추천받은 이유 보기·고치기"
-              className="min-w-0 flex-1 text-left"
-            >
-              <span className="block truncate text-[11px] leading-snug">
-                <span className="font-semibold">추천이유 :</span> {memo}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setFolded(true)}
-              aria-label="메모 접기"
-              className="-mr-1 -mt-0.5 px-1 text-[11px] leading-none opacity-50"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      ) : (
-        // 접힌 상태 / 메모 없음 — 표지 귀퉁이 작은 메모지 탭
+      {memo ? (
         <button
           type="button"
-          onClick={() => (memo ? setFolded(false) : setSheet(true))}
-          aria-label={memo ? '추천받은 이유 펼치기' : '추천받은 이유 적기'}
-          className={`absolute -right-2 bottom-2 z-10 rotate-3 rounded-sm px-1.5 py-0.5 text-[10px] font-medium ${PAPER}`}
+          onClick={() => setSheet(true)}
+          aria-label="추천받은 이유 보기·고치기"
+          className="mt-2.5 flex w-fit max-w-full items-start gap-1.5 rounded-xl bg-main/10 px-2.5 py-1.5 text-left text-xs leading-snug text-main"
         >
-          {memo ? '추천이유' : '+ 추천이유'}
+          <span className="mt-px">
+            <BookmarkMark />
+          </span>
+          <span className="line-clamp-2 text-text/75">
+            <span className="font-medium text-main">추천이유 :</span> {memo}
+          </span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setSheet(true)}
+          className="mt-2.5 flex items-center gap-1 text-xs text-text/45"
+        >
+          <BookmarkMark />+ 추천이유 메모
         </button>
       )}
       {sheet && (
@@ -173,7 +166,6 @@ export default function WishMemoSticky({
           onClose={() => setSheet(false)}
           onSaved={(m) => {
             setMemo(m)
-            setFolded(false)
             setSheet(false)
           }}
         />

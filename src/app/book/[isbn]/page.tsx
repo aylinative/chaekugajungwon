@@ -17,7 +17,7 @@ import BookTopics, { type TopicLink } from '@/components/book/BookTopics'
 import BookIntro from '@/components/book/BookIntro'
 import { isYes24Book } from '@/lib/bookSource'
 import BookmarkButton from '@/components/BookmarkButton'
-import WishMemoSticky from '@/components/book/WishMemoSticky'
+import WishMemoNote from '@/components/book/WishMemoNote'
 import RecommendButton, { ThumbIcon } from '@/components/RecommendButton'
 import ShareButton from '@/components/ShareButton'
 import TextDensityMeter from '@/components/TextDensityMeter'
@@ -289,7 +289,7 @@ export default async function BookPage({
         <BookSwipeNav isbn={isbn}>
         <section className="rounded-2xl bg-surface p-4 shadow-sm">
           <div className="flex gap-4">
-            <div className="relative h-32 w-24 flex-shrink-0">
+            <div className="h-32 w-24 flex-shrink-0">
               <div className="h-full w-full overflow-hidden rounded-lg bg-surface-muted">
                 {book.cover_image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -304,10 +304,6 @@ export default async function BookPage({
                   </div>
                 )}
               </div>
-              {/* 저장한 본인에게만 — 표지에 붙인 '추천이유' 포스트잇 */}
-              {user && (
-                <WishMemoSticky bookId={book.id} initialBookmarked={bookmarkedByMe} initialMemo={myWishMemo} />
-              )}
             </div>
             <div className="min-w-0 flex-1">
               <h1 className="text-lg font-bold leading-snug text-text">
@@ -337,6 +333,8 @@ export default async function BookPage({
                   책 정보 보기 ›
                 </a>
               )}
+              {/* 저장한 본인에게만 — '추천이유' 메모 (오른쪽 빈 칸, 내용 길이만큼) */}
+              {user && <WishMemoNote bookId={book.id} initialBookmarked={bookmarkedByMe} initialMemo={myWishMemo} />}
             </div>
           </div>
           {/* 책 소개 2줄 + 더보기, 예스24 책이면 출처 — 구분선 위(책 정보 묶음의 끝) (2026.11.17) */}

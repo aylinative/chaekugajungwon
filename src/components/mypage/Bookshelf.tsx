@@ -7,7 +7,7 @@ export interface ShelfItem {
   href: string
   cover: string | null
   title: string
-  note?: string // 읽고 싶은 책 '추천이유' 메모 — 표지에 메모지로 한 줄 (2026.11.20)
+  note?: string // 읽고 싶은 책 '추천이유' 메모 — 표지 아래 작은 칩(내용 길이만큼, 홈 보드북 배지와 같은 모양) (2026.11.20)
 }
 
 // 전면책장 — 한 행 4권(표지만), 각 행 아래 '선반 바'로 책이 꽂힌 느낌.
@@ -65,8 +65,11 @@ export default function Bookshelf({
                     </div>
                   )}
                   {item.note && (
-                    <span className="absolute inset-x-1 bottom-1 -rotate-2 truncate rounded-sm bg-[#FBEFB8] px-1 py-0.5 text-[9px] leading-tight text-[#5A4A2A] shadow-sm">
-                      {item.note}
+                    <span className="absolute bottom-1 left-1 flex max-w-[calc(100%-0.5rem)] items-center gap-0.5 rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] leading-tight text-main shadow-sm">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="flex-shrink-0">
+                        <path d="M19 21l-7-4.5L5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+                      </svg>
+                      <span className="truncate">{item.note}</span>
                     </span>
                   )}
                 </div>
