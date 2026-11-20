@@ -101,3 +101,47 @@ export async function DELETE(
     count: await getBookmarkCount(supabase, bookId),
   })
 }
+
+// '추천이유' 메모 저장·지우기 (2026.11.20) — 내가 저장한 책에만. 빈 문자열이면 지움. 본인만 읽는 칸(bookmarks.memo)
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: bookId } = await params
+  const supabase = await createServerSupabase()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
+  }
+
+  let raw: unknown
+  try {
+    raw = (await request.json())?.memo
+  } catch {
+    // 아래에서 400
+  }
+  if (typeof raw !== 'string' || raw.trim().length > 200) {
+    return NextResponse.json({ error: '메모는 200자까지 쓸 수 있어요.' }, { status: 400 })
+  }
+  const memo = raw.trim() || null
+
+  const { data, error } = await supabase
+    .from('bookmarks')
+    .update({ memo })
+    .eq('user_id', user.id)
+    .eq('book_id', bookId)
+    .select('book_id')
+  if (error) {
+    console.error('Bookmark memo error:', error)
+    return NextResponse.json({ error: '메모를 저장하지 못했어요.' }, { status: 500 })
+  }
+  if (!data || data.length === 0) {
+    return NextResponse.json({ error: '저장한 책에만 메모를 남길 수 있어요.' }, { status: 404 })
+  }
+
+  revalidatePath('/', 'layout')
+  return NextResponse.json({ memo })
+}

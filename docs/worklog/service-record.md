@@ -100,3 +100,21 @@ master에 합칠 때 CLAUDE.md로 옮기고, 옮긴 항목에는 (반영됨 커�
   (2026.11.20 기준 가입 160명 중 아이 정보 입력 138명 = 86%)
 [10.3 시트 구성 '제목' 줄 수정] "어느 시기 아이에게 추천하시나요? (복수 선택 가능)" — 지금 아이 시기 하나만 고르는 쏠림 방지. 괄호는 작은 회색 글씨.
 [15장 Deferred TODO에 추가] □ [홈 카드] 기록 수·추천 수·저장 다시 노출 검토 — 기록·추천이 충분히 쌓여 숫자가 '활발함'으로 읽힐 때(2026.11.20 운영자). 옛 코드는 git 60c2eaf 이전 BookCard.
+
+## 2026.11.20 — 읽고 싶은 책 '추천이유' 메모 (포스트잇)
+[요청→data] bookmarks에 메모 칸 추가 (코드 배포 전에 실행 필요):
+  alter table public.bookmarks add column if not exists memo text check (memo is null or char_length(memo) <= 200);
+  - RLS는 기존 bookmarks 정책(본인만 읽기·쓰기) 그대로. update 정책이 없으면 본인 update 허용 정책 추가
+    (create policy ... for update using (auth.uid() = user_id) with check (auth.uid() = user_id)).
+  - 탈퇴 함수(delete_my_account)는 bookmarks 행을 지우므로 변경 불필요.
+[11.3 마이페이지 ② 아래에 추가] '추천이유' 메모(bookmarks.memo, ≤200자, 본인만): 담기 시트에서 '담기' 직후 그 줄 아래 칸(선택),
+  책 페이지 표지에 붙은 포스트잇(components/book/WishMemoSticky — '추천이유 : …' 한 줄, ✕=귀퉁이 탭으로 접기, 글씨=시트에서 보기·고치기·지우기,
+  메모 없으면 '+ 추천이유' 탭), 마이 책장 표지에 메모지 한 줄. 메모지 색 #FBEFB8은 '내 개인 메모' 전용.
+  저장 해제·기록하면(자동 해제) 메모도 사라짐(운영자 (나)안). API: PATCH /api/books/[id]/bookmark {memo}.
+  ⚠️ 이전 안(말풍선+📝 버튼)은 '책육아 기록이 있다'처럼 보여 폐기(2026.11.20 운영자).
+
+## 2026.11.20 — 없는 주소 안내 페이지
+[10.2 또는 19.2 끝에 추가] 없는 주소(통합·정리된 책의 옛 ISBN 등)는 한국어 안내(app/not-found.tsx — '찾는 페이지가 없어요' + 책 검색·홈).
+  옛 주소 넘기기(301)는 하지 않음(2026.11.20 운영자 — 옛 책은 정보가 없음). 응답은 로딩 뼈대 스트리밍 때문에 200이지만 Next가 noindex를 붙여 검색에 안 잡힘.
+[13.1 끝에 추가] 통합한 책(lib/mergedBooks.ts MERGED_BOOKS, 옛 ISBN→남긴 ISBN): 책 검색(/api/books/search — 기록하기·담기·검색 공용)에서 옛 판을 빼고,
+  옛 판 바코드·ISBN을 넣으면 남긴 책으로 찾음. data 탭이 DB에서 통합하면 여기에 한 줄 추가. 첫 항목: 사과가 쿵 9788943306090 → 9788943302344 (2026.11.20).

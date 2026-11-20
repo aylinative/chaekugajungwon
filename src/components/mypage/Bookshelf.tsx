@@ -7,6 +7,7 @@ export interface ShelfItem {
   href: string
   cover: string | null
   title: string
+  note?: string // 읽고 싶은 책 '추천이유' 메모 — 표지에 메모지로 한 줄 (2026.11.20)
 }
 
 // 전면책장 — 한 행 4권(표지만), 각 행 아래 '선반 바'로 책이 꽂힌 느낌.
@@ -49,7 +50,7 @@ export default function Bookshelf({
               <Link key={`${item.href}-${i}`} href={item.href} className="block">
                 {/* 표지: 위 모서리만 둥글게 → 선반에 평평히 얹힌 느낌 */}
                 {/* 눌림 효과 — 탭 즉시 반응 */}
-                <div className="aspect-[3/4] w-full overflow-hidden rounded-t-md bg-surface-muted shadow-sm transition duration-100 active:scale-[0.96] active:opacity-80">
+                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-t-md bg-surface-muted shadow-sm transition duration-100 active:scale-[0.96] active:opacity-80">
                   {item.cover ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -62,6 +63,11 @@ export default function Bookshelf({
                     <div className="flex h-full w-full items-center justify-center text-lg">
                       📖
                     </div>
+                  )}
+                  {item.note && (
+                    <span className="absolute inset-x-1 bottom-1 -rotate-2 truncate rounded-sm bg-[#FBEFB8] px-1 py-0.5 text-[9px] leading-tight text-[#5A4A2A] shadow-sm">
+                      {item.note}
+                    </span>
                   )}
                 </div>
               </Link>
