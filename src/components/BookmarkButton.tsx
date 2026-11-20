@@ -55,7 +55,7 @@ export default function BookmarkButton({
       setBookmarked(data.bookmarked)
       setCount(data.count)
       onToggled?.(data.bookmarked)
-      // 같은 화면의 '추천이유' 포스트잇(WishMemoSticky)이 저장 해제·재저장을 따라가게
+      // 같은 화면의 '추천이유' 메모(WishMemoNote)이 저장 해제·재저장을 따라가게
       window.dispatchEvent(new CustomEvent('bookmark-change', { detail: { bookId, bookmarked: data.bookmarked } }))
     } catch (err) {
       setBookmarked(prev.bookmarked)
