@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rerankBooks, type BookItem } from '@/lib/pictureBookRanking';
 import { isYes24Active } from '@/lib/bookSource';
+import { mergedTarget, MERGED_BOOKS } from '@/lib/mergedBooks';
 
 // 책 검색 — 응답 형태(items[])를 유지해 프론트·저장 로직은 무변경(어댑터 방식).
 // 2026.11.17: 예스24 Open API 전환 준비. YES24_START_AT 이후 예스24, 그 전엔 카카오(lib/bookSource).
@@ -216,7 +217,8 @@ export async function GET(request: NextRequest) {
   try {
     // 바코드 스캔 등 ISBN 문자열이면 ISBN 검색, 그 외에는 통합(제목+저자) 검색.
     const isIsbn = looksLikeIsbn(query);
-    let mapped = await searchBooks(query, isIsbn);
+    // 통합한 책의 옛 판 ISBN(바코드)이면 남긴 책으로 찾는다 (lib/mergedBooks)
+    let mapped = await searchBooks((isIsbn && mergedTarget(query)) || query, isIsbn);
     // 결과가 없으면 권 번호·부제를 떼고 한 번 더 (2026.11.03 제보: 서점 표기 '방귀 요정 뿡뿌 1 - 복수의 독방귀'는
     // 카카오 제목 '방귀 요정 뿡뿌'와 달라 0건이었다)
     if (!isIsbn && mapped.length === 0) {
@@ -225,6 +227,8 @@ export async function GET(request: NextRequest) {
     }
 
     // ISBN 정확검색은 단건 정확이라 재정렬 불필요. 제목/키워드 검색만 재정렬.
+    // 통합해서 지운 옛 판은 결과에서 뺀다 — 같은 책이 두 번 보이거나 옛 판으로 새로 기록되지 않게
+    mapped = mapped.filter((b) => !(b.isbn13 && MERGED_BOOKS[b.isbn13]));
     const items = isIsbn ? mapped : rerankBooks(mapped, query);
     return NextResponse.json({ items });
   } catch (error) {
