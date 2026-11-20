@@ -113,7 +113,8 @@ export default function RecommendSheet({ bookId, initialGroups, onSaved, onClose
         ) : (
           <>
             <p className="mb-4 text-center text-sm font-semibold text-text">
-              어느 시기 아이에게 추천하시나요?
+              어느 시기 아이에게 추천하시나요?{' '}
+              <span className="text-xs font-normal text-text/50">(복수 선택 가능)</span>
             </p>
             {/* 6개 시기 칩 — 3×2 그리드, 스크롤 없이 한 화면 */}
             <div className="grid grid-cols-3 gap-2">

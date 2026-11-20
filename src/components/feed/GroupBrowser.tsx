@@ -142,7 +142,6 @@ export default function GroupBrowser({
             <BookCardItem
               key={card.bookId}
               card={card}
-              isLoggedIn={isLoggedIn}
               fullWidth
               showBoardBook={showBoardBook}
               navIsbns={navIsbns}
