@@ -5,19 +5,11 @@ import { createPortal } from 'react-dom'
 
 // 읽고 싶은 책 '추천이유' 메모 (2026.11.20) — 저장(북마크)한 본인에게만(bookmarks.memo, 본인만 읽기).
 // 자리: 책 정보 오른쪽 칸('책 정보 보기' 아래 비어 있던 곳) — 표지·소개를 가리지 않고, 내용 길이만큼만 차지.
-// 모양: '저장됨' 버튼과 같은 초록 칩 + 북마크 아이콘 → '내가 저장한 책에 붙인 메모'로 읽힌다(기록·공개 정보와 구분).
-// 누르면 시트에서 보기·고치기·지우기. 메모 없으면 '+ 추천이유 메모' 글자 링크. 저장 해제·재저장은 'bookmark-change' 이벤트로 따라간다.
+// 모양: 상자·색·아이콘 없이 작은 회색 글자 한 줄(최대 2줄) — '나만 보는 메모' 정도의 존재감(2026.11.20 운영자).
+//   초록 칩+북마크 아이콘 안은 크고 '저장됨' 버튼과 겹쳐 보여 폐기. 누르면 시트에서 보기·고치기·지우기. 메모 없으면 '+ 추천이유 메모'. 저장 해제·재저장은 'bookmark-change' 이벤트로 따라간다.
 // ⚠️ 표지 위 포스트잇(노랑·기울기·고정폭) 안은 기존 UI와 안 맞아 폐기(2026.11.20 운영자).
 
 export const WISH_MEMO_MAX = 200
-
-export function BookmarkMark({ size = 12 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden className="flex-shrink-0">
-      <path d="M19 21l-7-4.5L5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-    </svg>
-  )
-}
 
 export async function saveWishMemo(bookId: string, memo: string): Promise<string> {
   const res = await fetch(`/api/books/${bookId}/bookmark`, {
@@ -136,29 +128,20 @@ export default function WishMemoNote({
 
   return (
     <>
-      {memo ? (
-        <button
-          type="button"
-          onClick={() => setSheet(true)}
-          aria-label="추천받은 이유 보기·고치기"
-          className="mt-2.5 flex w-fit max-w-full items-start gap-1.5 rounded-xl bg-main/10 px-2.5 py-1.5 text-left text-xs leading-snug text-main"
-        >
-          <span className="mt-px">
-            <BookmarkMark />
+      <button
+        type="button"
+        onClick={() => setSheet(true)}
+        aria-label={memo ? '추천받은 이유 보기·고치기' : '추천받은 이유 적기'}
+        className="mt-2 block max-w-full text-left text-xs leading-snug text-text/40"
+      >
+        {memo ? (
+          <span className="line-clamp-2">
+            <span className="text-text/55">추천이유 :</span> {memo}
           </span>
-          <span className="line-clamp-2 text-text/75">
-            <span className="font-medium text-main">추천이유 :</span> {memo}
-          </span>
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setSheet(true)}
-          className="mt-2.5 flex items-center gap-1 text-xs text-text/45"
-        >
-          <BookmarkMark />+ 추천이유 메모
-        </button>
-      )}
+        ) : (
+          '+ 추천이유 메모'
+        )}
+      </button>
       {sheet && (
         <MemoSheet
           bookId={bookId}

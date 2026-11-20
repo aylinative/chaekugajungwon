@@ -7,7 +7,7 @@ export interface ShelfItem {
   href: string
   cover: string | null
   title: string
-  note?: string // 읽고 싶은 책 '추천이유' 메모 — 표지 아래 작은 칩(내용 길이만큼, 홈 보드북 배지와 같은 모양) (2026.11.20)
+  note?: string // 읽고 싶은 책 '추천이유' 메모 — 선반 아래 작은 회색 글자 한 줄(표지는 가리지 않음) (2026.11.20)
 }
 
 // 전면책장 — 한 행 4권(표지만), 각 행 아래 '선반 바'로 책이 꽂힌 느낌.
@@ -50,7 +50,7 @@ export default function Bookshelf({
               <Link key={`${item.href}-${i}`} href={item.href} className="block">
                 {/* 표지: 위 모서리만 둥글게 → 선반에 평평히 얹힌 느낌 */}
                 {/* 눌림 효과 — 탭 즉시 반응 */}
-                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-t-md bg-surface-muted shadow-sm transition duration-100 active:scale-[0.96] active:opacity-80">
+                <div className="aspect-[3/4] w-full overflow-hidden rounded-t-md bg-surface-muted shadow-sm transition duration-100 active:scale-[0.96] active:opacity-80">
                   {item.cover ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -64,20 +64,24 @@ export default function Bookshelf({
                       📖
                     </div>
                   )}
-                  {item.note && (
-                    <span className="absolute bottom-1 left-1 flex max-w-[calc(100%-0.5rem)] items-center gap-0.5 rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] leading-tight text-main shadow-sm">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="flex-shrink-0">
-                        <path d="M19 21l-7-4.5L5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-                      </svg>
-                      <span className="truncate">{item.note}</span>
-                    </span>
-                  )}
                 </div>
               </Link>
             ))}
           </div>
           {/* 선반 바 (나무 톤) — 밑에 옅은 그림자로 책이 꽂힌 판자처럼 */}
-          <div className="mb-5 mt-0.5 h-2.5 rounded-[3px] bg-[#dcc59b] shadow-[0_3px_5px_-1px_rgba(120,90,50,0.28)]" />
+          <div
+            className={`${row.some((it) => it.note) ? 'mb-1' : 'mb-5'} mt-0.5 h-2.5 rounded-[3px] bg-[#dcc59b] shadow-[0_3px_5px_-1px_rgba(120,90,50,0.28)]`}
+          />
+          {/* 추천이유 메모 — 그 줄에 메모가 있을 때만, 표지 바로 아래 칸에 회색 글자 한 줄 */}
+          {row.some((it) => it.note) && (
+            <div className="mb-4 grid grid-cols-4 gap-2">
+              {row.map((item, i) => (
+                <p key={i} className="truncate text-[10px] leading-tight text-text/40">
+                  {item.note ?? ''}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       ))}
 
