@@ -24,10 +24,8 @@ const AGE_LABEL: Record<string, string> = Object.fromEntries(
 
 export default function GroupSection({
   section,
-  isLoggedIn,
 }: {
   section: GroupSectionData
-  isLoggedIn: boolean
 }) {
   // 책 페이지에서 좌우로 넘길 목록 = 이 섹션에 보이는 순서 그대로
   const navIsbns = section.cards.map((c) => c.isbn)
@@ -62,7 +60,6 @@ export default function GroupSection({
             <BookCardItem
               key={card.bookId}
               card={card}
-              isLoggedIn={isLoggedIn}
               showBoardBook={section.value === 'seed' || section.value === 'sprout'}
               navIsbns={navIsbns}
             />

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import GroupSection from './GroupSection'
 import { openLoginSheet } from '@/components/auth/LoginSheet'
@@ -12,12 +12,14 @@ import {
 } from '@/lib/feedShared'
 
 // 홈 피드 섹션 정렬 컨트롤 (STEP 2 + 정렬 드롭다운).
-// - 섹션 순서: '우리 아이 시기 먼저' 토글 — OFF(기본) 연령 오름차순 고정(CLAUDE.md 7장),
+// - 섹션 순서: '우리 아이 시기 먼저' 토글 — 아이 정보가 있으면 기본 ON(2026.11.20 운영자), 끄면 이 기기에 기억(localStorage).
+//   OFF면 연령 오름차순 고정(CLAUDE.md 7장),
 //   ON이면 아이 시기(첫째 순, 중복 제거) 먼저 → 나머지 오름차순. 토글은 모두에게 보인다(2026.11.05 운영자):
 //   로그인 안 함 → 로그인 시트 / 아이 정보 없음 → 마이페이지에서 아이 등록 안내 / 아이 있음 → 켜고 끄기.
 // - 카드 정렬: 추천순(기본, 서버 랭킹 유지) / 신간순(출간일 최신) / 제목순. 각 섹션 카드에 적용.
 //   ※ 홈은 시기당 상위 12개 미리보기라 그 12개 안에서 재정렬된다(전체 정렬은 그룹 더보기).
 const SORT_OPTIONS: CardSort[] = ['recommend', 'published', 'title']
+const BY_CHILD_KEY = 'feed:byChild'
 
 export default function FeedSections({
   sections,
@@ -28,10 +30,30 @@ export default function FeedSections({
   childGroups: string[]
   isLoggedIn: boolean
 }) {
-  const [byChild, setByChild] = useState(false)
+  const hasChild = childGroups.length > 0
+  const [byChild, setByChild] = useState(hasChild)
   const [sort, setSort] = useState<CardSort>('recommend')
   const [needChildHint, setNeedChildHint] = useState(false)
-  const hasChild = childGroups.length > 0
+
+  // 직접 끈 사람은 다음 방문에도 꺼진 채로 (기기별 편의 — 저장 실패해도 기본 ON으로 동작)
+  useEffect(() => {
+    if (!hasChild) return
+    try {
+      if (localStorage.getItem(BY_CHILD_KEY) === 'off') setByChild(false) // eslint-disable-line react-hooks/set-state-in-effect -- 브라우저 저장소 확인 후 1회
+    } catch {
+      /* 저장소 막힘 — 기본값 유지 */
+    }
+  }, [hasChild])
+  const toggleByChild = () => {
+    const next = !byChild
+    setByChild(next)
+    try {
+      if (next) localStorage.removeItem(BY_CHILD_KEY)
+      else localStorage.setItem(BY_CHILD_KEY, 'off')
+    } catch {
+      /* 무시 */
+    }
+  }
 
   const ordered =
     byChild && hasChild
@@ -53,7 +75,7 @@ export default function FeedSections({
             onClick={() => {
               if (!isLoggedIn) return openLoginSheet('child')
               if (!hasChild) return setNeedChildHint((v) => !v)
-              setByChild((v) => !v)
+              toggleByChild()
             }}
             className="flex items-center gap-2"
           >
@@ -103,7 +125,6 @@ export default function FeedSections({
           <GroupSection
             key={s.value}
             section={{ ...s, cards: sortCardsBy(s.cards, sort) }}
-            isLoggedIn={isLoggedIn}
           />
         ))}
       </div>

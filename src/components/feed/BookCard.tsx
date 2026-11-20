@@ -1,48 +1,26 @@
 import Link from 'next/link'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
-import BookmarkButton from '@/components/BookmarkButton'
-import { ThumbIcon } from '@/components/RecommendButton'
 import type { BookCard } from '@/lib/feedShared'
 import { saveBookNav, bookNavHref } from '@/lib/bookNav'
 
 // 홈 피드 카드 = 책 1권 (기록 집계). 탭 시 /book/[isbn]으로 이동.
-// 추천(👍)은 표시 전용 — 추천 행위는 책 페이지의 기록 카드·상세에서 한다.
-// 정보 우선순위: 대표 아이 반응 > 기록 수·주제 > 추천 수·저장.
+// 정보 우선순위: 대표 아이 반응 > 시기·주제.
+// 기록 수·추천 수·저장 버튼은 두지 않는다(2026.11.20 운영자) — 추천순 정렬이 이미 반영하고, 책 페이지에 다 있으며,
+// 이용자가 적은 지금 '1, 2' 같은 작은 숫자가 서비스가 한산하다는 인상을 준다.
 // 글밥량은 책 페이지에서 확인 (홈에서는 미표시 — 정보 과밀 방지).
 
 const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.selectedClass])
 )
 
-// 기록 수 아이콘 (문서) — '기록 N' 텍스트 대신 아이콘으로 통일
-function RecordIcon({ size = 13 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <path d="M14 2v6h6M8 13h8M8 17h5" />
-    </svg>
-  )
-}
-
 export default function BookCardItem({
   card,
-  isLoggedIn,
   fullWidth = false,
   showBoardBook = false,
   navIsbns,
 }: {
   card: BookCard
-  isLoggedIn: boolean
   fullWidth?: boolean // true=그리드 셀 꽉 채움(전체보기) / false=가로 스크롤 고정폭(홈)
   showBoardBook?: boolean // 씨앗·새싹 섹션에서만 보드북 배지 노출(0~18M에 유용한 물성)
   navIsbns?: string[] // 이 카드가 속한 목록(보이는 순서) — 있으면 책 페이지에서 좌우로 넘기기 (lib/bookNav)
@@ -54,7 +32,7 @@ export default function BookCardItem({
       className={`flex flex-col gap-2 ${fullWidth ? 'w-full' : 'w-28 flex-shrink-0'}`}
     >
       {/* 표지 */}
-      {/* 눌림 효과(표지에만 — 카드 전체에 걸면 저장 버튼을 누를 때도 카드가 눌린 듯 보임) */}
+      {/* 눌림 효과(표지에만) */}
       <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-surface-muted shadow-sm transition duration-100 active:scale-[0.96] active:opacity-80">
         {card.cover ? (
           // 외부 이미지: next/image 도메인 설정 회피 위해 img 사용
@@ -123,24 +101,6 @@ export default function BookCardItem({
         )}
       </div>
 
-      {/* 기록 수 + 추천 수(표시 전용) + 저장 — 모두 아이콘 */}
-      <div className="flex items-center justify-end gap-2 text-xs text-text/40">
-        <span className="flex items-center gap-0.5" aria-label={`기록 ${card.recordCount}`}>
-          <RecordIcon size={12} />
-          {card.recordCount}
-        </span>
-        <span className="flex items-center gap-0.5" aria-label={`추천 ${card.recommendUserCount}`}>
-          <ThumbIcon filled={false} size={13} />
-          {card.recommendUserCount}
-        </span>
-        <BookmarkButton
-          bookId={card.bookId}
-          initialBookmarked={card.bookmarkedByMe}
-          initialCount={card.bookmarkCount}
-          isLoggedIn={isLoggedIn}
-          variant="card"
-        />
-      </div>
     </Link>
   )
 }
