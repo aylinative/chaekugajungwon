@@ -7,7 +7,6 @@ export interface ShelfItem {
   href: string
   cover: string | null
   title: string
-  note?: string // 읽고 싶은 책 '추천이유' 메모 — 선반 아래 작은 회색 글자 한 줄(표지는 가리지 않음) (2026.11.20)
 }
 
 // 전면책장 — 한 행 4권(표지만), 각 행 아래 '선반 바'로 책이 꽂힌 느낌.
@@ -70,18 +69,8 @@ export default function Bookshelf({
           </div>
           {/* 선반 바 (나무 톤) — 밑에 옅은 그림자로 책이 꽂힌 판자처럼 */}
           <div
-            className={`${row.some((it) => it.note) ? 'mb-1' : 'mb-5'} mt-0.5 h-2.5 rounded-[3px] bg-[#dcc59b] shadow-[0_3px_5px_-1px_rgba(120,90,50,0.28)]`}
+            className={`mb-5 mt-0.5 h-2.5 rounded-[3px] bg-[#dcc59b] shadow-[0_3px_5px_-1px_rgba(120,90,50,0.28)]`}
           />
-          {/* 추천이유 메모 — 그 줄에 메모가 있을 때만, 표지 바로 아래 칸에 회색 글자 한 줄 */}
-          {row.some((it) => it.note) && (
-            <div className="mb-4 grid grid-cols-4 gap-2">
-              {row.map((item, i) => (
-                <p key={i} className="truncate text-[10px] leading-tight text-text/40">
-                  {item.note ?? ''}
-                </p>
-              ))}
-            </div>
-          )}
         </div>
       ))}
 
