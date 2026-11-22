@@ -26,13 +26,13 @@ interface CatalogItem {
   isOutOfPrint: boolean
 }
 
-type Status = 'saving' | 'saved' | 'read' | 'error'
+type Status = 'saving' | 'saved' | 'removing' | 'read' | 'error'
 
 export default function WishAdd({
   savedKeys,
   readKeys,
 }: {
-  savedKeys: string[] // 이미 담은 책 (book_key)
+  savedKeys: Record<string, string> // 이미 담은 책 (book_key → book_id) — '담음'을 눌러 해제할 때 book_id 필요
   readKeys: string[] // 이미 기록한 책 (book_key) — 담을 수 없음
 }) {
   const [open, setOpen] = useState(false)
@@ -60,7 +60,7 @@ function WishAddSheet({
   readKeys,
   onClose,
 }: {
-  savedKeys: string[]
+  savedKeys: Record<string, string>
   readKeys: string[]
   onClose: () => void
 }) {
@@ -72,7 +72,7 @@ function WishAddSheet({
   const [error, setError] = useState('')
   const [scanOpen, setScanOpen] = useState(false)
   // 이번에 담은 책의 '추천이유' 메모 (2026.11.20) — 담은 줄 아래 칸. 선택 사항
-  const [bookIds, setBookIds] = useState<Record<string, string>>({})
+  const [bookIds, setBookIds] = useState<Record<string, string>>(savedKeys)
   const [memos, setMemos] = useState<Record<string, string>>({})
   const [memoState, setMemoState] = useState<Record<string, 'editing' | 'saving' | 'saved' | 'error'>>({})
   // 시트는 버튼을 누른 뒤(브라우저)에만 그려지므로 navigator·document를 바로 써도 된다
@@ -80,21 +80,34 @@ function WishAddSheet({
   const [status, setStatus] = useState<Record<string, Status>>(() => {
     const init: Record<string, Status> = {}
     readKeys.forEach((k) => (init[k] = 'read'))
-    savedKeys.forEach((k) => (init[k] = 'saved'))
+    Object.keys(savedKeys).forEach((k) => (init[k] = 'saved'))
     return init
   })
   const addedRef = useRef(0)
+  const pendingRef = useRef(new Set<Promise<unknown>>()) // 담기·해제 요청 진행 중
   const inputRef = useRef<HTMLInputElement>(null)
+  // 이번에 시트에서 새로 담은 책만 메모 칸을 연다 — 전에 담아 둔 책은 기존 메모를 모르니 덮어쓰지 않게(메모는 책 페이지에서)
+  const [addedHere, setAddedHere] = useState<Record<string, true>>({})
+  const [removeError, setRemoveError] = useState<Record<string, true>>({})
 
+  // 진행 중인 담기·해제가 끝난 뒤 새로고침해야 책장에 반영된다(닫기를 먼저 눌러도)
+  const track = <T,>(p: Promise<T>) => {
+    pendingRef.current.add(p)
+    p.finally(() => pendingRef.current.delete(p))
+    return p
+  }
   const close = () => {
     onClose()
-    if (addedRef.current > 0) router.refresh() // 담은 책이 책장에 보이게
+    const pending = Array.from(pendingRef.current)
+    if (addedRef.current > 0 || pending.length > 0) {
+      Promise.allSettled(pending).then(() => router.refresh()) // 담은·뺀 책이 책장에 보이게
+    }
   }
 
   useEffect(() => {
     // 시트가 열려 있는 동안 뒤 화면이 스크롤되지 않게
     const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden' // eslint-disable-line react-hooks/immutability -- 시트가 열린 동안만, 닫을 때 되돌림
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
     window.addEventListener('keydown', onKey)
     return () => {
@@ -140,11 +153,11 @@ function WishAddSheet({
     const key = bookKeyOf(item)
     setStatus((s) => ({ ...s, [key]: 'saving' }))
     try {
-      const res = await fetch('/api/bookmarks', {
+      const res = await track(fetch('/api/bookmarks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ book: item }),
-      })
+      }))
       const data = await res.json().catch(() => ({}))
       if (res.status === 409 && data.alreadyRecorded) {
         setStatus((s) => ({ ...s, [key]: 'read' }))
@@ -153,9 +166,41 @@ function WishAddSheet({
       if (!res.ok) throw new Error(data.error || '저장에 실패했습니다.')
       addedRef.current += 1
       if (data.bookId) setBookIds((m) => ({ ...m, [key]: data.bookId }))
+      setAddedHere((m) => ({ ...m, [key]: true }))
       setStatus((s) => ({ ...s, [key]: 'saved' }))
     } catch {
       setStatus((s) => ({ ...s, [key]: 'error' }))
+    }
+  }
+
+  // '담음'을 누르면 담기 해제 (2026.11.20) — 저장 행이 지워지므로 메모도 함께 사라진다
+  const remove = async (key: string) => {
+    const bookId = bookIds[key]
+    if (!bookId) return
+    setStatus((s) => ({ ...s, [key]: 'removing' }))
+    setRemoveError((m) => {
+      const next = { ...m }
+      delete next[key]
+      return next
+    })
+    try {
+      const res = await track(fetch(`/api/books/${bookId}/bookmark`, { method: 'DELETE' }))
+      if (!res.ok) throw new Error()
+      addedRef.current += 1
+      setStatus((s) => {
+        const next = { ...s }
+        delete next[key]
+        return next
+      })
+      setMemos((m) => ({ ...m, [key]: '' }))
+      setMemoState((m) => {
+        const next = { ...m }
+        delete next[key]
+        return next
+      })
+    } catch {
+      setStatus((s) => ({ ...s, [key]: 'saved' }))
+      setRemoveError((m) => ({ ...m, [key]: true })) // Codex 지적 3 — 실패를 알림
     }
   }
 
@@ -244,11 +289,20 @@ function WishAddSheet({
                         {[item.author, item.publisher].filter(Boolean).join(' · ')}
                       </p>
                       {st === 'error' && <p className="text-xs text-red-500">담지 못했어요. 다시 눌러 주세요.</p>}
+                      {removeError[key] && <p className="text-xs text-red-500">빼지 못했어요. 다시 눌러 주세요.</p>}
                     </div>
                     {st === 'read' ? (
                       <span className="flex-shrink-0 rounded-full bg-surface-muted px-3 py-1.5 text-xs text-text/40">읽은 책</span>
-                    ) : st === 'saved' ? (
-                      <span className="flex-shrink-0 rounded-full bg-main/10 px-3 py-1.5 text-xs font-medium text-main">담음 ✓</span>
+                    ) : st === 'saved' || st === 'removing' ? (
+                      <button
+                        type="button"
+                        disabled={st === 'removing'}
+                        onClick={() => remove(key)}
+                        aria-label="담기 해제"
+                        className="flex-shrink-0 rounded-full bg-main/10 px-3 py-1.5 text-xs font-medium text-main disabled:opacity-50"
+                      >
+                        {st === 'removing' ? '해제 중…' : '담음 ✓'}
+                      </button>
                     ) : (
                       <button
                         type="button"
@@ -261,7 +315,7 @@ function WishAddSheet({
                     )}
                   </div>
                   {/* 담은 직후 — 추천받은 이유 메모(선택). 책 페이지 표지에 포스트잇으로 붙는다 */}
-                  {st === 'saved' && bookIds[key] && (
+                  {st === 'saved' && bookIds[key] && addedHere[key] && (
                     <div className="ml-[52px] mt-2">
                       {memoState[key] === 'saved' ? (
                         <button

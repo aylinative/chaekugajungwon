@@ -134,25 +134,18 @@ export default async function MyPage() {
   }
 
   // 읽고 싶은 책 담기 시트용 — 이미 담은 책·이미 기록한 책 표시 (book_key 기준)
-  const savedKeys = bookmarks.map((b) => b.book!.book_key).filter((k): k is string => Boolean(k))
+  // 이미 담은 책 book_key → book_id (담기 시트에서 '담음'을 눌러 해제할 때 사용)
+  const savedKeys: Record<string, string> = Object.fromEntries(
+    bookmarks.filter((b) => b.book!.book_key).map((b) => [b.book!.book_key as string, b.book_id])
+  )
   const readKeys = Array.from(
     new Set(posts.map((p) => p.book?.book_key).filter((k): k is string => Boolean(k)))
   )
 
-  // '추천이유' 메모(본인만) — 따로 조회해서, 칸이 없거나 실패해도 책장은 그대로 (2026.11.20)
-  const { data: memoRows } = await supabase
-    .from('bookmarks')
-    .select('book_id, memo')
-    .eq('user_id', user.id)
-    .not('memo', 'is', null)
-  const memoByBook = new Map(
-    ((memoRows as { book_id: string; memo: string | null }[] | null) ?? []).map((m) => [m.book_id, m.memo ?? ''])
-  )
   const wishItems: ShelfItem[] = bookmarks.map((b) => ({
     href: `/book/${encodeURIComponent(b.book!.book_key ?? '')}`,
     cover: b.book!.cover_image_url,
     title: b.book!.title ?? '(제목 없음)',
-    note: memoByBook.get(b.book_id) || undefined,
   }))
 
   return (
