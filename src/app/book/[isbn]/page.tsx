@@ -444,12 +444,12 @@ export default async function BookPage({
 
         {/* 기여 넛지(벽 아님): 기록한 사람에겐 '또 읽었어요'(재독 기록, 2026.11.23 운영자 — 별로면 뺄 수 있음) */}
         {user && myLatestPostId && (
-          <section className="mt-4 rounded-2xl bg-main/10 p-5 text-center">
-            <p className="text-sm font-semibold text-main">또 읽으셨나요?</p>
+          <section className="mt-4 rounded-2xl bg-surface-muted p-5 text-center">
+            <p className="text-sm font-semibold text-text/80">또 읽으셨나요?</p>
             <p className="mt-1 text-xs leading-relaxed text-text/60">오늘 아이와 다시 읽은 이야기를 남겨 보세요.</p>
             <Link
               href={`/recommend/create?again=${myLatestPostId}`}
-              className="mt-3 inline-block rounded-xl bg-main px-4 py-2 text-sm font-medium text-white"
+              className="mt-3 inline-block rounded-xl bg-surface px-4 py-2 text-sm font-medium text-text/70"
             >
               또 읽었어요
             </Link>

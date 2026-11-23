@@ -407,7 +407,7 @@ export default async function PostDetailPage({
               {/* 같은 책을 다시 읽었으면 새 기록으로 — 이 기록 값(시기·반응·글밥량·주제)으로 채우고 일기만 새로 (2026.11.23) */}
               <Link
                 href={`/recommend/create?again=${post.id}`}
-                className="rounded-full bg-main/10 px-4 py-1.5 text-xs font-medium text-main"
+                className="rounded-full bg-surface-muted px-4 py-1.5 text-xs font-medium text-text/70"
               >
                 📖 또 읽었어요
               </Link>

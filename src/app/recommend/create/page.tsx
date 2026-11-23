@@ -834,7 +834,7 @@ function RecommendCreateInner() {
                   </Link>
                   <Link
                     href={`/recommend/create?again=${duplicatePostId}`}
-                    className="rounded-full bg-main px-3 py-1.5 font-medium text-white"
+                    className="rounded-full bg-surface px-3 py-1.5 font-medium text-text/70"
                   >
                     또 읽었어요
                   </Link>
@@ -1030,7 +1030,7 @@ function RecommendCreateInner() {
                       setReplaceIndex(null)
                       cameraInputRef.current?.click()
                     }}
-                    className="flex-1 rounded-xl bg-main px-3 py-2 text-sm text-white"
+                    className="flex-1 rounded-xl border border-main/40 px-3 py-2 text-sm text-main"
                   >
                     📷 촬영
                   </button>
