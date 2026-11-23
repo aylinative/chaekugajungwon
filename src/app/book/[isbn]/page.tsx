@@ -465,7 +465,7 @@ export default async function BookPage({
               우리 아이 반응을 기록하면 같은 시기 양육자들에게 큰 도움이 돼요.
             </p>
             <Link
-              href={`/recommend/create?query=${encodeURIComponent(book.title ?? '')}`}
+              href={`/recommend/create?book=${encodeURIComponent(decodeURIComponent(isbn))}`}
               className="mt-3 inline-block rounded-xl bg-main px-4 py-2 text-sm font-medium text-white"
             >
               기록 남기기
