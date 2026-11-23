@@ -31,6 +31,7 @@ interface RecommendPayload {
   tags?: TagPayload[] // 고른 주제·세부 { slug, source } (2026.10 개편)
   is_board_book?: boolean // 보드북 여부(책 속성)
   memo?: string
+  again_of?: string // '또 읽었어요'로 들어온 재독 기록 — 같은 책의 내 기록 id (2026.11.23)
   diary_date?: string // 책육아 일기 날짜 'YYYY-MM-DD' — 없거나 잘못되면 DB 기본값(오늘, KST)
   photo_urls?: string[] // Storage 업로드 후 public URL (폼에서 업로드 완료된 것만)
 }
@@ -129,8 +130,8 @@ export async function POST(request: Request) {
 
     if (existingBook) {
       bookId = existingBook.id
-      // 같은 책을 이미 기록했으면 새로 만들지 않는다 — 한 사람당 책 1기록(삭제한 기록은 제외) (2026.11.04 운영자)
-      // 다시 읽은 내용은 기존 기록을 수정하도록 안내(폼이 existingPostId로 '내 기록 수정' 버튼을 띄운다)
+      // 같은 책을 이미 기록했으면 새로 만들지 않는다(삭제한 기록은 제외) — 실수 중복 방지.
+      // 단 '또 읽었어요'(again_of = 같은 책의 내 기록)로 들어온 재독은 새 기록으로 허용 (2026.11.23 운영자)
       const { data: myPost } = await supabase
         .from('posts')
         .select('id')
@@ -139,7 +140,19 @@ export async function POST(request: Request) {
         .is('hidden_at', null)
         .limit(1)
         .maybeSingle()
-      if (myPost) {
+      let isReread = false
+      if (myPost && typeof payload.again_of === 'string' && payload.again_of) {
+        const { data: source } = await supabase
+          .from('posts')
+          .select('id')
+          .eq('id', payload.again_of)
+          .eq('user_id', user.id)
+          .eq('book_id', bookId)
+          .is('hidden_at', null)
+          .maybeSingle()
+        isReread = Boolean(source)
+      }
+      if (myPost && !isReread) {
         return NextResponse.json(
           { error: '이미 기록한 책이에요. 기존 기록을 수정해 주세요.', existingPostId: myPost.id },
           { status: 409 }

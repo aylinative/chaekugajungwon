@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, Suspense } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { RECOMMEND_GROUPS } from '@/lib/groups'
@@ -46,6 +47,13 @@ function RecommendCreateInner() {
   // 편집 모드(?edit=<postId>): 내 기록 수정. 책은 고정, 시기·반응·글밥량·주제·일기만 편집.
   const editId = searchParams.get('edit')
   const isEdit = Boolean(editId)
+  // 재독 모드(?again=<postId>, 2026.11.23): 같은 책을 또 읽은 새 기록. 그 기록의 책·시기·반응·글밥량·주제·보드북으로 채우고
+  // 일기·날짜(오늘)·사진만 새로. 책은 고정. 저장은 새 기록(POST, again_of)이라 원래 기록은 그대로.
+  const againId = isEdit ? null : searchParams.get('again')
+  const isAgain = Boolean(againId)
+  const loadId = editId ?? againId
+  // 이 책의 내 기존 기록 날짜들 — 이번 기록이 몇 번째인지 = 일기 날짜가 같거나 앞선 기록 수 + 1(카드·상세와 같은 규칙, lib/readOrder)
+  const [againDays, setAgainDays] = useState<string[] | null>(null)
   // 검색 화면 '첫 기록 남기기'에서 넘어오면 책 제목이 미리 채워진다 → 진입 즉시 자동 검색
   const [query, setQuery] = useState(() => searchParams.get('query') ?? '')
   const [books, setBooks] = useState<BookItem[]>([])
@@ -174,7 +182,7 @@ function RecommendCreateInner() {
         return
       }
       setMyUserId(user.id)
-      if (!editId) {
+      if (!editId && !againId) {
         const { count } = await supabase
           .from('posts')
           .select('id', { count: 'exact', head: true })
@@ -196,9 +204,9 @@ function RecommendCreateInner() {
       .catch(() => {})
   }, [])
 
-  // 편집 모드: 기존 기록을 불러와 프리필 (작성자 아니면 홈으로)
+  // 편집·재독 모드: 기존 기록을 불러와 프리필 (작성자 아니면 홈으로)
   useEffect(() => {
-    if (!editId) return
+    if (!loadId) return
     async function loadPost() {
       const supabase = createClient()
       const {
@@ -211,18 +219,19 @@ function RecommendCreateInner() {
       const { data } = await supabase
         .from('posts')
         .select(
-          `id, user_id, child_reaction, text_density, content, diary_date,
+          `id, user_id, book_id, child_reaction, text_density, content, diary_date,
            book:books ( title, author, publisher, published_date, cover_image_url, source_url, book_key, is_out_of_print, is_board_book ),
            post_groups ( group_name ),
-           post_tags ( operator_tags ( slug, is_active ) ),
+           post_tags ( source, operator_tags ( slug, is_active ) ),
            post_images ( image_url, sort_order )`
         )
-        .eq('id', editId)
+        .eq('id', loadId)
         .is('hidden_at', null)
         .maybeSingle()
 
       const row = data as unknown as {
         user_id: string
+        book_id: string
         child_reaction: number | null
         text_density: number | null
         content: string | null
@@ -239,7 +248,7 @@ function RecommendCreateInner() {
           is_board_book: boolean | null
         } | null
         post_groups: { group_name: string }[] | null
-        post_tags: { operator_tags: { slug: string | null; is_active: boolean } | null }[] | null
+        post_tags: { source: string | null; operator_tags: { slug: string | null; is_active: boolean } | null }[] | null
         post_images: { image_url: string; sort_order: number | null }[] | null
       } | null
 
@@ -273,12 +282,35 @@ function RecommendCreateInner() {
       if (row.child_reaction != null) setSelectedReaction(row.child_reaction)
       if (row.text_density != null) setSelectedAmount(row.text_density) // 0(글 없는 그림책)도 프리필
       // 활성 태그만 불러옴. 숨김 처리된 옛 태그는 화면에 없고, 서버가 그대로 보존한다.
+      // 재독은 새 기록이라 '기존 연결' 대신 원래 고른 경로를 그대로 복사(운영자 확정 — 그 외 경로는 '주제 더보기'로)
       setTopicPicks(
         (row.post_tags ?? [])
-          .map((t) => (t.operator_tags?.is_active ? t.operator_tags.slug : null))
-          .filter((v): v is string => Boolean(v))
-          .map((slug) => ({ slug, source: 'existing' as const }))
+          .filter((t) => t.operator_tags?.is_active && t.operator_tags.slug)
+          .map((t) => ({
+            slug: t.operator_tags!.slug as string,
+            source: !againId
+              ? ('existing' as const)
+              : t.source === 'recommend' || t.source === 'others'
+                ? t.source
+                : ('all' as const),
+          }))
       )
+      if (againId) {
+        // 재독: 일기·날짜·사진은 새로(빈 칸·오늘·없음). 이번이 몇 번째인지 = 이 책의 내 기록 수 + 1
+        const { data: mine } = await supabase
+          .from('posts')
+          .select('diary_date, created_at')
+          .eq('user_id', user.id)
+          .eq('book_id', row.book_id)
+          .is('hidden_at', null)
+        setAgainDays(
+          ((mine as { diary_date: string | null; created_at: string }[] | null) ?? []).map(
+            (m) => m.diary_date ?? m.created_at.slice(0, 10)
+          )
+        )
+        setEditLoaded(true)
+        return
+      }
       setMemo(row.content ?? '')
       if (row.diary_date) setDiaryDate(row.diary_date)
       setPhotos(
@@ -290,7 +322,7 @@ function RecommendCreateInner() {
     }
     loadPost()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editId])
+  }, [loadId])
 
   // 작성 중 이탈 확인 (lib/leaveGuard) — 입력한 게 있을 때만 묻는다.
   // 새 기록: 책·반응·글밥량·주제·보드북·일기·사진 중 하나라도 있으면(시기는 자동 체크라 제외).
@@ -308,7 +340,7 @@ function RecommendCreateInner() {
   })
   const [editBaseline, setEditBaseline] = useState<string | null>(null)
   if (editLoaded && editBaseline === null) setEditBaseline(formSnapshot) // 불러온 직후 1회(렌더 중 갱신 패턴)
-  const isDirty = isEdit
+  const isDirty = isEdit || isAgain
     ? editBaseline !== null && formSnapshot !== editBaseline
     : Boolean(selectedBook) ||
       selectedReaction !== null ||
@@ -392,7 +424,7 @@ function RecommendCreateInner() {
   const selectedKey = selectedBook ? selectedBook.isbn13 || selectedBook.link || selectedBook.title : null
   const [duplicate, setDuplicate] = useState<{ key: string; postId: string } | null>(null)
   useEffect(() => {
-    if (!selectedKey || !myUserId) return
+    if (!selectedKey || !myUserId || againId) return
     let alive = true
     let q = createClient()
       .from('posts')
@@ -400,7 +432,9 @@ function RecommendCreateInner() {
       .eq('user_id', myUserId)
       .eq('books.book_key', selectedKey)
       .is('hidden_at', null)
-      .limit(1)
+      .order('diary_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1) // 가장 최근 기록 — '또 읽었어요'가 이 기록 값으로 채운다
     if (editId) q = q.neq('id', editId)
     q.then(({ data }) => {
       if (!alive) return
@@ -410,13 +444,15 @@ function RecommendCreateInner() {
     return () => {
       alive = false
     }
-  }, [selectedKey, myUserId, editId])
-  const duplicatePostId = duplicate && duplicate.key === selectedKey ? duplicate.postId : null
+  }, [selectedKey, myUserId, editId, againId])
+  const initialKey = initialBook ? initialBook.isbn13 || initialBook.link || initialBook.title : null
+  const duplicatePostId =
+    duplicate && duplicate.key === selectedKey && !(isEdit && selectedKey === initialKey) ? duplicate.postId : null
 
   // 이 책에 '나도 추천해요'로 고른 시기가 있으면 시기 칩에 그대로 체크 (2026.11.06 운영자 — 안내 문구 없이 체크만).
   // 내가 이미 한 판단이라 프리셋 금지(10.3, 남의 판단 앵커링 방지)와 무관. 이미 고른 시기가 있으면 건드리지 않음. 새 기록에서만.
   useEffect(() => {
-    if (!selectedKey || !myUserId || editId) return
+    if (!selectedKey || !myUserId || editId || againId) return
     let alive = true
     createClient()
       .from('likes')
@@ -432,7 +468,7 @@ function RecommendCreateInner() {
     return () => {
       alive = false
     }
-  }, [selectedKey, myUserId, editId])
+  }, [selectedKey, myUserId, editId, againId])
 
   const handleSubmit = async () => {
     if (!selectedBook) {
@@ -441,7 +477,7 @@ function RecommendCreateInner() {
     }
 
     if (duplicatePostId) {
-      setSubmitError('이미 기록한 책이에요. 기존 기록을 수정해 주세요.')
+      setSubmitError("이미 기록한 책이에요. '또 읽었어요'로 새 기록을 남겨 주세요.")
       return
     }
 
@@ -543,6 +579,7 @@ function RecommendCreateInner() {
         memo,
         diary_date: diaryDate,
         photo_urls: uploadedUrls,
+        ...(againId ? { again_of: againId } : {}),
       }
 
       const response = await fetch('/api/recommend', {
@@ -555,6 +592,9 @@ function RecommendCreateInner() {
 
       const data = await response.json()
 
+      if (response.status === 409 && data.existingPostId && selectedKey) {
+        setDuplicate({ key: selectedKey, postId: data.existingPostId })
+      }
       if (!response.ok || data.error) {
         throw new Error(data.error || '등록에 실패했습니다.')
       }
@@ -585,13 +625,13 @@ function RecommendCreateInner() {
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/5 bg-bg/90 px-4 pb-3 pt-safe-3 backdrop-blur">
         {/* 새 기록: 왼쪽 버튼 없음(홈은 하단 탭 바). 수정: 들어온 화면으로 돌아가기 —
             iOS 앱은 뒤로 가기 제스처가 없어 버튼이 필요. 바로 열린 경우(기록 없음)엔 그 기록 상세로. */}
-        {isEdit ? (
+        {isEdit || isAgain ? (
           <button
             type="button"
             onClick={() => {
               if (!confirmLeave()) return
               if (window.history.length > 1) router.back()
-              else router.push(`/posts/${editId}`)
+              else router.push(`/posts/${loadId}`)
             }}
             className="w-16 py-1 text-left text-sm text-main"
           >
@@ -603,7 +643,9 @@ function RecommendCreateInner() {
         <h1 className="text-base font-semibold">
           {isEdit ? '기록 수정' : '책 기록하기'}
         </h1>
-        <div className="w-16" />
+        <div className="w-16 text-right text-xs font-medium text-main">
+          {isAgain && againDays ? `${againDays.filter((d) => d <= diaryDate).length + 1}번째 기록` : ''}
+        </div>
       </header>
       <div className="mx-auto w-full max-w-md flex-1 px-4 pb-10 pt-4">
 
@@ -627,7 +669,7 @@ function RecommendCreateInner() {
           </div>
         )}
 
-        {(!isEdit || changingBook) && (
+        {((!isEdit && !isAgain) || changingBook) && (
         <section className={`rounded-2xl bg-surface p-4 shadow-sm ${isEdit ? 'mt-4' : ''}`}>
           <div className="mb-2 flex items-center justify-between">
             <label htmlFor="book-search" className="block text-sm font-medium">
@@ -745,8 +787,8 @@ function RecommendCreateInner() {
                   책 변경
                 </button>
               )}
-              {/* 새 기록: 잘못 고른 책을 지우고 다시 검색 (2026.11.03) */}
-              {!isEdit && (
+              {/* 새 기록: 잘못 고른 책을 지우고 다시 검색 (2026.11.03). 재독은 책 고정 */}
+              {!isEdit && !isAgain && (
                 <button
                   type="button"
                   onClick={() => {
@@ -782,14 +824,20 @@ function RecommendCreateInner() {
             {duplicatePostId && (
               <div className="mt-3 rounded-xl bg-point/10 px-3 py-2.5 text-xs text-text/80">
                 <p className="font-medium">이미 기록한 책이에요.</p>
-                <p className="mt-0.5 text-text/60">다시 읽은 이야기는 기존 기록을 수정해서 더해 주세요.</p>
-                <div className="mt-2 flex gap-3">
-                  <a href={`/recommend/create?edit=${duplicatePostId}`} className="font-medium text-main underline underline-offset-2">
-                    기존 기록 수정하기
-                  </a>
-                  <a href={`/posts/${duplicatePostId}`} className="text-text/50 underline underline-offset-2">
+                {/* 기록 보기(거기서 수정) / 또 읽었어요(재독 새 기록 — 가장 최근 기록 값으로 채움) (2026.11.23 운영자) */}
+                <div className="mt-2 flex gap-2">
+                  <Link
+                    href={`/posts/${duplicatePostId}`}
+                    className="rounded-full bg-surface px-3 py-1.5 font-medium text-text/70"
+                  >
                     기록 보기
-                  </a>
+                  </Link>
+                  <Link
+                    href={`/recommend/create?again=${duplicatePostId}`}
+                    className="rounded-full bg-main px-3 py-1.5 font-medium text-white"
+                  >
+                    또 읽었어요
+                  </Link>
                 </div>
               </div>
             )}
@@ -1075,8 +1123,10 @@ function RecommendCreateInner() {
 // 수정(?edit=)↔새 기록 사이를 오가면 폼을 새로 만든다 — 수정 화면에서 하단 '기록하기' 탭을 누르면
 // 같은 화면이 재사용돼, 옛 기록 내용이 남은 '새 기록' 폼으로 저장(중복 기록)되는 것을 막는다.
 function RecommendCreateKeyed() {
-  const editId = useSearchParams().get('edit')
-  return <RecommendCreateInner key={editId ?? 'new'} />
+  const params = useSearchParams()
+  const editId = params.get('edit')
+  const againId = params.get('again')
+  return <RecommendCreateInner key={editId ? `edit-${editId}` : againId ? `again-${againId}` : 'new'} />
 }
 
 // useSearchParams는 Suspense 경계가 필요하다 (Next.js CSR bailout)

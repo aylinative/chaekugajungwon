@@ -5,6 +5,7 @@ import { createServerSupabase, getIsOperator } from '@/lib/supabase-server'
 import { RECOMMEND_GROUPS, LABEL_TO_EMOJI, sortGroupLabelsByAge, AGE_LABEL_FULL } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import { formatYmd } from '@/lib/date'
+import { readOrderById, readOrderLabel } from '@/lib/readOrder'
 import { getBookDistribution } from '@/lib/distribution'
 import BookmarkButton from '@/components/BookmarkButton'
 import BookIntro from '@/components/book/BookIntro'
@@ -184,6 +185,19 @@ export default async function PostDetailPage({
   // 일기 날짜. 그날 아이 나이는 표시하지 않는다(2026.11.18 운영자 — 작성자 본인 화면에서도 삭제)
   const diaryYmd = post.diary_date ?? post.created_at.slice(0, 10)
 
+  // 같은 책 재독 순번 — 이 작성자의 같은 책 기록(삭제 제외) 중 몇 번째인지 (2026.11.23, lib/readOrder)
+  let orderLabel: string | null = null
+  if (bookId) {
+    const { data: sameBook } = await supabase
+      .from('posts')
+      .select('id, user_id, diary_date, created_at')
+      .eq('user_id', post.user_id)
+      .eq('book_id', bookId)
+      .is('hidden_at', null)
+    const rows = (sameBook as { id: string; user_id: string; diary_date: string | null; created_at: string }[] | null) ?? []
+    if (rows.length > 1) orderLabel = readOrderLabel(readOrderById(rows).get(post.id))
+  }
+
   const book = post.book
   const groups = sortGroupLabelsByAge((post.post_groups ?? []).map((g) => g.group_name))
   // 세부가 있으면 세부 이름만(그 주제는 생략), 숨김(개편 전) 태그도 그대로 표시 — work_order_part3 Step 3
@@ -323,7 +337,10 @@ export default async function PostDetailPage({
             <span className="text-sm font-medium text-text">
               {post.author?.nickname ?? '익명'}
             </span>
-            <span className="ml-auto text-xs text-text/40">{formatYmd(diaryYmd)}</span>
+            <span className="ml-auto flex flex-col items-end text-xs leading-tight text-text/40">
+              {orderLabel && <span className="text-[10px] text-text/45">{orderLabel}</span>}
+              {formatYmd(diaryYmd)}
+            </span>
           </div>
 
           {/* 추천 그룹 */}
@@ -380,12 +397,19 @@ export default async function PostDetailPage({
 
           {/* 작성자 본인 — 이 기록 수정 (내용 바로 옆이라 직관적). 삭제는 상단 ⋯ 메뉴, 공유는 책 정보 영역. */}
           {isOwner && (
-            <div className="flex justify-end pt-1">
+            <div className="flex justify-end gap-2 pt-1">
               <Link
                 href={`/recommend/create?edit=${post.id}`}
                 className="rounded-full bg-surface-muted px-4 py-1.5 text-xs font-medium text-text/70"
               >
                 ✏️ 기록 수정
+              </Link>
+              {/* 같은 책을 다시 읽었으면 새 기록으로 — 이 기록 값(시기·반응·글밥량·주제)으로 채우고 일기만 새로 (2026.11.23) */}
+              <Link
+                href={`/recommend/create?again=${post.id}`}
+                className="rounded-full bg-main/10 px-4 py-1.5 text-xs font-medium text-main"
+              >
+                📖 또 읽었어요
               </Link>
             </div>
           )}
