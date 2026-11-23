@@ -58,6 +58,10 @@ function RecommendCreateInner() {
   const [query, setQuery] = useState(() => searchParams.get('query') ?? '')
   const [books, setBooks] = useState<BookItem[]>([])
   const [selectedBook, setSelectedBook] = useState<BookItem | null>(null)
+  const selectedBookRef = useRef<BookItem | null>(null) // 비동기 콜백에서 '이미 고른 책'이 있는지 확인용
+  useEffect(() => {
+    selectedBookRef.current = selectedBook
+  }, [selectedBook])
   // 편집 모드에서 책을 다시 검색·교체할 수 있게 하는 토글. '취소' 시 initialBook으로 복원.
   const [changingBook, setChangingBook] = useState(false)
   const [initialBook, setInitialBook] = useState<BookItem | null>(null)
@@ -117,7 +121,7 @@ function RecommendCreateInner() {
     if (isEdit && !changingBook) return
     const keyword = query.replace(/\s+/g, ' ').trim()
     // 책을 막 선택해 제목이 채워진 경우엔 재검색하지 않음
-    if (selectedBook && keyword === selectedBook.title) return
+    if (selectedBook && keyword === selectedBook.title.replace(/\s+/g, ' ').trim()) return
     // 한 글자 제목('점' 등)도 검색 가능해야 하므로 최소 길이는 1
     if (keyword.length < 1) {
       setBooks([])
@@ -324,6 +328,51 @@ function RecommendCreateInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadId])
 
+  // 책 페이지에서 '기록 남기기'로 들어오면(?book=<book_key>) 그 책을 바로 골라 둔다 (2026.11.24 운영자).
+  // 다시 검색하게 하면 같은 책의 다른 판형을 골라 기록이 판형마다 흩어진다 → 우리 DB의 그 책 정보를 그대로 쓴다.
+  // 다른 판형이면 사용자가 '선택한 책 지우기(✕)'로 바꾸면 된다.
+  const bookParam = isEdit || isAgain ? null : searchParams.get('book')
+  useEffect(() => {
+    if (!bookParam) return
+    let alive = true
+    createClient()
+      .from('books')
+      .select('*') // description 칸이 없는 DB에서도 오류 없이(책 페이지와 같은 방식)
+      .eq('book_key', bookParam)
+      .maybeSingle()
+      .then(({ data }) => {
+        const b = data as {
+          title: string | null
+          author: string | null
+          publisher: string | null
+          published_date: string | null
+          cover_image_url: string | null
+          source_url: string | null
+          book_key: string
+          is_out_of_print: boolean | null
+          is_board_book: boolean | null
+          description?: string | null
+        } | null
+        // 없는 책이면 평소처럼 검색해서 고르면 된다. 응답 전에 사용자가 다른 책을 골랐으면 그대로 둔다
+        if (!alive || !b || selectedBookRef.current) return
+        selectBook({
+          title: b.title ?? '',
+          author: b.author ?? '',
+          publisher: b.publisher ?? '',
+          pubDate: b.published_date ?? '',
+          cover: b.cover_image_url ?? '',
+          link: b.source_url ?? '',
+          isbn13: b.book_key,
+          isOutOfPrint: Boolean(b.is_out_of_print),
+          description: b.description ?? undefined,
+          isBoardBook: Boolean(b.is_board_book),
+        })
+      })
+    return () => {
+      alive = false
+    }
+  }, [bookParam])
+
   // 작성 중 이탈 확인 (lib/leaveGuard) — 입력한 게 있을 때만 묻는다.
   // 새 기록: 책·반응·글밥량·주제·보드북·일기·사진 중 하나라도 있으면(시기는 자동 체크라 제외).
   // 수정: 불러온 직후 상태와 달라졌으면.
@@ -340,13 +389,15 @@ function RecommendCreateInner() {
   })
   const [editBaseline, setEditBaseline] = useState<string | null>(null)
   if (editLoaded && editBaseline === null) setEditBaseline(formSnapshot) // 불러온 직후 1회(렌더 중 갱신 패턴)
+  const prefilledFromBookPage = Boolean(bookParam && selectedBook?.isbn13 === bookParam)
   const isDirty = isEdit || isAgain
     ? editBaseline !== null && formSnapshot !== editBaseline
-    : Boolean(selectedBook) ||
+    : // 책 페이지에서 미리 골라 온 책(?book=)은 '입력'이 아니다 — 아무것도 안 쓰고 나가도 묻지 않게
+      (Boolean(selectedBook) && !prefilledFromBookPage) ||
       selectedReaction !== null ||
       selectedAmount !== null ||
       topicPicks.length > 0 ||
-      isBoardBook ||
+      (isBoardBook && !(prefilledFromBookPage && Boolean(selectedBook?.isBoardBook))) ||
       memo.trim() !== '' ||
       diaryDate !== todayKST() ||
       photos.length > 0
