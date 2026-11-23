@@ -64,8 +64,8 @@ export default function RecordCard({
 
   const orderLabel = readOrderLabel(order)
   return (
-    <Wrap className="block h-full overflow-hidden rounded-2xl bg-surface shadow-sm">
-      <Link href={`/posts/${p.id}`} className="block p-4">
+    <Wrap className="flex h-full flex-col overflow-hidden rounded-2xl bg-surface shadow-sm">
+      <Link href={`/posts/${p.id}`} className="block flex-1 p-4">
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-2 text-sm font-medium text-text">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-main/10 text-xs">🌿</span>
