@@ -368,7 +368,7 @@ export default async function PostDetailPage({
           )}
 
           {/* 글밥량 + 우리 아이 반응 (글밥량은 정보 없으면 숨김 — 임포트 도서 등) */}
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             {post.text_density != null && (
               <span className="flex items-center gap-1.5">
                 <span className="text-xs text-text/50">글밥량</span>
