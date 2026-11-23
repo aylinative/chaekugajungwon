@@ -10,8 +10,10 @@ export default function TextDensityMeter({ value }: { value: number }) {
   const filled = Math.max(0, Math.min(5, value))
   // 부연 문구를 마지막으로 색칠된 칸의 왼쪽 아래에 정렬 (1단계=첫 칸 아래)
   const left = filled > 0 ? (filled - 1) * SEG_STEP_REM : 0
+  // 문구는 자리를 차지하게(떠 있지 않게) — 4·5단계 문구가 막대보다 길어 옆 '우리 아이 반응' 칩과 겹치던 문제(2026.11.23, 카카오 브라우저).
+  // 이제 문구 길이만큼 이 표시의 폭이 늘어나 옆 요소가 그만큼 오른쪽으로 밀린다.
   return (
-    <span className="relative inline-block pb-3.5 align-middle">
+    <span className="inline-block align-middle">
       <span className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((i) => (
           <span
@@ -21,8 +23,8 @@ export default function TextDensityMeter({ value }: { value: number }) {
         ))}
       </span>
       <span
-        className="absolute top-2.5 whitespace-nowrap text-[10px] leading-none text-text/40"
-        style={{ left: `${left}rem` }}
+        className="mt-1 block whitespace-nowrap text-[10px] leading-none text-text/40"
+        style={{ paddingLeft: `${left}rem` }}
       >
         {densityHint(value)}
       </span>
