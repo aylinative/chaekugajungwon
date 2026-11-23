@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { RECOMMEND_GROUPS, sortGroupLabelsByAge } from '@/lib/groups'
 import { REACTION_BY_VALUE } from '@/lib/reactions'
 import { formatYmd } from '@/lib/date'
+import { readOrderLabel } from '@/lib/readOrder'
 import HidePostButton from '@/components/post/HidePostButton'
 import PostPhotos from '@/components/post/PostPhotos'
 import ReportBlockActions from '@/components/report/ReportBlockActions'
@@ -36,18 +37,23 @@ export default function RecordCard({
   blocked,
   from,
   full = false,
+  order,
+  as = 'li',
 }: {
   post: RecordCardPost
   viewerId: string | null
   blocked: boolean // 내가 차단한 사람 — 자리는 남기고 내용 대신 커버(기록 수와 카드 수가 맞게)
   from: string // 차단 해제 후 돌아올 화면
   full?: boolean
+  order?: number // 같은 책 재독 순번(lib/readOrder) — 2 이상이면 날짜 위에 'N번째'
+  as?: 'li' | 'div' // 재독 가로 줄(RecordSwipeRow) 안에서는 div
 }) {
+  const Wrap = as
   if (blocked) {
     return (
-      <li className="overflow-hidden rounded-2xl bg-surface shadow-sm">
+      <Wrap className="block overflow-hidden rounded-2xl bg-surface shadow-sm">
         <BlockedCover from={from} />
-      </li>
+      </Wrap>
     )
   }
   const groups = sortGroupLabelsByAge((p.post_groups ?? []).map((g) => g.group_name))
@@ -56,15 +62,19 @@ export default function RecordCard({
     ? [...(p.post_images ?? [])].sort((a, b) => a.sort_order - b.sort_order).map((i) => i.image_url)
     : []
 
+  const orderLabel = readOrderLabel(order)
   return (
-    <li className="overflow-hidden rounded-2xl bg-surface shadow-sm">
+    <Wrap className="block h-full overflow-hidden rounded-2xl bg-surface shadow-sm">
       <Link href={`/posts/${p.id}`} className="block p-4">
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-2 text-sm font-medium text-text">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-main/10 text-xs">🌿</span>
             {p.author?.nickname ?? '익명'}
           </span>
-          <span className="ml-auto text-xs text-text/40">{formatYmd(p.diary_date ?? p.created_at)}</span>
+          <span className="ml-auto flex flex-col items-end text-xs leading-tight text-text/40">
+            {orderLabel && <span className="text-[10px] text-text/45">{orderLabel}</span>}
+            {formatYmd(p.diary_date ?? p.created_at)}
+          </span>
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -124,6 +134,6 @@ export default function RecordCard({
           />
         </div>
       )}
-    </li>
+    </Wrap>
   )
 }

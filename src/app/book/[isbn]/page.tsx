@@ -13,6 +13,8 @@ import PeriodDistribution from '@/components/book/PeriodDistribution'
 import BookSwipeNav from '@/components/book/BookSwipeNav'
 import RecordCard from '@/components/book/RecordCard'
 import ExpandableRecords from '@/components/book/ExpandableRecords'
+import RecordSwipeRow from '@/components/book/RecordSwipeRow'
+import { groupByAuthor, readOrderById } from '@/lib/readOrder'
 import BookTopics, { type TopicLink } from '@/components/book/BookTopics'
 import BookIntro from '@/components/book/BookIntro'
 import { isYes24Book } from '@/lib/bookSource'
@@ -231,6 +233,10 @@ export default async function BookPage({
   ])
 
   const distribution = computeBookDistribution(likes, posts)
+  // 재독 — 사람별 묶음·순번, 내 가장 최근 기록('또 읽었어요'가 이 기록 값으로 채움)
+  const recordGroups = groupByAuthor(posts)
+  const readOrder = readOrderById(posts)
+  const myLatestPostId = user ? recordGroups.find((g) => g[0].user_id === user.id)?.[0].id ?? null : null
   const bookmarkedByMe = Boolean(
     (bookmarkRes.data as { book_id: string } | null)?.book_id
   )
@@ -403,20 +409,52 @@ export default async function BookPage({
               <p className="text-sm text-text/50">아직 기록이 없어요.</p>
             </div>
           ) : (
+            // 사람별로 묶고(최근 읽은 순), 같은 사람의 재독은 한 줄에서 가로로 넘김 — 최신 회차 먼저 (2026.11.23)
             <ExpandableRecords
-              items={posts.map((p) => (
-                <RecordCard
-                  key={p.id}
-                  post={p}
-                  viewerId={user?.id ?? null}
-                  blocked={blockedIds.has(p.user_id)}
-                  from={`/book/${encodeURIComponent(isbn)}`}
-                />
-              ))}
+              items={recordGroups.map((group) =>
+                group.length === 1 || blockedIds.has(group[0].user_id) ? (
+                  <RecordCard
+                    key={group[0].id}
+                    post={group[0]}
+                    order={readOrder.get(group[0].id)}
+                    viewerId={user?.id ?? null}
+                    blocked={blockedIds.has(group[0].user_id)}
+                    from={`/book/${encodeURIComponent(isbn)}`}
+                  />
+                ) : (
+                  <RecordSwipeRow
+                    key={group[0].id}
+                    cards={group.map((p) => (
+                      <RecordCard
+                        key={p.id}
+                        as="div"
+                        post={p}
+                        order={readOrder.get(p.id)}
+                        viewerId={user?.id ?? null}
+                        blocked={false}
+                        from={`/book/${encodeURIComponent(isbn)}`}
+                      />
+                    ))}
+                  />
+                )
+              )}
             />
           )}
         </section>
 
+        {/* 기여 넛지(벽 아님): 기록한 사람에겐 '또 읽었어요'(재독 기록, 2026.11.23 운영자 — 별로면 뺄 수 있음) */}
+        {user && myLatestPostId && (
+          <section className="mt-4 rounded-2xl bg-main/10 p-5 text-center">
+            <p className="text-sm font-semibold text-main">또 읽으셨나요?</p>
+            <p className="mt-1 text-xs leading-relaxed text-text/60">오늘 아이와 다시 읽은 이야기를 남겨 보세요.</p>
+            <Link
+              href={`/recommend/create?again=${myLatestPostId}`}
+              className="mt-3 inline-block rounded-xl bg-main px-4 py-2 text-sm font-medium text-white"
+            >
+              또 읽었어요
+            </Link>
+          </section>
+        )}
         {/* 기여 넛지(벽 아님): 이 책을 아직 기록하지 않은 로그인 유저에게만. */}
         {user && !hasMyRecord && (
           <section className="mt-4 rounded-2xl bg-main/10 p-5 text-center">
