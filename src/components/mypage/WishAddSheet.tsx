@@ -341,7 +341,7 @@ function WishAddSheet({
                               type="button"
                               disabled={!(memos[key] ?? '').trim() || memoState[key] === 'saving'}
                               onClick={() => saveMemo(key)}
-                              className="rounded-lg bg-main px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-40"
+                              className="rounded-lg border border-main/40 px-2.5 py-1.5 text-xs font-medium text-main disabled:opacity-40"
                             >
                               {memoState[key] === 'saving' ? '저장 중' : '저장'}
                             </button>

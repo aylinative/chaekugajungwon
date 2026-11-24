@@ -444,8 +444,8 @@ export default async function BookPage({
           )}
         </section>
 
-        {/* 기여 넛지(벽 아님, 로그인한 사람만): 아직 기록 안 함 → 기록 남기기 / 기록함 → 또 읽었어요 (components/book/RecordNudge) */}
-        {user && <RecordNudge bookKey={decodeURIComponent(isbn)} myLatestPostId={myLatestPostId} />}
+        {/* 기여 넛지(벽 아님, 로그인 전에도 — 누르면 로그인 시트): 아직 기록 안 함 → 기록 남기기 / 기록함 → 또 읽었어요 (components/book/RecordNudge) */}
+        <RecordNudge bookKey={decodeURIComponent(isbn)} myLatestPostId={myLatestPostId} isLoggedIn={Boolean(user)} />
       </main>
 
       <BottomTabBar />

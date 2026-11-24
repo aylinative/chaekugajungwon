@@ -433,9 +433,9 @@ export default async function PostDetailPage({
         </section>
         )}
 
-        {/* 기여 넛지(로그인·남의 기록일 때): 아직 기록 안 함 → 이 책 바로 기록 / 기록함 → 또 읽었어요 (책 페이지와 같은 부품) */}
-        {user && !isOwner && book?.book_key && (
-          <RecordNudge bookKey={book.book_key} myLatestPostId={myLatestPostId} />
+        {/* 기여 넛지(남의 기록일 때, 로그인 전에도): 아직 기록 안 함 → 이 책 바로 기록 / 기록함 → 또 읽었어요 (책 페이지와 같은 부품) */}
+        {!isOwner && book?.book_key && (
+          <RecordNudge bookKey={book.book_key} myLatestPostId={myLatestPostId} isLoggedIn={Boolean(user)} />
         )}
       </main>
 

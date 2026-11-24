@@ -249,7 +249,7 @@ export default function SearchClient() {
                       <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
                         <Link
                           href={`/recommend/create?query=${encodeURIComponent(a.title)}`}
-                          className="rounded-full bg-main px-3 py-1.5 text-xs font-medium text-white"
+                          className="rounded-full border border-main/40 px-3 py-1.5 text-xs font-medium text-main"
                         >
                           첫 기록 남기기
                         </Link>
