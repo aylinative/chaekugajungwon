@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* 임시 기본 색상(확정 아님) */
+  /* 기본 색상(확정 2026.11.24) — 메인 올리브는 주 행동에만(CLAUDE.md 14.7) */
   --background: #FBF6EC;
   --foreground: #3A332B;
   --main: #6B7F5E;
@@ -14,10 +14,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-main: var(--main); /* 임시 메인 컬러(확정 아님) */
-  --color-point: var(--point); /* 임시 포인트 컬러(확정 아님) */
-  --color-bg: var(--background); /* 임시 배경 컬러(확정 아님) */
-  --color-text: var(--foreground); /* 임시 텍스트 컬러(확정 아님) */
+  --color-main: var(--main); /* 메인 컬러 — 모스 올리브(확정) */
+  --color-point: var(--point); /* 포인트 컬러 — 살구 코랄(확정) */
+  --color-bg: var(--background); /* 배경 컬러 — 한지 아이보리(확정) */
+  --color-text: var(--foreground); /* 텍스트 컬러 — 잉크 브라운(확정) */
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
   --color-surface-accent: var(--surface-accent);
