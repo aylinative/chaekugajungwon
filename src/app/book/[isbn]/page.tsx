@@ -14,6 +14,7 @@ import BookSwipeNav from '@/components/book/BookSwipeNav'
 import RecordCard from '@/components/book/RecordCard'
 import ExpandableRecords from '@/components/book/ExpandableRecords'
 import RecordSwipeRow from '@/components/book/RecordSwipeRow'
+import RecordNudge from '@/components/book/RecordNudge'
 import { groupByAuthor, readOrderById } from '@/lib/readOrder'
 import BookTopics, { type TopicLink } from '@/components/book/BookTopics'
 import BookIntro from '@/components/book/BookIntro'
@@ -272,7 +273,8 @@ export default async function BookPage({
         .from('posts')
         .select('*', { count: 'exact', head: true })
         .eq('book_id', book.id)
-        .eq('user_id', user.id),
+        .eq('user_id', user.id)
+        .is('hidden_at', null), // 삭제한 기록은 '기록함'이 아님 — 기록 상세와 같은 판정 (2026.11.24)
       supabase.from('user_blocks').select('blocked_id').eq('blocker_id', user.id),
     ])
     blockedIds = new Set(((blockRows as { blocked_id: string }[] | null) ?? []).map((r) => r.blocked_id))
@@ -442,36 +444,8 @@ export default async function BookPage({
           )}
         </section>
 
-        {/* 기여 넛지(벽 아님): 기록한 사람에겐 '또 읽었어요'(재독 기록, 2026.11.23 운영자 — 별로면 뺄 수 있음) */}
-        {user && myLatestPostId && (
-          <section className="mt-4 rounded-2xl bg-surface-muted p-5 text-center">
-            <p className="text-sm font-semibold text-text/80">또 읽으셨나요?</p>
-            <p className="mt-1 text-xs leading-relaxed text-text/60">오늘 아이와 다시 읽은 이야기를 남겨 보세요.</p>
-            <Link
-              href={`/recommend/create?again=${myLatestPostId}`}
-              className="mt-3 inline-block rounded-xl bg-surface px-4 py-2 text-sm font-medium text-text/70"
-            >
-              또 읽었어요
-            </Link>
-          </section>
-        )}
-        {/* 기여 넛지(벽 아님): 이 책을 아직 기록하지 않은 로그인 유저에게만. */}
-        {user && !hasMyRecord && (
-          <section className="mt-4 rounded-2xl bg-main/10 p-5 text-center">
-            <p className="text-sm font-semibold text-main">
-              이 책, 아이와 읽어보셨어요?
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-text/60">
-              우리 아이 반응을 기록하면 같은 시기 양육자들에게 큰 도움이 돼요.
-            </p>
-            <Link
-              href={`/recommend/create?book=${encodeURIComponent(decodeURIComponent(isbn))}`}
-              className="mt-3 inline-block rounded-xl bg-main px-4 py-2 text-sm font-medium text-white"
-            >
-              기록 남기기
-            </Link>
-          </section>
-        )}
+        {/* 기여 넛지(벽 아님, 로그인한 사람만): 아직 기록 안 함 → 기록 남기기 / 기록함 → 또 읽었어요 (components/book/RecordNudge) */}
+        {user && <RecordNudge bookKey={decodeURIComponent(isbn)} myLatestPostId={myLatestPostId} />}
       </main>
 
       <BottomTabBar />

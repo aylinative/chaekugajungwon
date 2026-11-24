@@ -17,6 +17,7 @@ import PostPhotos from '@/components/post/PostPhotos'
 import BottomTabBar from '@/components/BottomTabBar'
 import PostActionsMenu from '@/components/post/PostActionsMenu'
 import BlockedCover from '@/components/report/BlockedCover'
+import RecordNudge from '@/components/book/RecordNudge'
 
 const LABEL_TO_BADGE: Record<string, string> = Object.fromEntries(
   RECOMMEND_GROUPS.map((g) => [g.label, g.selectedClass])
@@ -32,6 +33,7 @@ interface RawDetail {
   user_id: string
   book: {
     id: string
+    book_key: string
     title: string | null
     author: string | null
     publisher: string | null
@@ -157,6 +159,7 @@ export default async function PostDetailPage({
   let myGroups: string[] = []
   let bookmarkedByMe = false
   let hasMyRecord = isOwner
+  let myLatestPostId: string | null = null // 이 책의 내 가장 최근 기록(남의 기록을 볼 때 안내 상자용)
   if (bookId) {
     const [distribution, myLikeRes, myBookmarkRes, myRecordRes] = await Promise.all([
       getBookDistribution(supabase, bookId),
@@ -170,16 +173,21 @@ export default async function PostDetailPage({
       user && !isOwner
         ? supabase
             .from('posts')
-            .select('*', { count: 'exact', head: true })
+            .select('id')
             .eq('book_id', bookId)
             .eq('user_id', user.id)
-        : Promise.resolve({ count: 0 }),
+            .is('hidden_at', null)
+            .order('diary_date', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(1)
+        : Promise.resolve({ data: [] }),
     ])
     recommendCount = distribution.totalVoters
     likedByMe = Boolean(myLikeRes.data)
     myGroups = (myLikeRes.data as { group_names: string[] | null } | null)?.group_names ?? []
     bookmarkedByMe = Boolean((myBookmarkRes.data as { book_id: string } | null)?.book_id)
-    hasMyRecord = isOwner || (myRecordRes.count ?? 0) > 0
+    myLatestPostId = ((myRecordRes.data as { id: string }[] | null) ?? [])[0]?.id ?? null
+    hasMyRecord = isOwner || Boolean(myLatestPostId)
   }
 
   // 일기 날짜. 그날 아이 나이는 표시하지 않는다(2026.11.18 운영자 — 작성자 본인 화면에서도 삭제)
@@ -240,7 +248,16 @@ export default async function PostDetailPage({
       <main className="mx-auto w-full max-w-md flex-1 px-4 pb-10 pt-4">
         {/* ① 책 정보 영역 */}
         <section className="rounded-2xl bg-surface p-4 shadow-sm">
-          <div className="flex gap-4">
+          {/* 표지·제목 쪽 전체 = 이 책 페이지(다른 사람 기록까지 모인 곳)로 (2026.11.24 운영자).
+              링크 안에 링크를 넣을 수 없어, 영역을 덮는 링크를 깔고 '책 정보 보기'(외부)만 그 위로 올린다 */}
+          <div className="relative flex gap-4">
+            {book?.book_key && (
+              <Link
+                href={`/book/${encodeURIComponent(book.book_key)}`}
+                aria-label={`${book.title ?? '이 책'} — 이 책의 모든 기록 보기`}
+                className="absolute inset-0 z-0 rounded-lg active:bg-black/5"
+              />
+            )}
             <div className="h-32 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-surface-muted">
               {book?.cover_image_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -273,7 +290,7 @@ export default async function PostDetailPage({
                   href={book.source_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-3 inline-block text-xs text-main underline"
+                  className="relative z-10 mt-3 inline-block text-xs text-main underline"
                 >
                   책 정보 보기 ›
                 </a>
@@ -414,6 +431,11 @@ export default async function PostDetailPage({
             </div>
           )}
         </section>
+        )}
+
+        {/* 기여 넛지(로그인·남의 기록일 때): 아직 기록 안 함 → 이 책 바로 기록 / 기록함 → 또 읽었어요 (책 페이지와 같은 부품) */}
+        {user && !isOwner && book?.book_key && (
+          <RecordNudge bookKey={book.book_key} myLatestPostId={myLatestPostId} />
         )}
       </main>
 
