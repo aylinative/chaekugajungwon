@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Splash from "@/components/Splash";
 import EdgeSwipeBack from "@/components/EdgeSwipeBack";
+import AppBanner from "@/components/AppBanner";
 import AppleSplashLinks from "@/components/AppleSplashLinks";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import { LoginSheetHost } from "@/components/auth/LoginSheet";
@@ -125,6 +126,8 @@ export default function RootLayout({
         <Splash />
         {/* 모바일 웹 — 콘텐츠 영역을 430px로 제한하고 가운데 정렬(넓은 화면에서 폰 폭 유지) */}
         <div className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col">
+          {/* 앱 안내 띠 배너 — 사파리 외 모바일 브라우저(앱 안 브라우저 등)에서만, 맨 위 한 줄 */}
+          <AppBanner />
           {children}
         </div>
         {/* 로그인 바텀시트 — 계정이 필요한 행동을 할 때 openLoginSheet()로 연다 */}
