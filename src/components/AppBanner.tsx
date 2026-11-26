@@ -43,6 +43,8 @@ export default function AppBanner() {
     } catch {
       // 저장소를 못 쓰면 닫기 기억 없이 표시
     }
+    // 브라우저 정보는 마운트 후에만 알 수 있음(서버·첫 렌더는 null로 같게 — 하이드레이션 안전)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStoreUrl(storeUrlFor(navigator.userAgent))
   }, [])
 
