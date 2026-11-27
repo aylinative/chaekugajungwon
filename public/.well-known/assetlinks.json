@@ -8,4 +8,14 @@
           "06:2E:A5:EA:99:8C:57:A6:1B:35:B8:13:59:4A:E7:55:12:F8:27:5A:40:BC:FC:BA:77:E7:F9:D3:81:20:6E:59"
         ]
       }
+    }, {
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "kr.co.bookgardening.android",
+        "sha256_cert_fingerprints": [
+          "FD:FD:BD:77:CB:52:EE:2F:73:11:65:1C:11:3D:BD:22:AA:FF:91:BF:14:CF:6E:7D:DD:2B:8F:3D:FD:71:00:F2",
+          "3B:5B:EA:B9:A1:E0:39:28:92:90:3B:B3:1F:C0:AA:4D:87:8A:F4:A7:B3:48:F4:7B:06:7E:A5:D5:8C:FE:5D:E5"
+        ]
+      }
     }]
